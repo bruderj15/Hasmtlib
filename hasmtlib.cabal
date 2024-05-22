@@ -16,11 +16,14 @@ executable hasmtlib
   hs-source-dirs:      src
   main-is:             Main.hs
   default-language:    GHC2021
-  default-extensions:  DataKinds
+  default-extensions:  DataKinds, GADTs
 
 
   build-depends:       base
                      , containers
+                     , mtl
+                     , smtlib-backends
+                     , ersatz
 
   ghc-options:         -Wall
                        -Wcompat
