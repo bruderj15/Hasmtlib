@@ -1,0 +1,32 @@
+cabal-version:       2.2
+
+name:                hasmtlib
+version:             0.1.0.0
+homepage:            https://github.com/githubuser/hasmtlib#readme
+license:             BSD-3-Clause
+license-file:        LICENSE
+author:              Author name here
+maintainer:          example@example.com
+copyright:           2024 Author name here
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+
+executable hasmtlib
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  default-language:    GHC2021
+  default-extensions:  DataKinds
+
+
+  build-depends:       base
+                     , containers
+
+  ghc-options:         -Wall
+                       -Wcompat
+                       -Widentities
+                       -Wincomplete-record-updates
+                       -Wincomplete-uni-patterns
+                       -Wpartial-fields
+                       -Wredundant-constraints
+                       -Wno-type-defaults
