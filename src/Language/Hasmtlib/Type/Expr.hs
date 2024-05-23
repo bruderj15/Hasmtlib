@@ -1,12 +1,13 @@
 module Language.Hasmtlib.Type.Expr where
 
-import Language.Hasmtlib.Boolean
-import Data.Foldable (foldr')
-
 newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
 
 -- Usage as DataKinds
 data SMTType = IntType | RealType | BoolType
+
+class SMTNumber (t :: SMTType)
+instance SMTNumber RealType
+instance SMTNumber IntType
 
 data Value (t :: SMTType) where
   IntValue  :: Integer  -> Value IntType
@@ -24,6 +25,8 @@ data Expr (t :: SMTType) where
   Plus     :: Expr t -> Expr t -> Expr t
   Neg      :: Expr t -> Expr t
   Mul      :: Expr t -> Expr t -> Expr t
+  Abs      :: Expr t -> Expr t 
+  Mod      :: Expr IntType  -> Expr IntType  -> Expr IntType 
   Div      :: Expr RealType -> Expr RealType -> Expr RealType
   
   -- Atoms
@@ -32,6 +35,13 @@ data Expr (t :: SMTType) where
   EQU       :: Expr t -> Expr t -> Expr BoolType
   GTHE      :: Expr t -> Expr t -> Expr BoolType
   GTH       :: Expr t -> Expr t -> Expr BoolType
+
+  -- Formulas
+  Not       :: Expr BoolType -> Expr BoolType
+  And       :: Expr BoolType -> Expr BoolType -> Expr BoolType
+  Or        :: Expr BoolType -> Expr BoolType -> Expr BoolType
+  Impl      :: Expr BoolType -> Expr BoolType -> Expr BoolType
+  Xor       :: Expr BoolType -> Expr BoolType -> Expr BoolType
 
   -- Transcendentals
   Pi       :: Expr RealType
@@ -50,6 +60,11 @@ data Expr (t :: SMTType) where
   Asinh    :: Expr RealType -> Expr RealType
   Acosh    :: Expr RealType -> Expr RealType
   Atanh    :: Expr RealType -> Expr RealType
+  
+  -- Conversion
+  ToReal   :: Expr IntType  -> Expr RealType
+  ToInt    :: Expr RealType -> Expr IntType
+  IsInt    :: Expr RealType -> Expr BoolType
 
 deriving instance Show (Expr t)  
 
@@ -59,7 +74,7 @@ instance Num (Expr IntType) where
   x - y       = Plus x (Neg y)
   (*)         = Mul
   negate      = Neg
-  abs         = error "abs not yet implemented"
+  abs         = Abs
   signum      = error "signum not yet implemented"
 
 instance Num (Expr RealType) where
@@ -68,7 +83,7 @@ instance Num (Expr RealType) where
   x - y       = Plus x (Neg y)
   (*)         = Mul
   negate      = Neg
-  abs         = error "abs not yet implemented"
+  abs         = Abs
   signum      = error "signum not yet implemented"
 
 instance Fractional (Expr RealType) where
@@ -76,28 +91,20 @@ instance Fractional (Expr RealType) where
   (/)          = Div
 
 instance Floating (Expr RealType) where
-    pi = Pi
-    exp = Exp
-    log = Log
-    sqrt = Sqrt
-    sin = Sin
-    cos = Cos
-    tan = Tan
-    asin = Asin
-    acos = Acos
-    atan = Atan
-    sinh = Sinh
-    cosh = Cosh
-    tanh = Tanh
+    pi    = Pi
+    exp   = Exp
+    log   = Log
+    sqrt  = Sqrt
+    sin   = Sin
+    cos   = Cos
+    tan   = Tan
+    asin  = Asin
+    acos  = Acos
+    atan  = Atan
+    sinh  = Sinh
+    cosh  = Cosh
+    tanh  = Tanh
     asinh = Asinh
     acosh = Acosh
     atanh = Atanh
-
-instance Boolean (Expr BoolType) where
-  bool    = Constant . BoolValue
-  (&&&)   = Mul
-  (|||)   = Plus
-  not'    = Neg
-  all' p  = foldr' (\expr acc -> acc &&& p expr) true
-  any' p  = not' . all' (not' . p)
-  xor x y = Neg $ EQU x y
+    
