@@ -10,5 +10,5 @@ class Equatable a where
   x /== y = not' $ x === y
 infix 4 ===, /==
 
-instance Equatable (Expr a) where
+instance KnownSMTRepr a => Equatable (Expr a) where
   (===) = EQU

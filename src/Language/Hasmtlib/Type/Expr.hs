@@ -1,13 +1,15 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Language.Hasmtlib.Type.Expr where
 
-newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
+import Data.AttoLisp
+import Data.Coerce
+import Data.Text
 
 -- Usage as DataKinds
 data SMTType = IntType | RealType | BoolType
 
-class SMTNumber (t :: SMTType)
-instance SMTNumber RealType
-instance SMTNumber IntType
+newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
 
 data Value (t :: SMTType) where
   IntValue  :: Integer  -> Value IntType
@@ -17,24 +19,35 @@ data Value (t :: SMTType) where
 deriving instance Show (Value t)
 deriving instance Eq (Value t)
 
+-- Representation of the SMTLib Type
+data Repr (t :: SMTType) where
+  IntRepr  :: Repr IntType
+  RealRepr :: Repr RealType
+  BoolRepr :: Repr BoolType
+
+class    KnownSMTRepr (t :: SMTType) where singRepr :: Repr t
+instance KnownSMTRepr IntType        where singRepr = IntRepr
+instance KnownSMTRepr RealType       where singRepr = RealRepr
+instance KnownSMTRepr BoolType       where singRepr = BoolRepr
+
 data Expr (t :: SMTType) where
   Var      :: SMTVar t -> Expr t
-  Constant :: Value t  -> Expr t
+  Constant :: Value  t -> Expr t
 
   -- Terms
   Plus     :: Expr t -> Expr t -> Expr t
   Neg      :: Expr t -> Expr t
   Mul      :: Expr t -> Expr t -> Expr t
-  Abs      :: Expr t -> Expr t 
-  Mod      :: Expr IntType  -> Expr IntType  -> Expr IntType 
+  Abs      :: Expr t -> Expr t
+  Mod      :: Expr IntType  -> Expr IntType  -> Expr IntType
   Div      :: Expr RealType -> Expr RealType -> Expr RealType
   
   -- Atoms
-  LTH       :: Expr t -> Expr t -> Expr BoolType
-  LTHE      :: Expr t -> Expr t -> Expr BoolType
-  EQU       :: Expr t -> Expr t -> Expr BoolType
-  GTHE      :: Expr t -> Expr t -> Expr BoolType
-  GTH       :: Expr t -> Expr t -> Expr BoolType
+  LTH       :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
+  LTHE      :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
+  EQU       :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
+  GTHE      :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
+  GTH       :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
 
   -- Formulas
   Not       :: Expr BoolType -> Expr BoolType
@@ -60,7 +73,7 @@ data Expr (t :: SMTType) where
   Asinh    :: Expr RealType -> Expr RealType
   Acosh    :: Expr RealType -> Expr RealType
   Atanh    :: Expr RealType -> Expr RealType
-  
+
   -- Conversion
   ToReal   :: Expr IntType  -> Expr RealType
   ToInt    :: Expr RealType -> Expr IntType
@@ -108,3 +121,67 @@ instance Floating (Expr RealType) where
     acosh = Acosh
     atanh = Atanh
     
+instance ToLisp (SMTVar t) where
+  toLisp v = Symbol $ "var_" <> pack (show $ coerce @(SMTVar t) @Int v)
+    
+-- Some of these are backend-dependant
+-- Adjust in future
+instance KnownSMTRepr t => ToLisp (Expr t) where
+  toLisp (Var v)                  = toLisp v
+  toLisp (Constant (BoolValue v)) = toLisp v
+  toLisp (Constant (IntValue v))  = toLisp v
+  toLisp (Constant (RealValue v)) = toLisp v
+
+  toLisp (Plus x y)   = List [ Symbol $ case singRepr @t of
+                                 BoolRepr -> "or"
+                                 _        -> "+"
+                             , toLisp x
+                             , toLisp y]
+  toLisp (Neg x)      = List [ Symbol $ case singRepr @t of
+                              BoolRepr -> "not"
+                              _        -> "-"
+                             , toLisp x]
+  toLisp (Mul x y)    = List [ Symbol $ case singRepr @t of
+                                 BoolRepr -> "and"
+                                 _        -> "*"
+                             , toLisp x
+                             , toLisp y]
+  toLisp (Abs x)      = case singRepr @t of
+                          BoolRepr -> toLisp x
+                          _        -> List [Symbol "abs", toLisp x]
+  toLisp (Mod x y)    = List [Symbol "mod", toLisp x, toLisp y]
+  toLisp (Div x y)    = List [Symbol "/",   toLisp x, toLisp y]
+
+  toLisp (LTH x y)    = List [Symbol "<",   toLisp x, toLisp y]
+  toLisp (LTHE x y)   = List [Symbol "<=",  toLisp x, toLisp y]
+  toLisp (EQU x y)    = List [Symbol "=",   toLisp x, toLisp y]
+  toLisp (GTHE x y)   = List [Symbol ">=",  toLisp x, toLisp y]
+  toLisp (GTH x y)    = List [Symbol ">",   toLisp x, toLisp y]
+
+  toLisp (Not x)      = List [Symbol "not", toLisp x]
+  toLisp (And x y)    = List [Symbol "and", toLisp x, toLisp y]
+  toLisp (Or x y)     = List [Symbol "or",  toLisp x, toLisp y]
+  toLisp (Impl x y)   = List [Symbol "=>",  toLisp x, toLisp y]
+  toLisp (Xor x y)    = List [Symbol "xor", toLisp x, toLisp y]
+
+  -- TODO: Replace ??? with actual ones
+  toLisp Pi           = Symbol "real.pi"
+  toLisp (Sqrt x)     = List [Symbol "sqrt",    toLisp x]
+  toLisp (Exp x)      = List [Symbol "exp",     toLisp x]
+--  toLisp (Log x)      = List [Symbol "???",     toLisp x]
+  toLisp (Sin x)      = List [Symbol "sin",     toLisp x]
+  toLisp (Cos x)      = List [Symbol "cos",     toLisp x]
+  toLisp (Tan x)      = List [Symbol "tan",     toLisp x]
+  toLisp (Asin x)     = List [Symbol "arcsin",  toLisp x]
+  toLisp (Acos x)     = List [Symbol "arccos",  toLisp x]
+  toLisp (Atan x)     = List [Symbol "arctan",  toLisp x]
+--  toLisp (Sinh x)     = List [Symbol "???",     toLisp x]
+--  toLisp (Cosh x)     = List [Symbol "???",     toLisp x]
+--  toLisp (Tanh x)     = List [Symbol "???",     toLisp x]
+--  toLisp (Asinh x)    = List [Symbol "???",     toLisp x]
+--  toLisp (Acosh x)    = List [Symbol "???",     toLisp x]
+--  toLisp (Atanh x)    = List [Symbol "???",     toLisp x]
+
+  toLisp (ToReal x)   = List [Symbol "to_real", toLisp x]
+  toLisp (ToInt x)    = List [Symbol "to_int",  toLisp x]
+  toLisp (IsInt x)    = List [Symbol "is_int",  toLisp x]

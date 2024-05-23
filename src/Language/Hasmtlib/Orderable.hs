@@ -10,7 +10,7 @@ class Equatable a => Orderable a where
   (>?)  :: a -> a -> Expr BoolType
 infix 4 <?, <=?, >=?, >?
 
-instance Orderable (Expr a) where
+instance KnownSMTRepr a => Orderable (Expr a) where
   (<?)  = LTH
   (<=?) = LTHE
   (>=?) = GTHE
