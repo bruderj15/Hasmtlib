@@ -11,6 +11,17 @@ packages:
       size: 275
   original:
     hackage: smtlib-backends-0.3@sha256:a947aead99f6a314833bddca9b502d5faea8d3bd2fc76ffb53c34d5c5b7557bc,1211
+- completed:
+    name: atto-lisp
+    pantry-tree:
+      sha256: 0bad909bcb8649907887474ec31eaaca17c8d702bc6f7ae635c454e8437546bf
+      size: 647
+    sha256: 6dd18019ad9ecf6ece11df45da5401a34d8d31cfbd8c4d5f116409a0b3d10611
+    size: 13238
+    url: https://github.com/studJBccl/atto-lisp/archive/58f0d71c7cfc39ebe4810d6f174d08cd4e62ae0d.tar.gz
+    version: 0.2.2.3
+  original:
+    url: https://github.com/studJBccl/atto-lisp/archive/58f0d71c7cfc39ebe4810d6f174d08cd4e62ae0d.tar.gz
 snapshots:
 - completed:
     sha256: 4be1ca5d31689b524a7f0f17a439bbe9136465213edc498e9a395899a670f2aa

@@ -23,6 +23,8 @@ executable hasmtlib
                      , containers
                      , mtl
                      , data-default
+                     , text
+                     , atto-lisp
                      , smtlib-backends
 
   ghc-options:         -Wall
