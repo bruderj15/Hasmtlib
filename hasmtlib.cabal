@@ -22,8 +22,8 @@ executable hasmtlib
   build-depends:       base
                      , containers
                      , mtl
+                     , data-default
                      , smtlib-backends
-                     , ersatz
 
   ghc-options:         -Wall
                        -Wcompat

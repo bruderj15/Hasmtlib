@@ -1,13 +1,7 @@
-module Language.Hasmtlib.Type.Expr
- (
-   Expr(..)
- , Boolean(..) 
- )
- where
+module Language.Hasmtlib.Type.Expr where
 
-import Prelude hiding (not, any, all, (||), (&&))
 import Language.Hasmtlib.Type.SMT
-import Ersatz.Bit (Boolean(..))
+import Language.Hasmtlib.Boolean
 import Data.Foldable (foldr')
 
 data Expr (t :: SMTType) where
@@ -89,9 +83,9 @@ instance Floating (Expr RealType) where
 
 instance Boolean (Expr BoolType) where
   bool    = Constant . BoolValue
-  (&&)    = Mul
-  (||)    = Plus
-  not     = Neg  
-  all p   = foldr' (\expr acc -> acc && p expr) true
-  any p   = not . all (not . p)
+  (&&&)   = Mul
+  (|||)   = Plus
+  not'    = Neg  
+  all' p  = foldr' (\expr acc -> acc &&& p expr) true
+  any' p  = not' . all' (not' . p)
   xor x y = Neg $ EQU x y
