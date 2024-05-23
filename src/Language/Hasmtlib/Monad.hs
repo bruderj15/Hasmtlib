@@ -4,28 +4,44 @@ module Language.Hasmtlib.Monad where
 
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMT
-import Data.Proxy
 import Data.Coerce
 import Control.Monad.State
-import qualified Data.Set as Set
+import qualified Data.Sequence as Seq
 
--- Strict...?
 data SMT = SMT 
   { 
-    lastAtom :: {-# UNPACK #-} !Int
-  , intVars  :: Set.Set (SMTVar IntType)
-  , realVars :: Set.Set (SMTVar RealType)
-  , boolVars :: Set.Set (SMTVar BoolType)
-  , formulas :: Set.Set (Expr BoolType) 
-  }
-  
--- Proxy required
-var :: forall m t. MonadState SMT m => Proxy (t :: SMTType) -> m (SMTVar t)
-var _ = do
-  (SMT la vs fs) <- get
+      lastAtom :: {-# UNPACK #-} !Int
+    , intVars  :: Seq.Seq (SMTVar IntType)
+    , realVars :: Seq.Seq (SMTVar RealType)
+    , boolVars :: Seq.Seq (SMTVar BoolType)
+    , formulas :: Seq.Seq (Expr BoolType) 
+  } deriving Show
+
+-- We can do better here: 
+-- MonadState SMT m => m (SMTVar t) 
+intVar :: MonadState SMT m => m (SMTVar IntType)
+intVar = do
+  (SMT la ivs rvs bvs fs) <- get
   let la' = la + 1
-      newVar = coerce @Int @(SMTVar t) la'
-  put $ SMT la' (Set.insert newVar vs) fs
+      newVar = coerce la'
+  put $ SMT la' (ivs Seq.|> newVar) rvs bvs fs
   return newVar
 
---assert :: MonadState SMT m => 
+realVar :: MonadState SMT m => m (SMTVar RealType)
+realVar = do
+  (SMT la ivs rvs bvs fs) <- get
+  let la' = la + 1
+      newVar = coerce la'
+  put $ SMT la' ivs (rvs Seq.|> newVar) bvs fs
+  return newVar
+
+boolVar :: MonadState SMT m => m (SMTVar BoolType)
+boolVar = do
+  (SMT la ivs rvs bvs fs) <- get
+  let la' = la + 1
+      newVar = coerce la'
+  put $ SMT la' ivs rvs (bvs Seq.|> newVar) fs
+  return newVar
+
+assert :: MonadState SMT m => Expr BoolType -> m ()
+assert expr = modify $ \s -> s { formulas = formulas s Seq.|> expr } 

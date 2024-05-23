@@ -1,7 +1,8 @@
 module Language.Hasmtlib.Type.SMT where
 
 newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
-  
+
+-- Usage as DataKinds  
 data SMTType = IntType | RealType | BoolType
 
 data Value (t :: SMTType) where
