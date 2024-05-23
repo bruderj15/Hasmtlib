@@ -1,6 +1,5 @@
 module Language.Hasmtlib.Orderable where
 
-import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Equatable
   

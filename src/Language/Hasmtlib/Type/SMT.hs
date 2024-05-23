@@ -1,15 +1,47 @@
 module Language.Hasmtlib.Type.SMT where
 
-newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
+import Language.Hasmtlib.Type.Expr
+import Data.Coerce
+import Data.Default
+import Control.Monad.State
+import qualified Data.Sequence as Seq
 
--- Usage as DataKinds  
-data SMTType = IntType | RealType | BoolType
+data SMT = SMT
+  { lastAtom :: {-# UNPACK #-} !Int
+  , intVars  :: Seq.Seq (SMTVar IntType)
+  , realVars :: Seq.Seq (SMTVar RealType)
+  , boolVars :: Seq.Seq (SMTVar BoolType)
+  , formulas :: Seq.Seq (Expr BoolType)
+  } deriving Show
 
-data Value (t :: SMTType) where
-  IntValue  :: Integer  -> Value IntType
-  RealValue :: Rational -> Value RealType
-  BoolValue :: Bool     -> Value BoolType
-  
-deriving instance Show (Value t)  
-deriving instance Eq (Value t)  
-   
+instance Default SMT where
+  def = SMT 0 mempty mempty mempty mempty
+
+-- We can do better here:
+-- MonadState SMT m => m (SMTVar t)
+intVar :: MonadState SMT m => m (Expr IntType)
+intVar = do
+  (SMT la ivs rvs bvs fs) <- get
+  let la' = la + 1
+      newVar = coerce la'
+  put $ SMT la' (ivs Seq.|> newVar) rvs bvs fs
+  return $ Var newVar
+
+realVar :: MonadState SMT m => m (Expr RealType)
+realVar = do
+  (SMT la ivs rvs bvs fs) <- get
+  let la' = la + 1
+      newVar = coerce la'
+  put $ SMT la' ivs (rvs Seq.|> newVar) bvs fs
+  return $ Var newVar
+
+boolVar :: MonadState SMT m => m (Expr BoolType)
+boolVar = do
+  (SMT la ivs rvs bvs fs) <- get
+  let la' = la + 1
+      newVar = coerce la'
+  put $ SMT la' ivs rvs (bvs Seq.|> newVar) fs
+  return $ Var newVar
+
+assert :: MonadState SMT m => Expr BoolType -> m ()
+assert expr = modify $ \s -> s { formulas = formulas s Seq.|> expr }

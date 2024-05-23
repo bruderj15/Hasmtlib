@@ -1,8 +1,20 @@
 module Language.Hasmtlib.Type.Expr where
 
-import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Boolean
 import Data.Foldable (foldr')
+
+newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
+
+-- Usage as DataKinds
+data SMTType = IntType | RealType | BoolType
+
+data Value (t :: SMTType) where
+  IntValue  :: Integer  -> Value IntType
+  RealValue :: Rational -> Value RealType
+  BoolValue :: Bool     -> Value BoolType
+
+deriving instance Show (Value t)
+deriving instance Eq (Value t)
 
 data Expr (t :: SMTType) where
   Var      :: SMTVar t -> Expr t
@@ -85,7 +97,7 @@ instance Boolean (Expr BoolType) where
   bool    = Constant . BoolValue
   (&&&)   = Mul
   (|||)   = Plus
-  not'    = Neg  
+  not'    = Neg
   all' p  = foldr' (\expr acc -> acc &&& p expr) true
   any' p  = not' . all' (not' . p)
   xor x y = Neg $ EQU x y
