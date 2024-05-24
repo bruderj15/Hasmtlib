@@ -24,6 +24,7 @@ executable hasmtlib
                      , mtl
                      , data-default
                      , text
+                     , bytestring
                      , atto-lisp
                      , smtlib-backends
 
