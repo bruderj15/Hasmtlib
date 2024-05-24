@@ -30,6 +30,9 @@ instance KnownSMTRepr IntType        where singRepr = IntRepr
 instance KnownSMTRepr RealType       where singRepr = RealRepr
 instance KnownSMTRepr BoolType       where singRepr = BoolRepr
 
+data SomeKnownSMTRepr f where
+  SomeKnownSMTRepr :: forall (t :: SMTType) f. KnownSMTRepr t => f t -> SomeKnownSMTRepr f
+
 data Expr (t :: SMTType) where
   Var      :: SMTVar t -> Expr t
   Constant :: Value  t -> Expr t
