@@ -22,6 +22,7 @@ executable hasmtlib
   build-depends:       base
                      , containers
                      , mtl
+                     , lens
                      , data-default
                      , text
                      , bytestring
