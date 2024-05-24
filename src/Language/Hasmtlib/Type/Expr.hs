@@ -3,13 +3,12 @@
 module Language.Hasmtlib.Type.Expr where
 
 import Data.AttoLisp
-import Data.Coerce
 import Data.Text
 
 -- Usage as DataKinds
 data SMTType = IntType | RealType | BoolType
 
-newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
+data SMTVar (t :: SMTType) = SMTVar { varId :: Int, val :: Maybe (Value t) } deriving (Show, Eq, Ord)
 
 data Value (t :: SMTType) where
   IntValue  :: Integer  -> Value IntType
@@ -17,7 +16,8 @@ data Value (t :: SMTType) where
   BoolValue :: Bool     -> Value BoolType
 
 deriving instance Show (Value t)
-deriving instance Eq (Value t)
+deriving instance Eq   (Value t)
+deriving instance Ord  (Value t)
 
 -- Representation of the SMTLib Type
 data Repr (t :: SMTType) where
@@ -127,7 +127,7 @@ instance ToLisp (Repr t) where
    toLisp BoolRepr = Symbol "Bool"
 
 instance ToLisp (SMTVar t) where
-  toLisp v = Symbol $ "var_" <> pack (show $ coerce @(SMTVar t) @Int v)
+  toLisp (SMTVar i _) = Symbol $ "var_" <> pack (show i)
     
 -- Some of these are backend-dependant
 -- Adjust in future

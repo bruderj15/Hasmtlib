@@ -12,9 +12,11 @@ import Data.Sequence
 
 -- TODO: Use foldb :: b -> (a -> b) -> (b -> b -> b) -> Seq a -> b? Bench!
 buildSMT :: SMT -> ByteString
-buildSMT (SMT _ ivs rvs bvs fs) =
+buildSMT (SMT _ ivs rvs bvs fs ml) =
   toLazyByteString $
-     buildVars ivs
+     maybe mempty stringUtf8 ml
+  <> charUtf8 '\n'
+  <> buildVars ivs
   <> charUtf8 '\n'
   <> buildVars rvs
   <> charUtf8 '\n'
@@ -25,9 +27,9 @@ buildSMT (SMT _ ivs rvs bvs fs) =
 
 buildVars :: forall t. KnownSMTRepr t => Seq (SMTVar t) -> Builder
 buildVars = foldl'
-  (\s var ->
+  (\s v ->
        s
     <> charUtf8 '\n'
-    <> fromLispExpr (List [Symbol "declare-fun", toLisp var, Symbol "()", smtType]))
+    <> fromLispExpr (List [Symbol "declare-fun", toLisp v, Symbol "()", smtType]))
   mempty
     where smtType = toLisp $ singRepr @t
