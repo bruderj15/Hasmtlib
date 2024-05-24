@@ -1,6 +1,5 @@
 module Language.Hasmtlib.Boolean where
 
-import Language.Hasmtlib.Type.Expr
 import Data.Foldable (foldr')
   
 class Boolean b where
@@ -59,15 +58,6 @@ class Boolean b where
 
   -- | Exclusive-or
   xor :: b -> b -> b
-
-instance Boolean (Expr BoolType) where
-  bool    = Constant . BoolValue
-  (&&&)   = And
-  (|||)   = Or
-  not'    = Not
-  all' p  = foldr' (\expr acc -> acc &&& p expr) true
-  any' p  = not' . all' (not' . p)
-  xor     = Xor
 
 instance Boolean Bool where
   bool  = id

@@ -1,17 +1,12 @@
 module Language.Hasmtlib.Orderable where
 
-import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Equatable
-  
-class Equatable a => Orderable a where
-  (<?)  :: a -> a -> Expr BoolType
-  (<=?) :: a -> a -> Expr BoolType
-  (>=?) :: a -> a -> Expr BoolType
-  (>?)  :: a -> a -> Expr BoolType
-infix 4 <?, <=?, >=?, >?
+import Data.Kind
 
-instance KnownSMTRepr a => Orderable (Expr a) where
-  (<?)  = LTH
-  (<=?) = LTHE
-  (>=?) = GTHE
-  (>?)  = GTH
+class Equatable a => Orderable a where
+  type OrdResult a :: Type
+  (<=?) :: a -> a -> OrdResult a
+  (>=?) :: a -> a -> OrdResult a
+  (<?)  :: a -> a -> OrdResult a
+  (>?)  :: a -> a -> OrdResult a
+infix 4 <?, <=?, >=?, >?

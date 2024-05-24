@@ -16,7 +16,7 @@ executable hasmtlib
   hs-source-dirs:      src
   main-is:             Main.hs
   default-language:    GHC2021
-  default-extensions:  DataKinds, GADTs
+  default-extensions:  DataKinds, GADTs, TypeFamilies
 
 
   build-depends:       base

@@ -2,15 +2,19 @@
 
 module Language.Hasmtlib.Type.Expr where
 
+import Language.Hasmtlib.Boolean
+import Language.Hasmtlib.Equatable
+import Language.Hasmtlib.Orderable
 import Data.AttoLisp
-import Data.Text
+import Data.Text hiding (foldr')
+import Data.Foldable (foldr')
 
 -- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType
 
 -- | SMT variable
-data SMTVar (t :: SMTType) = SMTVar { 
-    varId :: Int                    -- | Identifier for the variable when communicating with SMT-Solver 
+data SMTVar (t :: SMTType) = SMTVar {
+    varId :: Int                    -- | Identifier for the variable when communicating with SMT-Solver
   , val :: Maybe (Value t)          -- | Value of the Variable, Nothing if none present, Just otherwise
   } deriving (Show, Eq, Ord)
 
@@ -90,7 +94,34 @@ data Expr (t :: SMTType) where
   ToInt    :: Expr RealType -> Expr IntType
   IsInt    :: Expr RealType -> Expr BoolType
 
-deriving instance Show (Expr t)  
+  -- Choosing
+  Ite      :: Expr BoolType -> Expr t -> Expr t -> Expr t
+
+deriving instance Show (Expr t)
+
+ite :: Expr BoolType -> Expr t -> Expr t -> Expr t
+ite = Ite
+
+instance Boolean (Expr BoolType) where
+  bool    = Constant . BoolValue
+  (&&&)   = And
+  (|||)   = Or
+  not'    = Not
+  all' p  = foldr' (\expr acc -> acc &&& p expr) true
+  any' p  = not' . all' (not' . p)
+  xor     = Xor
+
+instance KnownSMTRepr a => Equatable (Expr a) where
+  type EqResult (Expr a) = Expr BoolType
+  (===)   = EQU
+  x /== y = Not $ EQU x y
+
+instance KnownSMTRepr a => Orderable (Expr a) where
+  type OrdResult (Expr a) = Expr BoolType
+  (<?)  = LTH
+  (<=?) = LTHE
+  (>=?) = GTHE
+  (>?)  = GTH
 
 instance Num (Expr IntType) where
   fromInteger = Constant . IntValue
@@ -99,7 +130,7 @@ instance Num (Expr IntType) where
   (*)         = Mul
   negate      = Neg
   abs         = Abs
-  signum      = error "signum not yet implemented"
+  signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
 
 instance Num (Expr RealType) where
   fromInteger = Constant . RealValue . fromIntegral
@@ -108,7 +139,7 @@ instance Num (Expr RealType) where
   (*)         = Mul
   negate      = Neg
   abs         = Abs
-  signum      = error "signum not yet implemented"
+  signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
 
 instance Fractional (Expr RealType) where
   fromRational = Constant . RealValue
@@ -201,3 +232,5 @@ instance KnownSMTRepr t => ToLisp (Expr t) where
   toLisp (ToReal x)   = List [Symbol "to_real", toLisp x]
   toLisp (ToInt x)    = List [Symbol "to_int",  toLisp x]
   toLisp (IsInt x)    = List [Symbol "is_int",  toLisp x]
+
+  toLisp (Ite p t f)  = List [Symbol "ite", toLisp p, toLisp t, toLisp f]
