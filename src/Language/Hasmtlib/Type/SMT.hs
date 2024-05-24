@@ -22,7 +22,7 @@ instance ToLisp SMTOption where
 
 -- | SMT State
 data SMT = SMT
-  { _lastAtom :: {-# UNPACK #-} !Int              -- | Last Id assigned to a new var
+  { _lastVarId :: {-# UNPACK #-} !Int             -- | Last Id assigned to a new var
   , _vars     :: Seq (SomeKnownSMTRepr SMTVar)    -- | All constructed variables
   , _formulas :: Seq (Expr BoolType)              -- | All asserted formulas
   , _mlogic   :: Maybe String                     -- | Logic for the SMT-Solver
@@ -53,9 +53,9 @@ setOption opt = options %= ((opt:) . filter (not . eqCon opt))
 var :: forall t m. (KnownSMTRepr t, MonadState SMT m) => m (Expr t)
 var = do
   smt <- get
-  let la' = smt^.lastAtom + 1
+  let la' = smt^.lastVarId + 1
       newVar = SMTVar la' Nothing
-  modify $ \s -> s & vars %~ (|> SomeKnownSMTRepr newVar) & lastAtom %~ (+1)
+  modify $ \s -> s & vars %~ (|> SomeKnownSMTRepr newVar) & lastVarId %~ (+1)
   return $ Var newVar
 
 -- | Assert a boolean expression
