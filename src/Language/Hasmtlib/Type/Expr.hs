@@ -120,7 +120,12 @@ instance Floating (Expr RealType) where
     asinh = Asinh
     acosh = Acosh
     atanh = Atanh
-    
+
+instance ToLisp (Repr t) where
+   toLisp IntRepr  = Symbol "Int"
+   toLisp RealRepr = Symbol "Real"
+   toLisp BoolRepr = Symbol "Bool"
+
 instance ToLisp (SMTVar t) where
   toLisp v = Symbol $ "var_" <> pack (show $ coerce @(SMTVar t) @Int v)
     
