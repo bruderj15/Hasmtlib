@@ -5,11 +5,16 @@ module Language.Hasmtlib.Type.Expr where
 import Data.AttoLisp
 import Data.Text
 
--- Usage as DataKinds
+-- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType
 
-data SMTVar (t :: SMTType) = SMTVar { varId :: Int, val :: Maybe (Value t) } deriving (Show, Eq, Ord)
+-- | SMT variable
+data SMTVar (t :: SMTType) = SMTVar { 
+    varId :: Int                    -- | Identifier for the variable when communicating with SMT-Solver 
+  , val :: Maybe (Value t)          -- | Value of the Variable, Nothing if none present, Just otherwise
+  } deriving (Show, Eq, Ord)
 
+-- | SMT value
 data Value (t :: SMTType) where
   IntValue  :: Integer  -> Value IntType
   RealValue :: Rational -> Value RealType
@@ -19,20 +24,23 @@ deriving instance Show (Value t)
 deriving instance Eq   (Value t)
 deriving instance Ord  (Value t)
 
--- Representation of the SMTLib Type
+-- | Representation of the SMTLib Type
 data Repr (t :: SMTType) where
   IntRepr  :: Repr IntType
   RealRepr :: Repr RealType
   BoolRepr :: Repr BoolType
 
+-- | Singleton for Repr t
 class    KnownSMTRepr (t :: SMTType) where singRepr :: Repr t
 instance KnownSMTRepr IntType        where singRepr = IntRepr
 instance KnownSMTRepr RealType       where singRepr = RealRepr
 instance KnownSMTRepr BoolType       where singRepr = BoolRepr
 
+-- | Existential for KnownSMTRepr t
 data SomeKnownSMTRepr f where
   SomeKnownSMTRepr :: forall (t :: SMTType) f. KnownSMTRepr t => f t -> SomeKnownSMTRepr f
 
+-- | SMT Expression
 data Expr (t :: SMTType) where
   Var      :: SMTVar t -> Expr t
   Constant :: Value  t -> Expr t
