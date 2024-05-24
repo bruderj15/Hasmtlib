@@ -7,6 +7,7 @@ import Language.Hasmtlib.Type.Expr
 import Control.Lens hiding (List)
 import Data.ByteString.Builder
 import Data.ByteString.Lazy hiding (foldl')
+import qualified Data.Text as T
 import Data.Foldable (foldl')
 import Data.AttoLisp
 import Data.Sequence
@@ -15,7 +16,9 @@ import Data.Sequence
 buildSMT :: SMT -> ByteString
 buildSMT smt =
   toLazyByteString $
-     maybe mempty stringUtf8 (smt^.mlogic)
+     foldl' (\s opt -> s <> charUtf8 '\n' <> fromLispExpr (toLisp opt)) mempty (smt^.options)
+  <> charUtf8 '\n'
+  <> maybe mempty (\l -> fromLispExpr (List [Symbol "set-logic", Symbol (T.pack l)])) (smt^.mlogic)
   <> charUtf8 '\n'
   <> buildVars (smt^.vars)
   <> charUtf8 '\n'
