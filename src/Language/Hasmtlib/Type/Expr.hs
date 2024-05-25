@@ -7,28 +7,37 @@ import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Orderable
 import Data.AttoLisp
 import Data.Text hiding (foldr')
+import Data.Coerce
 import Data.Foldable (foldr')
 
 -- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType
 
 -- | SMT variable
-data SMTVar (t :: SMTType) = SMTVar {
-    varId :: Int                    -- | Identifier for the variable when communicating with SMT-Solver
-  , val :: Maybe (Value t)          -- | Value of the Variable, Nothing if none present, Just otherwise
-  } deriving (Show, Eq, Ord)
+newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
+
+-- | Computes the Haskell representation of the SMTLib-Type
+type family ValueType (t :: SMTType) where
+  ValueType IntType  = Integer
+  ValueType RealType = Rational
+  ValueType BoolType = Bool
 
 -- | SMT value
 data Value (t :: SMTType) where
-  IntValue  :: Integer  -> Value IntType
-  RealValue :: Rational -> Value RealType
-  BoolValue :: Bool     -> Value BoolType
+  IntValue  :: ValueType IntType  -> Value IntType
+  RealValue :: ValueType RealType -> Value RealType
+  BoolValue :: ValueType BoolType -> Value BoolType
+
+extractValue :: Value t -> ValueType t
+extractValue (IntValue  v) = v
+extractValue (RealValue v) = v
+extractValue (BoolValue v) = v
 
 deriving instance Show (Value t)
 deriving instance Eq   (Value t)
 deriving instance Ord  (Value t)
 
--- | Representation of the SMTLib Type
+-- | Representation of the SMTLib-Type
 data Repr (t :: SMTType) where
   IntRepr  :: Repr IntType
   RealRepr :: Repr RealType
@@ -169,14 +178,14 @@ instance ToLisp (Repr t) where
    toLisp BoolRepr = Symbol "Bool"
 
 instance ToLisp (SMTVar t) where
-  toLisp (SMTVar i _) = Symbol $ "var_" <> pack (show i)
+  toLisp v = Symbol $ "var_" <> pack (show (coerce @(SMTVar t) @Int v))
     
 -- Some of these are backend-dependant
 -- Adjust in future
 instance KnownSMTRepr t => ToLisp (Expr t) where
   toLisp (Var v)                  = toLisp v
   toLisp (Constant (BoolValue v)) = toLisp v
-  toLisp (Constant (IntValue v))  = toLisp v
+  toLisp (Constant (IntValue  v)) = toLisp v
   toLisp (Constant (RealValue v)) = toLisp v
 
   toLisp (Plus x y)   = List [ Symbol $ case singRepr @t of

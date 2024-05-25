@@ -4,8 +4,10 @@
 module Language.Hasmtlib.Type.SMT where
 
 import Language.Hasmtlib.Type.Expr
-import Data.Default
+
 import Data.AttoLisp
+import Data.Default
+import Data.Coerce
 import Data.Sequence hiding ((|>), filter)
 import Data.Data (Data, toConstr, showConstr)
 import Control.Monad.State
@@ -29,10 +31,10 @@ data SMT = SMT
   , _options  :: [SMTOption]                      -- | All manually configured SMT-Solver-Options
   }
 
-$(makeLenses ''SMT)
-
 instance Default SMT where
-  def = SMT 0 mempty mempty Nothing mempty
+  def = SMT 0 mempty mempty mempty mempty
+
+$(makeLenses ''SMT)
 
 -- | Set the logic for the SMT-Solver to use
 --   Usage:
@@ -54,7 +56,7 @@ var :: forall t m. (KnownSMTRepr t, MonadState SMT m) => m (Expr t)
 var = do
   smt <- get
   let la' = smt^.lastVarId + 1
-      newVar = SMTVar la' Nothing
+      newVar = coerce la'
   modify $ \s -> s & vars %~ (|> SomeKnownSMTRepr newVar) & lastVarId %~ (+1)
   return $ Var newVar
 
@@ -64,6 +66,3 @@ var = do
 --      assert $ x + 5 === 42
 assert :: MonadState SMT m => Expr BoolType -> m ()
 assert expr = modify $ \s -> s & formulas %~ (|> expr)
-
-checkSat :: MonadState SMT m => m ()
-checkSat = _
