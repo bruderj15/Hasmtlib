@@ -2,13 +2,13 @@ cabal-version:       2.2
 
 name:                hasmtlib
 version:             0.1.0.0
-homepage:            https://github.com/githubuser/hasmtlib#readme
+homepage:            https://github.com/bruderj15/Hasmtlib
 license:             BSD-3-Clause
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2024 Author name here
-category:            Web
+author:              Julian Bruder
+maintainer:          julian.bruder@outlook.com
+copyright:           2024 Julian Bruder
+category:            SMT
 build-type:          Simple
 extra-source-files:  README.md
 
@@ -28,6 +28,7 @@ executable hasmtlib
                      , bytestring
                      , atto-lisp
                      , smtlib-backends
+                     , smtlib-backends-process
 
   ghc-options:         -Wall
                        -Wcompat

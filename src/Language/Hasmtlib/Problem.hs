@@ -1,17 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Hasmtlib.Solver where
- 
+module Language.Hasmtlib.Problem where
+
 import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Expr
-import Control.Lens hiding (List)
-import Data.ByteString.Builder
-import Data.ByteString.Lazy hiding (foldl')
-import qualified Data.Text as T
 import Data.Foldable (foldl')
 import Data.AttoLisp
-import Data.Sequence
-
+import Data.ByteString.Builder
+import Data.ByteString.Lazy hiding (foldl', filter)
+import Data.Sequence hiding ((|>), filter)
+import Control.Lens hiding (List)
+import qualified Data.Text as T
+  
+  
 -- TODO: Use foldb :: b -> (a -> b) -> (b -> b -> b) -> Seq a -> b? Bench!
 buildSMT :: SMT -> ByteString
 buildSMT smt =
@@ -27,12 +28,11 @@ buildSMT smt =
 
 buildVars :: Seq (SomeKnownSMTRepr SMTVar) -> Builder
 buildVars = foldl'
-  (\s (SomeKnownSMTRepr v@(SMTVar _ mval)) ->
+  (\s (SomeKnownSMTRepr v) ->
        s
     <> charUtf8 '\n'
-    <> fromLispExpr (List [Symbol "declare-fun", toLisp v, Symbol "()", goSing mval]))
+    <> fromLispExpr (List [Symbol "declare-fun", toLisp v, Symbol "()", goSing v]))
   mempty
     where
-      goSing :: forall t. KnownSMTRepr t => Maybe (Value t) -> Lisp
+      goSing :: forall t. KnownSMTRepr t => SMTVar t -> Lisp
       goSing _ = toLisp $ singRepr @t
-

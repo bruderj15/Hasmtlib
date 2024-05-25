@@ -12,6 +12,20 @@ packages:
   original:
     hackage: smtlib-backends-0.3@sha256:a947aead99f6a314833bddca9b502d5faea8d3bd2fc76ffb53c34d5c5b7557bc,1211
 - completed:
+    hackage: smtlib-backends-process-0.3@sha256:caf131d3d6f6825e3a3182713130a8e14d0bd6530eeda643e8a511b546ff1a26,1676
+    pantry-tree:
+      sha256: 7147fef29b4270275168a285fc0c68784329d1276ab9e44e9a45f8d79b526220
+      size: 461
+  original:
+    hackage: smtlib-backends-process-0.3@sha256:caf131d3d6f6825e3a3182713130a8e14d0bd6530eeda643e8a511b546ff1a26,1676
+- completed:
+    hackage: smtlib-backends-z3-0.3.1@sha256:b61b50e9335abc97abcc0cc2ee005c5a5f0c9a5966b2af7c5af40113abdb4191,1877
+    pantry-tree:
+      sha256: acd5810d206c79db6033a2b893021c162e00e8daeb7832c4e9acd2deba50bffe
+      size: 500
+  original:
+    hackage: smtlib-backends-z3-0.3.1@sha256:b61b50e9335abc97abcc0cc2ee005c5a5f0c9a5966b2af7c5af40113abdb4191,1877
+- completed:
     name: atto-lisp
     pantry-tree:
       sha256: 0bad909bcb8649907887474ec31eaaca17c8d702bc6f7ae635c454e8437546bf
@@ -22,6 +36,19 @@ packages:
     version: 0.2.2.3
   original:
     url: https://github.com/studJBccl/atto-lisp/archive/58f0d71c7cfc39ebe4810d6f174d08cd4e62ae0d.tar.gz
+- completed:
+    name: smtlib-backends-cvc5
+    pantry-tree:
+      sha256: 0b3f7505712dfead4460c1ef23751244ba85324584c2aab18ca7896c7277de69
+      size: 621
+    sha256: fa0209fb6ad4ebc013524741e22e2acd0cdc70efb8b0d416ef5e7ab58f6f0a9d
+    size: 23813
+    subdir: smtlib-backends-cvc5
+    url: https://github.com/tweag/smtlib-backends/archive/b084da6d4814c03fe898711b9950e7e1e2c5ee1e.tar.gz
+    version: '0.1'
+  original:
+    subdir: smtlib-backends-cvc5
+    url: https://github.com/tweag/smtlib-backends/archive/b084da6d4814c03fe898711b9950e7e1e2c5ee1e.tar.gz
 snapshots:
 - completed:
     sha256: 4be1ca5d31689b524a7f0f17a439bbe9136465213edc498e9a395899a670f2aa
