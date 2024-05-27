@@ -18,7 +18,7 @@ cvc5 smt = do
   let myConfig = P.defaultConfig { P.exe = "cvc5", P.args = [] }
   liftIO $ P.with myConfig $ \handle -> do
     mysolver <- B.initSolver B.NoQueuing $ P.toBackend handle
-    answer <- B.command mysolver $ lazyByteString $ buildSMT smt
+    answer <- B.command mysolver $ byteString $ buildSMT smt
 
     liftIO $ print answer
 
