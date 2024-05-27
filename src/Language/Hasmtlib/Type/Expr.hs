@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+-- Required for class constraints of form: c (ValueType t) :: Constraint
+{-# LANGUAGE UndecidableInstances #-}
 
 module Language.Hasmtlib.Type.Expr where
 
@@ -6,9 +8,9 @@ import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Orderable
 import Data.AttoLisp
-import Data.Text hiding (foldr')
+import Data.Text hiding (foldl')
 import Data.Coerce
-import Data.Foldable (foldr')
+import Data.Foldable (foldl')
 
 -- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType
@@ -19,7 +21,7 @@ newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
 -- | Computes the Haskell representation of the SMTLib-Type
 type family ValueType (t :: SMTType) where
   ValueType IntType  = Integer
-  ValueType RealType = Rational
+  ValueType RealType = Double
   ValueType BoolType = Bool
 
 -- | SMT value
@@ -33,6 +35,12 @@ extractValue (IntValue  v) = v
 extractValue (RealValue v) = v
 extractValue (BoolValue v) = v
 
+putValue :: forall t. KnownSMTRepr t => ValueType t -> Value t
+putValue = case singRepr @t of
+  IntRepr  -> IntValue 
+  RealRepr -> RealValue
+  BoolRepr -> BoolValue
+
 deriving instance Show (Value t)
 deriving instance Eq   (Value t)
 deriving instance Ord  (Value t)
@@ -42,6 +50,10 @@ data Repr (t :: SMTType) where
   IntRepr  :: Repr IntType
   RealRepr :: Repr RealType
   BoolRepr :: Repr BoolType
+
+deriving instance Show (Repr t)
+deriving instance Eq   (Repr t)
+deriving instance Ord  (Repr t)
 
 -- | Singleton for Repr t
 class    KnownSMTRepr (t :: SMTType) where singRepr :: Repr t
@@ -59,19 +71,19 @@ data Expr (t :: SMTType) where
   Constant :: Value  t -> Expr t
 
   -- Terms
-  Plus     :: Expr t -> Expr t -> Expr t
-  Neg      :: Expr t -> Expr t
-  Mul      :: Expr t -> Expr t -> Expr t
-  Abs      :: Expr t -> Expr t
-  Mod      :: Expr IntType  -> Expr IntType  -> Expr IntType
-  Div      :: Expr RealType -> Expr RealType -> Expr RealType
+  Plus      :: Num (ValueType t) => Expr t -> Expr t -> Expr t
+  Neg       :: Num (ValueType t) => Expr t -> Expr t
+  Mul       :: Num (ValueType t) => Expr t -> Expr t -> Expr t
+  Abs       :: Num (ValueType t) => Expr t -> Expr t
+  Mod       :: Expr IntType  -> Expr IntType  -> Expr IntType
+  Div       :: Expr RealType -> Expr RealType -> Expr RealType
   
   -- Atoms
-  LTH       :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
-  LTHE      :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
-  EQU       :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
-  GTHE      :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
-  GTH       :: KnownSMTRepr t => Expr t -> Expr t -> Expr BoolType
+  LTH       :: (Ord (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
+  LTHE      :: (Ord (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
+  EQU       :: (Eq  (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
+  GTHE      :: (Ord (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
+  GTH       :: (Ord (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
 
   -- Formulas
   Not       :: Expr BoolType -> Expr BoolType
@@ -111,38 +123,33 @@ deriving instance Show (Expr t)
 ite :: Expr BoolType -> Expr t -> Expr t -> Expr t
 ite = Ite
 
+class    SMTNumber (t :: SMTType) where smtValueFromInteger :: Integer -> Value t
+instance SMTNumber RealType       where smtValueFromInteger = RealValue . fromIntegral
+instance SMTNumber IntType        where smtValueFromInteger = IntValue
+
 instance Boolean (Expr BoolType) where
   bool    = Constant . BoolValue
   (&&&)   = And
   (|||)   = Or
   not'    = Not
-  all' p  = foldr' (\expr acc -> acc &&& p expr) true
+  all' p  = foldl' (\acc expr -> acc &&& p expr) true
   any' p  = not' . all' (not' . p)
   xor     = Xor
 
-instance KnownSMTRepr a => Equatable (Expr a) where
-  type EqResult (Expr a) = Expr BoolType
+instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr t) where
+  type EqResult (Expr t) = Expr BoolType
   (===)   = EQU
   x /== y = Not $ EQU x y
 
-instance KnownSMTRepr a => Orderable (Expr a) where
-  type OrdResult (Expr a) = Expr BoolType
+instance (KnownSMTRepr t, Ord (ValueType t)) => Orderable (Expr t) where
+  type OrdResult (Expr t) = Expr BoolType
   (<?)  = LTH
   (<=?) = LTHE
   (>=?) = GTHE
   (>?)  = GTH
 
-instance Num (Expr IntType) where
-  fromInteger = Constant . IntValue
-  (+)         = Plus
-  x - y       = Plus x (Neg y)
-  (*)         = Mul
-  negate      = Neg
-  abs         = Abs
-  signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
-
-instance Num (Expr RealType) where
-  fromInteger = Constant . RealValue . fromIntegral
+instance (KnownSMTRepr t, SMTNumber t, Num (ValueType t), Ord (ValueType t)) => Num (Expr t) where
+  fromInteger = Constant . smtValueFromInteger
   (+)         = Plus
   x - y       = Plus x (Neg y)
   (*)         = Mul
@@ -151,7 +158,7 @@ instance Num (Expr RealType) where
   signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
 
 instance Fractional (Expr RealType) where
-  fromRational = Constant . RealValue
+  fromRational = Constant . RealValue . fromRational
   (/)          = Div
 
 instance Floating (Expr RealType) where
@@ -188,23 +195,10 @@ instance KnownSMTRepr t => ToLisp (Expr t) where
   toLisp (Constant (IntValue  v)) = toLisp v
   toLisp (Constant (RealValue v)) = toLisp v
 
-  toLisp (Plus x y)   = List [ Symbol $ case singRepr @t of
-                                 BoolRepr -> "or"
-                                 _        -> "+"
-                             , toLisp x
-                             , toLisp y]
-  toLisp (Neg x)      = List [ Symbol $ case singRepr @t of
-                              BoolRepr -> "not"
-                              _        -> "-"
-                             , toLisp x]
-  toLisp (Mul x y)    = List [ Symbol $ case singRepr @t of
-                                 BoolRepr -> "and"
-                                 _        -> "*"
-                             , toLisp x
-                             , toLisp y]
-  toLisp (Abs x)      = case singRepr @t of
-                          BoolRepr -> toLisp x
-                          _        -> List [Symbol "abs", toLisp x]
+  toLisp (Plus x y)   = List [Symbol "+",   toLisp x, toLisp y]
+  toLisp (Neg x)      = List [Symbol "-",   toLisp x]
+  toLisp (Mul x y)    = List [Symbol "*",   toLisp x, toLisp y]
+  toLisp (Abs x)      = List [Symbol "abs", toLisp x]
   toLisp (Mod x y)    = List [Symbol "mod", toLisp x, toLisp y]
   toLisp (Div x y)    = List [Symbol "/",   toLisp x, toLisp y]
 

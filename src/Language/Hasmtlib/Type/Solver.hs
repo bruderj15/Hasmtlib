@@ -12,13 +12,11 @@ import Control.Monad.State
 
 type Solver s m = s -> m Solution
 
-solveWith :: (MonadState SMT m, Default s, Codec a) => Solver s m -> StateT s m a -> m (Decoded a)
+solveWith :: (Monad m, Default s, Codec a) => Solver s m -> StateT s m a -> m (Maybe (Decoded a))
 solveWith solve m = do
   (a, problem) <- runStateT m def
   solution <- solve problem
-  
-  -- TODO: Convert solution ByteString to structured solution
-  
+    
   return $ decode solution a
   
 mySolver :: MonadIO m => Solver SMT m
@@ -26,4 +24,7 @@ mySolver smt = do
   let myConfig = P.defaultConfig { P.exe = "cvc5", P.args = [] }
   liftIO $ P.with myConfig $ \handle -> do
     mysolver <- B.initSolver B.NoQueuing $ P.toBackend handle
+  
+  -- TODO: Convert ByteString to Solution
+  
     B.command mysolver $ lazyByteString $ buildSMT smt
