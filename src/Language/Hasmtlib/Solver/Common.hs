@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Hasmtlib.Problem where
+module Language.Hasmtlib.Solver.Common where
 
 import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Expr
@@ -11,7 +11,6 @@ import Data.ByteString.Lazy hiding (foldl', filter)
 import Data.Sequence hiding ((|>), filter)
 import Control.Lens hiding (List)
 import qualified Data.Text as T
-  
   
 -- TODO: Use foldb :: b -> (a -> b) -> (b -> b -> b) -> Seq a -> b? Bench!
 buildSMT :: SMT -> ByteString
