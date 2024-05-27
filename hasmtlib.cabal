@@ -26,6 +26,7 @@ executable hasmtlib
                      , data-default
                      , text
                      , bytestring
+                     , attoparsec
                      , atto-lisp
                      , smtlib-backends
                      , smtlib-backends-process
