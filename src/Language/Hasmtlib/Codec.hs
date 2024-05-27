@@ -1,6 +1,7 @@
 module Language.Hasmtlib.Codec where
 
 import Language.Hasmtlib.Type.Expr
+import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Boolean
 import Data.Kind
 import Data.Coerce
@@ -9,9 +10,6 @@ import Data.IntMap (IntMap)
 import Data.Tree (Tree)
 import Data.Sequence as Seq
 import Control.Monad
-
-data SMTVarSol (t :: SMTType) = SMTVarSol { smtVar :: SMTVar t, val :: Value t }
-type Solution = Seq (SomeKnownSMTRepr SMTVarSol)
 
 class Codec a where
   type Decoded a :: Type
@@ -31,7 +29,7 @@ instance KnownSMTRepr t => Codec (SMTVar t) where
                                         _                                                 -> Nothing
     where
       hasSol :: SMTVar t -> SomeKnownSMTRepr SMTVarSol -> Bool
-      hasSol v (SomeKnownSMTRepr sol) = coerce @_ @Int v == coerce (smtVar sol) 
+      hasSol v (SomeKnownSMTRepr sol) = coerce @_ @Int v == coerce (smtVar sol)
       someSol = viewl (Seq.filter (hasSol var) solution)
 
 instance KnownSMTRepr t => Codec (Expr t) where
