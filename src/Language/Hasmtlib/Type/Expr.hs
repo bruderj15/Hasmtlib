@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- Required for class constraints of form: c (ValueType t) :: Constraint
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
 
 module Language.Hasmtlib.Type.Expr where
 
@@ -11,6 +12,7 @@ import Data.AttoLisp
 import Data.Text hiding (foldl')
 import Data.Coerce
 import Data.Foldable (foldl')
+import Data.Kind
 
 -- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType
@@ -19,7 +21,7 @@ data SMTType = IntType | RealType | BoolType
 newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
 
 -- | Computes the Haskell representation of the SMTLib-Type
-type family ValueType (t :: SMTType) where
+type family ValueType (t :: SMTType) = (r :: Type) | r -> t where
   ValueType IntType  = Integer
   ValueType RealType = Double
   ValueType BoolType = Bool
