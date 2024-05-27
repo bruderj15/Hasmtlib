@@ -13,9 +13,8 @@ import Control.Lens hiding (List)
 import qualified Data.Text as T
   
 -- TODO: Use foldb :: b -> (a -> b) -> (b -> b -> b) -> Seq a -> b? Bench!
-buildSMT :: SMT -> ByteString
+buildSMT :: SMT -> Builder
 buildSMT smt =
-  toLazyByteString $
      foldl' (\s opt -> s <> charUtf8 '\n' <> fromLispExpr (toLisp opt)) mempty (smt^.options)
   <> charUtf8 '\n'
   <> maybe mempty (\l -> fromLispExpr (List [Symbol "set-logic", Symbol (T.pack l)])) (smt^.mlogic)
@@ -23,6 +22,12 @@ buildSMT smt =
   <> buildVars (smt^.vars)
   <> charUtf8 '\n'
   <> foldl' (\s f -> s <> charUtf8 '\n' <> fromLispExpr (List [Symbol "assert", toLisp f])) mempty (smt^.formulas)
+  <> charUtf8 '\n'
+
+  -- TODO: We want this separate
+  <> stringUtf8 "(check-sat)"
+  <> charUtf8 '\n'
+  <> stringUtf8 "(get-model)"
   <> charUtf8 '\n'
 
 buildVars :: Seq (SomeKnownSMTRepr SMTVar) -> Builder
