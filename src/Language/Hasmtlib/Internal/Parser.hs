@@ -4,7 +4,6 @@ module Language.Hasmtlib.Internal.Parser where
 
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.Expr
-import Prelude hiding (putStr)
 import Data.Ratio ((%))
 import Data.Coerce
 import Data.Attoparsec.ByteString hiding (Result)
@@ -15,8 +14,9 @@ import Control.Applicative
 answerParser :: Parser (Result, Solution)
 answerParser = do
   result  <- resultParser
-  _       <- skipSpace
-  varSols <- many parseSomeSol
+  _       <- (skipSpace >> char '(' >> skipSpace) <|> skipSpace
+  varSols <- many $ parseSomeSol <* skipSpace
+  _       <- (skipSpace >> char ')' >> skipSpace) <|> skipSpace
 
   return (result, fromList varSols)
 
@@ -51,10 +51,9 @@ parseSol = do
   _     <- string "define-fun" >> skipSpace
   _     <- string "var_"
   varId <- decimal @Int
-  _     <- skipSpace
-  _     <- string "()" >> skipSpace
+  _     <- skipSpace >> string "()" >> skipSpace
   value <- parseModel @t
-  _     <- char ')'
+  _     <- skipSpace >> char ')'
 
   return $ SMTVarSol (coerce varId) (putValue value)
 
