@@ -6,9 +6,9 @@ import Language.Hasmtlib.Boolean
 import Data.Kind
 import Data.Coerce
 import Data.Map (Map)
-import Data.IntMap (IntMap)
+import Data.Sequence (Seq)
+import Data.IntMap as IM
 import Data.Tree (Tree)
-import Data.Sequence as Seq
 import Control.Monad
 
 class Codec a where
@@ -17,20 +17,18 @@ class Codec a where
 
 instance KnownSMTRepr t => Codec (SMTVar t) where
   type Decoded (SMTVar t) = ValueType t
-  decode solution var = case singRepr @t of
-                          IntRepr  -> case someSol of
-                                        SomeKnownSMTRepr (SMTVarSol _ (IntValue v))  :< _ -> Just v
-                                        _                                                 -> Nothing
-                          RealRepr  -> case someSol of
-                                        SomeKnownSMTRepr (SMTVarSol _ (RealValue v)) :< _ -> Just v
-                                        _                                                 -> Nothing
-                          BoolRepr  -> case someSol of
-                                        SomeKnownSMTRepr (SMTVarSol _ (BoolValue v)) :< _ -> Just v
-                                        _                                                 -> Nothing
-    where
-      hasSol :: SMTVar t -> SomeKnownSMTRepr SMTVarSol -> Bool
-      hasSol v (SomeKnownSMTRepr sol) = coerce @_ @Int v == coerce (smtVar sol)
-      someSol = viewl (Seq.filter (hasSol var) solution)
+  decode solution var = do
+    someSol <- IM.lookup (coerce var) solution
+    case singRepr @t of
+      IntRepr   -> case someSol of
+                    SomeKnownSMTRepr (SMTVarSol _ (IntValue v))  -> Just v
+                    _                                            -> Nothing
+      RealRepr  -> case someSol of
+                    SomeKnownSMTRepr (SMTVarSol _ (RealValue v)) -> Just v
+                    _                                            -> Nothing
+      BoolRepr  -> case someSol of
+                    SomeKnownSMTRepr (SMTVarSol _ (BoolValue v)) -> Just v
+                    _                                            -> Nothing
 
 instance KnownSMTRepr t => Codec (Expr t) where
   type Decoded (Expr t) = ValueType t

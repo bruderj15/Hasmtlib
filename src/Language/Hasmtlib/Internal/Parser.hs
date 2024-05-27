@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Language.Hasmtlib.Internal.Parser where
 
@@ -6,9 +7,9 @@ import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.Expr
 import Data.Ratio ((%))
 import Data.Coerce
+import qualified Data.IntMap as IM
 import Data.Attoparsec.ByteString hiding (Result)
 import Data.Attoparsec.ByteString.Char8 hiding (Result)
-import Data.Sequence (fromList)
 import Control.Applicative
 
 answerParser :: Parser (Result, Solution)
@@ -18,7 +19,9 @@ answerParser = do
   varSols <- many $ parseSomeSol <* skipSpace
   _       <- (skipSpace >> char ')' >> skipSpace) <|> skipSpace
 
-  return (result, fromList varSols)
+  let varSolsMap = IM.fromList $ fmap (\case someVarSol@(SomeKnownSMTRepr varSol) -> (coerce (smtVar varSol), someVarSol)) varSols
+  
+  return (result, varSolsMap)
 
 resultParser :: Parser Result
 resultParser = (string "sat" *> pure Sat)
