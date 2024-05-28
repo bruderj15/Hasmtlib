@@ -25,9 +25,12 @@ resultParser = (string "sat" *> pure Sat)
 
 modelParser :: Parser Solution
 modelParser = do
-  _       <- (skipSpace >> char '(' >> skipSpace) <|> skipSpace
+  _ <-  (skipSpace >> char '(' >> skipSpace >> string "model" >> skipSpace)    -- Mathsat
+    <|> (skipSpace >> char '(' >> skipSpace)                                   -- Standard (CVC5, Z3)
+    <|> skipSpace                                                              -- answer does not contain a model      
   varSols <- many $ parseSomeSol <* skipSpace
-  _       <- (skipSpace >> char ')' >> skipSpace) <|> skipSpace
+  _       <- (skipSpace >> char ')' >> skipSpace)
+         <|> skipSpace
 
   return $ IM.fromList $ fmap (\case someVarSol@(SomeKnownSMTRepr varSol) -> (coerce (smtVar varSol), someVarSol)) varSols
 
@@ -52,17 +55,17 @@ parseModel :: forall t. KnownSMTRepr t => Parser (ValueType t)
 parseModel = do
   case singRepr @t of
     IntRepr  -> string "Int"  >> skipSpace >> decimal
-    RealRepr -> do 
+    RealRepr -> do
       _ <- string "Real"
       _ <- skipSpace
-      (fromRational <$> parseRational) <|> rational
+      (fromRational <$> parseRatioRational) <|> parseToRealRational <|> rational
     BoolRepr -> string "Bool" >> skipSpace >> parseBool
 
 parseBool :: Parser Bool
 parseBool = (string "true" *> pure True) <|> (string "false" *> pure False)
 
-parseRational :: Parser Rational
-parseRational = do
+parseRatioRational :: Parser Rational
+parseRatioRational = do
   _           <- char '(' >> skipSpace >> char '/' >> skipSpace
   numerator   <- decimal
   _           <- skipSpace
@@ -70,3 +73,11 @@ parseRational = do
   _           <- skipSpace >> char ')'
 
   return $ numerator % denominator
+  
+parseToRealRational :: Parser Double
+parseToRealRational = do
+  _   <- char '(' >> skipSpace >> string "to_real" >> skipSpace
+  dec <- decimal
+  _   <- skipSpace >> char ')'
+  
+  return $ fromInteger dec
