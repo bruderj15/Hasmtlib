@@ -12,12 +12,26 @@ category:            SMT
 build-type:          Simple
 extra-source-files:  README.md
 
-executable hasmtlib
+tested-with: GHC == 9.6.5
+
+library
   hs-source-dirs:      src
-  main-is:             Main.hs
   default-language:    GHC2021
   default-extensions:  DataKinds, GADTs, TypeFamilies, OverloadedStrings
 
+  exposed-modules:     Language.Hasmtlib
+                     , Language.Hasmtlib.Boolean
+                     , Language.Hasmtlib.Equatable
+                     , Language.Hasmtlib.Orderable
+                     , Language.Hasmtlib.Internal.Parser
+                     , Language.Hasmtlib.Solver.Common
+                     , Language.Hasmtlib.Solver.CVC5
+                     , Language.Hasmtlib.Type.Expr
+                     , Language.Hasmtlib.Type.SMT
+                     , Language.Hasmtlib.Type.Solution
+                     , Language.Hasmtlib.Type.Solver
+
+  other-modules:       Language.Hasmtlib.Internal.Expr
 
   build-depends:       base
                      , containers
@@ -31,11 +45,12 @@ executable hasmtlib
                      , smtlib-backends
                      , smtlib-backends-process
 
-  ghc-options:         -Wall
-                       -Wcompat
-                       -Widentities
-                       -Wincomplete-record-updates
-                       -Wincomplete-uni-patterns
-                       -Wpartial-fields
-                       -Wredundant-constraints
-                       -Wno-type-defaults
+  ghc-options:       -O2
+                     -Wall
+                     -Wcompat
+                     -Widentities
+                     -Wincomplete-record-updates
+                     -Wincomplete-uni-patterns
+                     -Wpartial-fields
+                     -Wredundant-constraints
+                     -Wno-type-defaults
