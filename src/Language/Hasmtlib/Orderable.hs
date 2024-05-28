@@ -9,4 +9,7 @@ class Equatable a => Orderable a where
   (>=?) :: a -> a -> OrdResult a
   (<?)  :: a -> a -> OrdResult a
   (>?)  :: a -> a -> OrdResult a
+  (-?)   :: a -> a -> a
+  (+?)   :: a -> a -> a
 infix 4 <?, <=?, >=?, >?
+infix 7 -?, +?

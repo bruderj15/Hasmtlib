@@ -21,6 +21,7 @@ library
 
   exposed-modules:     Language.Hasmtlib
                      , Language.Hasmtlib.Codec
+                     , Language.Hasmtlib.Iteable
                      , Language.Hasmtlib.Boolean
                      , Language.Hasmtlib.Equatable
                      , Language.Hasmtlib.Orderable

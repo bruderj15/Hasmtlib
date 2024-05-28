@@ -1,10 +1,10 @@
-module Language.Hasmtlib.Type.Expr 
+module Language.Hasmtlib.Type.Expr
  ( SMTType(..)
  , SMTVar(..)
  , ValueType
  , Value(..), extractValue, putValue
  , Repr(..), KnownSMTRepr(..), SomeKnownSMTRepr(..)
- , Expr, ite
+ , Expr
  )
 where
 

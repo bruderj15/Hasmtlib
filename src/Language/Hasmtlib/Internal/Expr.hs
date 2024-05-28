@@ -4,6 +4,7 @@
 
 module Language.Hasmtlib.Internal.Expr where
 
+import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Orderable
@@ -69,8 +70,8 @@ data SomeKnownSMTRepr f where
 -- | SMT Expression
 data Expr (t :: SMTType) where
   -- Terms
-  Var      :: SMTVar t -> Expr t
-  Constant :: Value  t -> Expr t
+  Var       :: SMTVar t -> Expr t
+  Constant  :: Value  t -> Expr t
   Plus      :: Num (ValueType t) => Expr t -> Expr t -> Expr t
   Neg       :: Num (ValueType t) => Expr t -> Expr t
   Mul       :: Num (ValueType t) => Expr t -> Expr t -> Expr t
@@ -120,12 +121,12 @@ data Expr (t :: SMTType) where
 
 deriving instance Show (Expr t)
 
-ite :: Expr BoolType -> Expr t -> Expr t -> Expr t
-ite = Ite
-
 class    SMTNumber (t :: SMTType) where smtValueFromInteger :: Integer -> Value t
 instance SMTNumber RealType       where smtValueFromInteger = RealValue . fromIntegral
 instance SMTNumber IntType        where smtValueFromInteger = IntValue
+
+instance Iteable (Expr BoolType) (Expr t) where
+  ite = Ite
 
 instance Boolean (Expr BoolType) where
   bool    = Constant . BoolValue
@@ -143,10 +144,12 @@ instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr t) where
 
 instance (KnownSMTRepr t, Ord (ValueType t)) => Orderable (Expr t) where
   type OrdResult (Expr t) = Expr BoolType
-  (<?)  = LTH
-  (<=?) = LTHE
-  (>=?) = GTHE
-  (>?)  = GTH
+  (<?)    = LTH
+  (<=?)   = LTHE
+  (>=?)   = GTHE
+  (>?)    = GTH
+  x -? y  = ite (x <? y) x y
+  x +? y  = ite (x >? y) x y
 
 instance (KnownSMTRepr t, SMTNumber t, Num (ValueType t), Ord (ValueType t)) => Num (Expr t) where
   fromInteger = Constant . smtValueFromInteger
