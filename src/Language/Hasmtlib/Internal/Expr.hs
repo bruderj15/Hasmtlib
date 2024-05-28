@@ -125,7 +125,7 @@ class    SMTNumber (t :: SMTType) where smtValueFromInteger :: Integer -> Value 
 instance SMTNumber RealType       where smtValueFromInteger = RealValue . fromIntegral
 instance SMTNumber IntType        where smtValueFromInteger = IntValue
 
-instance Iteable (Expr t) (Expr BoolType) where
+instance Iteable (Expr BoolType) (Expr t) where
   ite = Ite
 
 instance Boolean (Expr BoolType) where
