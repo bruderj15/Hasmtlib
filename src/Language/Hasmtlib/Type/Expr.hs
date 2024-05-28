@@ -2,7 +2,15 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 
-module Language.Hasmtlib.Type.Expr where
+module Language.Hasmtlib.Type.Expr
+ ( SMTType(..)
+ , SMTVar(..)
+ , ValueType
+ , Value(..), extractValue, putValue
+ , Repr(..), KnownSMTRepr(..), SomeKnownSMTRepr(..)
+ , Expr(..), ite
+ )
+ where
 
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Equatable
@@ -193,7 +201,7 @@ instance ToLisp (SMTVar t) where
 -- Adjust in future
 instance KnownSMTRepr t => ToLisp (Expr t) where
   toLisp (Var v)                  = toLisp v
-  toLisp (Constant (BoolValue v)) = toLisp v
+  toLisp (Constant (BoolValue v)) = Symbol $ if v then "true" else "false"
   toLisp (Constant (IntValue  v)) = toLisp v
   toLisp (Constant (RealValue v)) = toLisp v
 

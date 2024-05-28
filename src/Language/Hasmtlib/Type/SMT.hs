@@ -1,6 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Language.Hasmtlib.Type.SMT where
+module Language.Hasmtlib.Type.SMT
+ ( SMT, lastVarId, vars, formulas, mlogic, options
+ , setLogic, setOption
+ , var, assert
+ )
+ where
 
 import Language.Hasmtlib.Type.Expr
 import Data.AttoLisp
@@ -11,6 +16,8 @@ import Data.Data (Data, toConstr, showConstr)
 import Control.Monad.State
 import Control.Lens hiding (List)
 
+-- Currently do not export because smtlib-backends handles it vaguely: 
+-- https://github.com/tweag/smtlib-backends/issues/70
 data SMTOption =
     PrintSuccess  Bool          -- | Print \"success\" after each operation
   | ProduceModels Bool          -- | Produce a satisfying assignment after each successful checkSat
