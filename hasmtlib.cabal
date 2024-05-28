@@ -26,6 +26,9 @@ library
                      , Language.Hasmtlib.Internal.Parser
                      , Language.Hasmtlib.Solver.Common
                      , Language.Hasmtlib.Solver.CVC5
+                     , Language.Hasmtlib.Solver.MatHSAT
+                     , Language.Hasmtlib.Solver.Yices
+                     , Language.Hasmtlib.Solver.Z3
                      , Language.Hasmtlib.Type.Expr
                      , Language.Hasmtlib.Type.SMT
                      , Language.Hasmtlib.Type.Solution
