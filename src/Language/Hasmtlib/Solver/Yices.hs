@@ -8,5 +8,5 @@ import Control.Monad.State
 
 yices :: MonadIO m => Solver SMT m
 yices = processSolver cfg
-  where cfg = P.defaultConfig { P.exe = "yices-smt2", P.args = [] }
+  where cfg = P.defaultConfig { P.exe = "yices-smt2", P.args = ["--smt2-model-format"] }
   

@@ -14,7 +14,7 @@ import Control.Applicative
 answerParser :: Parser (Result, Solution)
 answerParser = do
   result  <- resultParser
-  model   <- modelParser
+  model   <- anyModelParser
   
   return (result, model)
 
@@ -23,16 +23,27 @@ resultParser = (string "sat" *> pure Sat)
            <|> (string "unsat" *> pure Unsat)
            <|> (string "unknown" *> pure Unknown)
 
-modelParser :: Parser Solution
-modelParser = do
-  _ <-  (skipSpace >> char '(' >> skipSpace >> string "model" >> skipSpace)    -- Mathsat
-    <|> (skipSpace >> char '(' >> skipSpace)                                   -- Standard (CVC5, Z3)
-    <|> skipSpace                                                              -- answer does not contain a model      
-  varSols <- many $ parseSomeSol <* skipSpace
-  _       <- (skipSpace >> char ')' >> skipSpace)
-         <|> skipSpace
+anyModelParser :: Parser Solution
+anyModelParser = smt2ModelParser <|> defaultModelParser <|> return mempty
 
-  return $ IM.fromList $ fmap (\case someVarSol@(SomeKnownSMTRepr varSol) -> (coerce (smtVar varSol), someVarSol)) varSols
+defaultModelParser :: Parser Solution
+defaultModelParser = do
+  _       <- skipSpace >> char '(' >> skipSpace
+  varSols <- many $ parseSomeSol <* skipSpace
+  _       <- (skipSpace >> char ')' >> skipSpace) <|> skipSpace
+
+  return $ fromSomeList varSols
+
+smt2ModelParser :: Parser Solution
+smt2ModelParser = do
+  _       <- skipSpace >> char '(' >> skipSpace >> string "model" >> skipSpace
+  varSols <- many $ parseSomeSol <* skipSpace
+  _       <- (skipSpace >> char ')' >> skipSpace) <|> skipSpace
+
+  return $ fromSomeList varSols
+
+fromSomeList :: [SomeKnownSMTRepr SMTVarSol] -> Solution
+fromSomeList = IM.fromList . fmap (\case someVarSol@(SomeKnownSMTRepr varSol) -> (coerce (smtVar varSol), someVarSol))
 
 parseSomeSol :: Parser (SomeKnownSMTRepr SMTVarSol)
 parseSomeSol = SomeKnownSMTRepr <$> (parseSol @IntType)
@@ -58,24 +69,24 @@ parseModel = do
     RealRepr -> do
       _ <- string "Real"
       _ <- skipSpace
-      (fromRational <$> parseRatioRational) <|> parseToRealRational <|> rational
+      parseRatioDouble <|> parseToRealDouble <|> rational
     BoolRepr -> string "Bool" >> skipSpace >> parseBool
 
 parseBool :: Parser Bool
 parseBool = (string "true" *> pure True) <|> (string "false" *> pure False)
 
-parseRatioRational :: Parser Rational
-parseRatioRational = do
+parseRatioDouble :: Parser Double
+parseRatioDouble = do
   _           <- char '(' >> skipSpace >> char '/' >> skipSpace
   numerator   <- decimal
   _           <- skipSpace
   denominator <- decimal
   _           <- skipSpace >> char ')'
 
-  return $ numerator % denominator
+  return $ fromRational $ numerator % denominator
   
-parseToRealRational :: Parser Double
-parseToRealRational = do
+parseToRealDouble :: Parser Double
+parseToRealDouble = do
   _   <- char '(' >> skipSpace >> string "to_real" >> skipSpace
   dec <- decimal
   _   <- skipSpace >> char ')'

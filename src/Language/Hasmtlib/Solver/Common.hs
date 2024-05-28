@@ -29,7 +29,7 @@ processSolver cfg smt = do
       Left e    -> fail e
       Right res -> case res of
         Unsat -> return (res, mempty)
-        _     -> case parseOnly modelParser (toStrict modelResponse) of
+        _     -> case parseOnly anyModelParser (toStrict modelResponse) of
           Left e    -> fail e
           Right sol -> return (res, sol)
   
