@@ -20,7 +20,7 @@ data SMTType = IntType | RealType | BoolType
 -- | SMT variable
 newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
 
--- | Computes the Haskell representation of the SMTLib-Type
+-- | Computes the Haskell type of the SMTLib-Type
 type family ValueType (t :: SMTType) = (r :: Type) | r -> t where
   ValueType IntType  = Integer
   ValueType RealType = Double
@@ -125,7 +125,7 @@ class    SMTNumber (t :: SMTType) where smtValueFromInteger :: Integer -> Value 
 instance SMTNumber RealType       where smtValueFromInteger = RealValue . fromIntegral
 instance SMTNumber IntType        where smtValueFromInteger = IntValue
 
-instance Iteable (Expr BoolType) (Expr t) where
+instance Iteable (Expr t) (Expr BoolType) where
   ite = Ite
 
 instance Boolean (Expr BoolType) where
@@ -137,19 +137,17 @@ instance Boolean (Expr BoolType) where
   any' p  = not' . all' (not' . p)
   xor     = Xor
 
-instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr t) where
-  type EqResult (Expr t) = Expr BoolType
+instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr t) (Expr BoolType) where
   (===)   = EQU
   x /== y = Not $ EQU x y
 
-instance (KnownSMTRepr t, Ord (ValueType t)) => Orderable (Expr t) where
-  type OrdResult (Expr t) = Expr BoolType
-  (<?)    = LTH
-  (<=?)   = LTHE
-  (>=?)   = GTHE
-  (>?)    = GTH
-  x -? y  = ite (x <? y) x y
-  x +? y  = ite (x >? y) x y
+instance (KnownSMTRepr t, Ord (ValueType t)) => Orderable (Expr t) (Expr BoolType) where
+  (<?)     = LTH
+  (<=?)    = LTHE
+  (>=?)    = GTHE
+  (>?)     = GTH
+  min' x y = ite ((x <? y) :: Expr BoolType) x y
+  max' x y = ite ((x >? y) :: Expr BoolType) x y
 
 instance (KnownSMTRepr t, SMTNumber t, Num (ValueType t), Ord (ValueType t)) => Num (Expr t) where
   fromInteger = Constant . smtValueFromInteger
@@ -158,7 +156,9 @@ instance (KnownSMTRepr t, SMTNumber t, Num (ValueType t), Ord (ValueType t)) => 
   (*)         = Mul
   negate      = Neg
   abs         = Abs
-  signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
+  signum x    = ite ((x === 0) :: Expr BoolType)
+                  0 $
+                  ite ((x <? 0) :: Expr BoolType) (-1) 1
 
 instance Fractional (Expr RealType) where
   fromRational = Constant . RealValue . fromRational
