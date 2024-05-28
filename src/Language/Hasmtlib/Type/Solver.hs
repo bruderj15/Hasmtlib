@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Language.Hasmtlib.Type.Solver where
 
 import Language.Hasmtlib.Type.Solution

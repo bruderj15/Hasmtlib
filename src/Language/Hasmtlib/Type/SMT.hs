@@ -1,5 +1,4 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Hasmtlib.Type.SMT where
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 -- Required for class constraints of form: c (ValueType t) :: Constraint
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilyDependencies #-}

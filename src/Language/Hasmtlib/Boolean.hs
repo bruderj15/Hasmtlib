@@ -1,7 +1,5 @@
 module Language.Hasmtlib.Boolean where
 
-import Data.Foldable (foldr')
-  
 class Boolean b where
   -- | Lift a 'Bool'
   bool :: Bool -> b

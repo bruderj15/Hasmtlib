@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Language.Hasmtlib.Solver.CVC5 where
 
 import Prelude hiding (length)
@@ -20,7 +18,7 @@ cvc5 smt = do
   let myConfig = P.defaultConfig { P.exe = "cvc5", P.args = [] }
   liftIO $ P.with myConfig $ \handle -> do
     mysolver <- B.initSolver B.Queuing $ P.toBackend handle
-    
+
     forM_ (buildSMT smt) (B.command_ mysolver)
     resultResponse <- B.command mysolver "(check-sat)"
     modelResponse  <- B.command mysolver "(get-model)"
@@ -28,7 +26,7 @@ cvc5 smt = do
     case parseOnly resultParser (toStrict resultResponse) of
       Left e    -> fail e
       Right res -> case res of
-                     Unsat -> return (res, mempty)
-                     _     -> case parseOnly modelParser (toStrict modelResponse) of
-                                Left e    -> fail e
-                                Right sol -> return (res, sol) 
+        Unsat -> return (res, mempty)
+        _     -> case parseOnly modelParser (toStrict modelResponse) of
+          Left e    -> fail e
+          Right sol -> return (res, sol)

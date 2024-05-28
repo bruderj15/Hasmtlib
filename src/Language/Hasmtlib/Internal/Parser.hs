@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Language.Hasmtlib.Internal.Parser where
