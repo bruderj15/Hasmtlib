@@ -1,4 +1,4 @@
-module Language.Hasmtlib.Solver.Mathsat where
+module Language.Hasmtlib.Solver.MatSAT where
 
 import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Solution
