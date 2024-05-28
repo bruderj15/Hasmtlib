@@ -22,13 +22,13 @@ resultParser :: Parser Result
 resultParser = (string "sat" *> pure Sat)
            <|> (string "unsat" *> pure Unsat)
            <|> (string "unknown" *> pure Unknown)
-           
+
 modelParser :: Parser Solution
 modelParser = do
   _       <- (skipSpace >> char '(' >> skipSpace) <|> skipSpace
   varSols <- many $ parseSomeSol <* skipSpace
   _       <- (skipSpace >> char ')' >> skipSpace) <|> skipSpace
-  
+
   return $ IM.fromList $ fmap (\case someVarSol@(SomeKnownSMTRepr varSol) -> (coerce (smtVar varSol), someVarSol)) varSols
 
 parseSomeSol :: Parser (SomeKnownSMTRepr SMTVarSol)
@@ -52,7 +52,10 @@ parseModel :: forall t. KnownSMTRepr t => Parser (ValueType t)
 parseModel = do
   case singRepr @t of
     IntRepr  -> string "Int"  >> skipSpace >> decimal
-    RealRepr -> string "Real" >> skipSpace >> fromRational <$> parseRational
+    RealRepr -> do 
+      _ <- string "Real"
+      _ <- skipSpace
+      (fromRational <$> parseRational) <|> rational
     BoolRepr -> string "Bool" >> skipSpace >> parseBool
 
 parseBool :: Parser Bool
