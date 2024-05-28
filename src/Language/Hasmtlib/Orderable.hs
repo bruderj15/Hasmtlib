@@ -4,13 +4,15 @@ module Language.Hasmtlib.Orderable where
 
 import Language.Hasmtlib.Equatable
 
--- | Test two as on equality and answer with b
---   Use with type-applications or scoped-type-variables
+-- | Compare two as and answer with b
+--   Ambiguous @min'@ an @max'@ require type application for b.
 --   Usage:
---     let x = 10
---         y = 5
---         b :: Bool = x <= y
-class Equatable a b => Orderable a b where
+--     x <- var @RealType
+--     y <- var @RealType
+--     b <- var @BoolType
+--     assert $ x >? y
+--     assert $ x === min' @(Expr BoolType) 42 100
+class Equatable b a => Orderable b a where
   (<=?) :: a -> a -> b
   (>=?) :: a -> a -> b
   (<?)  :: a -> a -> b
@@ -19,22 +21,11 @@ class Equatable a b => Orderable a b where
   max'  :: a -> a -> a
 infix 4 <?, <=?, >=?, >?
 
-instance Ord a => Orderable a Bool where
+-- This is why we need the ugly b in class definition
+instance Ord a => Orderable Bool a where
   (<=?) = (<=)
   (>=?) = (>=)
   (<?)  = (<)
   (>?)  = (>)
   min'  = min
   max'  = max
-
-infix 7 -?, +?
--- Bind ambiguous b to Bool where we know it has an instance Orderable
--- so the user can call: 'b = x -? y'
--- without the need to apply types
--- | Infix min
-(-?) :: forall a. Orderable a Bool => a -> a -> a
-(-?) = min' @a @Bool
-
--- | Infix max
-(+?) :: forall a. Orderable a Bool => a -> a -> a
-(+?) = max' @a @Bool

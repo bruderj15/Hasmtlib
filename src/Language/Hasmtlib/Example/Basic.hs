@@ -11,7 +11,7 @@ main = do
     y <- var @RealType
     b <- var @BoolType
 
-    assert $ x >? 42
+    assert $ x === min' @(Expr BoolType) 42 100
     assert $ b === true
     assert $ b ==> (y === x)
 

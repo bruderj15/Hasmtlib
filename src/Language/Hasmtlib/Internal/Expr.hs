@@ -137,11 +137,11 @@ instance Boolean (Expr BoolType) where
   any' p  = not' . all' (not' . p)
   xor     = Xor
 
-instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr t) (Expr BoolType) where
+instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr BoolType) (Expr t) where
   (===)   = EQU
   x /== y = Not $ EQU x y
 
-instance (KnownSMTRepr t, Ord (ValueType t)) => Orderable (Expr t) (Expr BoolType) where
+instance (KnownSMTRepr t, Ord (ValueType t)) => Orderable (Expr BoolType) (Expr t) where
   (<?)     = LTH
   (<=?)    = LTHE
   (>=?)    = GTHE
