@@ -20,6 +20,7 @@ library
   default-extensions:  DataKinds, GADTs, TypeFamilies, OverloadedStrings
 
   exposed-modules:     Language.Hasmtlib
+                     , Language.Hasmtlib.Codec
                      , Language.Hasmtlib.Boolean
                      , Language.Hasmtlib.Equatable
                      , Language.Hasmtlib.Orderable
