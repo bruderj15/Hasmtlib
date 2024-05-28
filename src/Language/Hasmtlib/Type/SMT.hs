@@ -3,7 +3,6 @@
 module Language.Hasmtlib.Type.SMT where
 
 import Language.Hasmtlib.Type.Expr
-
 import Data.AttoLisp
 import Data.Default
 import Data.Coerce

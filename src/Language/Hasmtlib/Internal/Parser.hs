@@ -2,13 +2,13 @@
 
 module Language.Hasmtlib.Internal.Parser where
 
-import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.Expr
-import Data.Ratio ((%))
+import Language.Hasmtlib.Type.Solution
 import Data.Coerce
-import qualified Data.IntMap as IM
+import Data.Ratio ((%))
 import Data.Attoparsec.ByteString hiding (Result)
 import Data.Attoparsec.ByteString.Char8 hiding (Result)
+import qualified Data.IntMap as IM
 import Control.Applicative
 
 answerParser :: Parser (Result, Solution)
