@@ -1,6 +1,6 @@
 module Language.Hasmtlib.Codec where
 
-import Language.Hasmtlib.Type.Expr
+import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Boolean
 import Data.Kind

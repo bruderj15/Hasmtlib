@@ -7,7 +7,7 @@ module Language.Hasmtlib.Type.SMT
  )
  where
 
-import Language.Hasmtlib.Type.Expr
+import Language.Hasmtlib.Internal.Expr
 import Data.AttoLisp
 import Data.Default
 import Data.Coerce
