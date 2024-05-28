@@ -70,11 +70,8 @@ parseModel = do
     RealRepr -> do
       _ <- string "Real"
       _ <- skipSpace
-      parseRatioDouble <|> parseToRealDouble <|> rational
+      parseRatioDouble <|> parseToRealDouble <|> rational <|> parsePi
     BoolRepr -> string "Bool" >> skipSpace >> parseBool
-
-parseBool :: Parser Bool
-parseBool = (string "true" *> pure True) <|> (string "false" *> pure False)
 
 parseRatioDouble :: Parser Double
 parseRatioDouble = do
@@ -93,3 +90,9 @@ parseToRealDouble = do
   _   <- skipSpace >> char ')'
   
   return $ fromInteger dec
+
+parsePi :: Parser Double
+parsePi = string "real.pi" *> return pi 
+
+parseBool :: Parser Bool
+parseBool = (string "true" *> pure True) <|> (string "false" *> pure False)
