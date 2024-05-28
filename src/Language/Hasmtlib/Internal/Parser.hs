@@ -26,6 +26,7 @@ resultParser = (string "sat" *> pure Sat)
 anyModelParser :: Parser Solution
 anyModelParser = smt2ModelParser <|> defaultModelParser <|> return mempty
 
+-- For the format CVC5 and Z3 use - what is it called?
 defaultModelParser :: Parser Solution
 defaultModelParser = do
   _       <- skipSpace >> char '(' >> skipSpace
