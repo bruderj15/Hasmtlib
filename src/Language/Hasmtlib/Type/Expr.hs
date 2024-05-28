@@ -186,6 +186,7 @@ instance ToLisp (Repr t) where
    toLisp RealRepr = Symbol "Real"
    toLisp BoolRepr = Symbol "Bool"
 
+-- TODO: Can we avoid the intermediate String here?
 instance ToLisp (SMTVar t) where
   toLisp v = Symbol $ "var_" <> pack (show (coerce @(SMTVar t) @Int v))
     
