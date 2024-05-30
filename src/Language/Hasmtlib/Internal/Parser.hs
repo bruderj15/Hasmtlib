@@ -66,12 +66,23 @@ parseSol = do
 parseModel :: forall t. KnownSMTRepr t => Parser (ValueType t)
 parseModel = do
   case singRepr @t of
-    IntRepr  -> string "Int"  >> skipSpace >> decimal
+    IntRepr  -> string "Int" >> skipSpace >> anyValue decimal
     RealRepr -> do
       _ <- string "Real"
       _ <- skipSpace
-      parseRatioDouble <|> parseToRealDouble <|> rational <|> parsePi
+      anyValue parseRatioDouble <|> parseToRealDouble <|> anyValue rational <|> anyValue parsePi
     BoolRepr -> string "Bool" >> skipSpace >> parseBool
+
+anyValue :: Num a => Parser a -> Parser a
+anyValue p = negativeValue p <|> p
+
+negativeValue :: Num a => Parser a -> Parser a
+negativeValue p = do
+  _ <- char '(' >> skipSpace >> char '-' >> skipSpace
+  val <- signed p
+  _ <- skipSpace >> char ')'
+
+  return $ negate val
 
 parseRatioDouble :: Parser Double
 parseRatioDouble = do
@@ -82,11 +93,11 @@ parseRatioDouble = do
   _           <- skipSpace >> char ')'
 
   return $ fromRational $ numerator % denominator
-  
+
 parseToRealDouble :: Parser Double
 parseToRealDouble = do
   _   <- char '(' >> skipSpace >> string "to_real" >> skipSpace
-  dec <- decimal
+  dec <- anyValue decimal
   _   <- skipSpace >> char ')'
   
   return $ fromInteger dec
