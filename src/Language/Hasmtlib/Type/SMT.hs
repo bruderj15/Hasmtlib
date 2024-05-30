@@ -3,7 +3,8 @@
 module Language.Hasmtlib.Type.SMT
  ( SMT, lastVarId, vars, formulas, mlogic, options
  , setLogic, setOption
- , var, assert
+ , var, constant
+ , assert
  )
  where
 
@@ -41,20 +42,20 @@ instance Default SMT where
 
 $(makeLenses ''SMT)
 
--- | Set the logic for the SMT-Solver to use
+-- | Set the logic for the SMT-Solver to use.
 --   Usage:
 --      setLogic "QF_LRA"
 setLogic :: MonadState SMT m => String -> m ()
 setLogic l = mlogic ?= l
 
--- | Set an SMT-Solver-Option
+-- | Set an SMT-Solver-Option.
 setOption :: MonadState SMT m => SMTOption -> m ()
 setOption opt = options %= ((opt:) . filter (not . eqCon opt))
   where
     eqCon :: SMTOption -> SMTOption -> Bool
     eqCon l r = showConstr (toConstr l) == showConstr (toConstr r)
 
--- | Construct a variable
+-- | Construct a variable.
 --   Usage:
 --      x :: Expr RealType <- var @RealType
 var :: forall t m. (KnownSMTRepr t, MonadState SMT m) => m (Expr t)
@@ -65,7 +66,25 @@ var = do
   modify $ \s -> s & vars %~ (|> SomeKnownSMTRepr newVar) & lastVarId %~ (+1)
   return $ Var newVar
 
--- | Assert a boolean expression
+-- | Create a constant.
+--   This may be used to create constants from parameters.
+--   Otherwise usage of overloaded numbers (fromInteger) should be preferred, if type can be inferred. 
+--   Usage
+--      >>> constant True
+--          Constant (BoolValue True) 
+-- 
+--      >>> let x :: Integer = 10 ; constant x
+--          Constant (IntValue 10)
+-- 
+--      >>> constant @IntType 5
+--          Constant (IntValue 5)
+-- 
+--      >>> constant @RealType 5
+--          Constant (RealValue 5)
+constant :: KnownSMTRepr t => ValueType t -> Expr t
+constant = Constant . putValue 
+
+-- | Assert a boolean expression.
 --   Usage
 --      x :: Expr IntType <- var @IntType
 --      assert $ x + 5 === 42
