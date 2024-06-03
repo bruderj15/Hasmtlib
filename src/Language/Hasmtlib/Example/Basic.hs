@@ -4,7 +4,7 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith cvc5 $ do
+  res <- solveWith cvc5Debug $ do
     setLogic "QF_LRA"
 
     x <- var @RealType
