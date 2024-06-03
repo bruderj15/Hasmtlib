@@ -8,6 +8,11 @@ import Control.Monad.State
 
 -- TODO: Add support for lib binding: https://github.com/tweag/smtlib-backends/tree/master/smtlib-backends-cvc5
 
+cvc5Conf :: P.Config
+cvc5Conf = P.defaultConfig { P.exe = "cvc5", P.args = [] }
+
 cvc5 :: MonadIO m => Solver SMT m
-cvc5 = processSolver cfg
-  where cfg = P.defaultConfig { P.exe = "cvc5", P.args = [] }
+cvc5 = processSolver cvc5Conf Nothing
+
+cvc5Debug :: MonadIO m => Solver SMT m
+cvc5Debug = processSolver cvc5Conf $ Just defaultDebugger

@@ -8,5 +8,11 @@ import Control.Monad.State
 
 -- TODO: Add support for lib binding: https://github.com/tweag/smtlib-backends/tree/master/smtlib-backends-z3
 
+z3Conf :: P.Config
+z3Conf = P.defaultConfig
+
 z3 :: MonadIO m => Solver SMT m
-z3 = processSolver P.defaultConfig
+z3 = processSolver z3Conf Nothing
+
+z3Debug :: MonadIO m => Solver SMT m
+z3Debug = processSolver z3Conf $ Just defaultDebugger

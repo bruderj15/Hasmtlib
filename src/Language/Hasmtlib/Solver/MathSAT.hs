@@ -6,6 +6,11 @@ import Language.Hasmtlib.Solver.Common
 import qualified SMTLIB.Backends.Process as P
 import Control.Monad.State
 
+mathsatConf :: P.Config
+mathsatConf = P.defaultConfig { P.exe = "mathsat", P.args = [] }
+
 mathsat :: MonadIO m => Solver SMT m
-mathsat = processSolver cfg
-  where cfg = P.defaultConfig { P.exe = "mathsat", P.args = [] }
+mathsat = processSolver mathsatConf Nothing
+
+mathsatDebug :: MonadIO m => Solver SMT m
+mathsatDebug = processSolver mathsatConf $ Just defaultDebugger
