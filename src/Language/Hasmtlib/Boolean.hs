@@ -1,5 +1,8 @@
 module Language.Hasmtlib.Boolean where
 
+import Language.Hasmtlib.Internal.Expr
+import Data.Foldable (foldl')
+  
 class Boolean b where
   -- | Lift a 'Bool'
   bool :: Bool -> b
@@ -56,6 +59,19 @@ class Boolean b where
 
   -- | Exclusive-or
   xor :: b -> b -> b
+ 
+  infixr 3 &&&
+  infixr 2 |||
+  infixr 0 ==>
+
+instance Boolean (Expr BoolType) where
+  bool    = Constant . BoolValue
+  (&&&)   = And
+  (|||)   = Or
+  not'    = Not
+  all' p  = foldl' (\acc expr -> acc &&& p expr) true
+  any' p  = not' . all' (not' . p)
+  xor     = Xor
 
 instance Boolean Bool where
   bool  = id

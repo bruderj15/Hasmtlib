@@ -5,7 +5,9 @@ module Language.Hasmtlib.Type.Expr
  , Value(..), extractValue, putValue
  , Repr(..), KnownSMTRepr(..), SomeKnownSMTRepr(..)
  , Expr
+ , module Language.Hasmtlib.Internal.Expr.Num 
  )
 where
 
 import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Internal.Expr.Num
