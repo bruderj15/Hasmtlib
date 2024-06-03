@@ -1,18 +1,11 @@
--- Required for class constraints of form: c (ValueType t) :: Constraint
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 
 module Language.Hasmtlib.Internal.Expr where
 
-import Language.Hasmtlib.Iteable
-import Language.Hasmtlib.Boolean
-import Language.Hasmtlib.Equatable
-import Language.Hasmtlib.Orderable
-import Data.AttoLisp
-import Data.Text hiding (foldl')
-import Data.Coerce
-import Data.Foldable (foldl')
 import Data.Kind
+import Data.Text (pack)
+import Data.AttoLisp
+import Data.Coerce  
 
 -- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType
@@ -120,67 +113,6 @@ data Expr (t :: SMTType) where
   Ite      :: Expr BoolType -> Expr t -> Expr t -> Expr t
 
 deriving instance Show (Expr t)
-
-class    SMTNumber (t :: SMTType) where smtValueFromInteger :: Integer -> Value t
-instance SMTNumber RealType       where smtValueFromInteger = RealValue . fromIntegral
-instance SMTNumber IntType        where smtValueFromInteger = IntValue
-
-instance Iteable (Expr BoolType) (Expr t) where
-  ite = Ite
-
-instance Boolean (Expr BoolType) where
-  bool    = Constant . BoolValue
-  (&&&)   = And
-  (|||)   = Or
-  not'    = Not
-  all' p  = foldl' (\acc expr -> acc &&& p expr) true
-  any' p  = not' . all' (not' . p)
-  xor     = Xor
-
-instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr BoolType) (Expr t) where
-  (===)   = EQU
-  x /== y = Not $ EQU x y
-
-instance (KnownSMTRepr t, Ord (ValueType t)) => Orderable (Expr BoolType) (Expr t) where
-  (<?)     = LTH
-  (<=?)    = LTHE
-  (>=?)    = GTHE
-  (>?)     = GTH
-  min' x y = ite ((x <? y) :: Expr BoolType) x y
-  max' x y = ite ((x >? y) :: Expr BoolType) x y
-
-instance (KnownSMTRepr t, SMTNumber t, Num (ValueType t), Ord (ValueType t)) => Num (Expr t) where
-  fromInteger = Constant . smtValueFromInteger
-  (+)         = Plus
-  x - y       = Plus x (Neg y)
-  (*)         = Mul
-  negate      = Neg
-  abs         = Abs
-  signum x    = ite ((x === 0) :: Expr BoolType)
-                  0 $
-                  ite ((x <? 0) :: Expr BoolType) (-1) 1
-
-instance Fractional (Expr RealType) where
-  fromRational = Constant . RealValue . fromRational
-  (/)          = Div
-
-instance Floating (Expr RealType) where
-    pi    = Pi
-    exp   = Exp
-    log   = Log
-    sqrt  = Sqrt
-    sin   = Sin
-    cos   = Cos
-    tan   = Tan
-    asin  = Asin
-    acos  = Acos
-    atan  = Atan
-    sinh  = Sinh
-    cosh  = Cosh
-    tanh  = Tanh
-    asinh = Asinh
-    acosh = Acosh
-    atanh = Atanh
 
 instance ToLisp (Repr t) where
    toLisp IntRepr  = Symbol "Int"

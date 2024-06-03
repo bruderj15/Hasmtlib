@@ -37,6 +37,7 @@ library
                      , Language.Hasmtlib.Type.Solver
 
   other-modules:       Language.Hasmtlib.Internal.Expr
+                     , Language.Hasmtlib.Internal.Expr.Num
 
   build-depends:       base
                      , containers
@@ -60,3 +61,4 @@ library
                      -Wpartial-fields
                      -Wredundant-constraints
                      -Wno-type-defaults
+                     -Wno-orphans
