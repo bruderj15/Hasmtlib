@@ -6,7 +6,7 @@ import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Internal.Parser
 import Data.Sequence hiding ((|>), filter)
 import Data.ByteString.Lazy hiding (singleton)
-import Data.ByteString.Lazy.UTF8
+import Data.ByteString.Lazy.UTF8 (toString)
 import Data.ByteString.Builder
 import Data.Attoparsec.ByteString
 import Data.AttoLisp
@@ -29,7 +29,7 @@ defaultDebugger = Debugger {
     debugSMT            = const $ return ()
   , debugProblem        = liftIO . mapM_ (putStrLn . toString . toLazyByteString)
   , debugResultResponse = liftIO . putStrLn . (\s -> "\n" ++ s ++ "\n") . toString
-  , debugModelResponse  = liftIO . putStrLn . toString
+  , debugModelResponse  = liftIO . mapM_ (putStrLn . toString) . split 13
   }
 
 processSolver :: MonadIO m => P.Config -> Maybe Debugger -> Solver SMT m
