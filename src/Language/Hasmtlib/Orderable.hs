@@ -35,7 +35,6 @@ class Equatable a => Orderable a where
   (>?)  :: a -> a -> Expr BoolType
   x >? y = not' $ x <=? y
 
-  {-# MINIMAL (<=?) #-}
 infix 4 <?, <=?, >=?, >?
 
 -- | Minimum of two as SMT-Expression.

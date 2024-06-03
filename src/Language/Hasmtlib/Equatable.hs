@@ -11,7 +11,7 @@ import Numeric.Natural
 import Data.Int
 import Data.Word
 import Data.Void
-  
+
 -- | Test two as on equality as SMT-Expression.
 --   Usage:
 --     x <- var @RealType
@@ -21,12 +21,10 @@ class Equatable a where
   (===) :: a -> a -> Expr BoolType
   default (===) :: (Generic a, GEquatable (Rep a)) => a -> a -> Expr BoolType
   a === b = from a ===# from b
-  
+
   (/==) :: a -> a -> Expr BoolType
   x /== y = not' $ x === y
-  
-  {-# MINIMAL (===) #-}
-  
+
 infix 4 ===, /==
 
 instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr t) where
