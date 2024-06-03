@@ -128,8 +128,8 @@ instance ToLisp (SMTVar t) where
 instance KnownSMTRepr t => ToLisp (Expr t) where
   toLisp (Var v)                  = toLisp v
   toLisp (Constant (BoolValue v)) = Symbol $ if v then "true" else "false"
-  toLisp (Constant (IntValue  v)) = toLisp v
-  toLisp (Constant (RealValue v)) = toLisp v
+  toLisp (Constant (IntValue  v)) = if v < 0 then List [Symbol "-", toLisp (abs v)] else toLisp v
+  toLisp (Constant (RealValue v)) = if v < 0 then List [Symbol "-", toLisp (abs v)] else toLisp v
 
   toLisp (Plus x y)   = List [Symbol "+",   toLisp x, toLisp y]
   toLisp (Neg x)      = List [Symbol "-",   toLisp x]
