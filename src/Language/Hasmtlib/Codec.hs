@@ -1,3 +1,7 @@
+{-# LANGUAGE DefaultSignatures #-}
+-- required for DefaultEncoded a
+{-# LANGUAGE UndecidableInstances #-}  
+
 module Language.Hasmtlib.Codec where
 
 import Language.Hasmtlib.Internal.Expr
@@ -12,12 +16,22 @@ import Data.IntMap as IM
 import Data.Tree (Tree)
 import Control.Monad
 
+type family DefaultDecoded a :: Type where
+  DefaultDecoded (f a) = f (Decoded a)
+
 class Codec a where
   type Decoded a :: Type
+  type Decoded a = DefaultDecoded a
+
   -- | Decode using given solution
   decode :: Solution -> a -> Maybe (Decoded a)
+  default decode :: (Traversable f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Solution -> a -> Maybe (Decoded a)
+  decode sol = traverse (decode sol)
+
   -- | Encode as constant
   encode :: Decoded a -> a
+  default encode :: (Functor f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Decoded a -> a
+  encode = fmap encode
 
 instance KnownSMTRepr t => Codec (Expr t) where
   type Decoded (Expr t) = ValueType t
@@ -112,10 +126,12 @@ instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g, Codec h
   decode s (a,b,c,d,e,f,g,h) = (,,,,,,,) <$> decode s a <*> decode s b <*> decode s c <*> decode s d <*> decode s e <*> decode s f <*> decode s g <*> decode s h
   encode   (a,b,c,d,e,f,g,h) = (encode a, encode b, encode c, encode d, encode e, encode f, encode g, encode h)
 
-instance Codec a => Codec [a] where
-  type Decoded [a] = [Decoded a]
-  decode = mapM . decode
-  encode = fmap encode
+instance Codec a => Codec [a]
+instance Codec a => Codec (IntMap a)
+instance Codec a => Codec (Map k a)
+instance Codec a => Codec (Maybe a)
+instance Codec a => Codec (Seq a)
+instance Codec a => Codec (Tree a)
 
 instance (Codec a, Codec b) => Codec (Either a b) where
   type Decoded (Either a b) = Either (Decoded a) (Decoded b)
@@ -123,29 +139,3 @@ instance (Codec a, Codec b) => Codec (Either a b) where
   decode s (Right b) = Right <$> decode s b
   encode   (Left  a) = Left  (encode a)
   encode   (Right b) = Right (encode b)
-
-instance Codec a => Codec (IntMap a) where
-  type Decoded (IntMap a) = IntMap (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-
-instance Codec a => Codec (Map k a) where
-  type Decoded (Map k a) = Map k (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-
-instance Codec a => Codec (Maybe a) where
-  type Decoded (Maybe a) = Maybe (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-
-instance Codec a => Codec (Seq a) where
-  type Decoded (Seq a) = Seq (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-
-instance Codec a => Codec (Tree a) where
-  type Decoded (Tree a) = Tree (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-  
