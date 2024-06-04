@@ -9,7 +9,7 @@ import Control.Monad.State
 -- | Construct a datum of a data-type by creating variables for all its fields.
 --   Usage:
 --
---    data V3 a = a a a
+--    data V3 a = V3 a a a
 --    instance Variable a => V3 a 
 --
 --    >>> varV3 <- variable @(V3 (Expr RealType)) ; varV3

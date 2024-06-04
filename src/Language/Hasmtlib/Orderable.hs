@@ -14,7 +14,7 @@ import Data.Int
 import Data.Word
 import Data.Void
 
--- | Compare two as SMT-Expression.
+-- | Compare two as as SMT-Expression.
 --   Usage:
 --     x <- var @RealType
 --     y <- var @RealType
