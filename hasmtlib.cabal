@@ -3,7 +3,7 @@ cabal-version:       2.2
 name:                hasmtlib
 version:             0.1.0.0
 homepage:            https://github.com/bruderj15/Hasmtlib
-license:             BSD-3-Clause
+license:             GPL-3.0-only
 license-file:        LICENSE
 author:              Julian Bruder
 maintainer:          julian.bruder@outlook.com
