@@ -3,9 +3,6 @@
 module Language.Hasmtlib.Internal.Expr where
 
 import Data.Kind
-import Data.Text (pack)
-import Data.AttoLisp
-import Data.Coerce  
 
 -- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType
@@ -113,63 +110,3 @@ data Expr (t :: SMTType) where
   Ite      :: Expr BoolType -> Expr t -> Expr t -> Expr t
 
 deriving instance Show (Expr t)
-
-instance ToLisp (Repr t) where
-   toLisp IntRepr  = Symbol "Int"
-   toLisp RealRepr = Symbol "Real"
-   toLisp BoolRepr = Symbol "Bool"
-
--- TODO: Can we avoid the intermediate String here?
-instance ToLisp (SMTVar t) where
-  toLisp v = Symbol $ "var_" <> pack (show (coerce @(SMTVar t) @Int v))
-    
--- Some of these are backend-dependant
--- Adjust in future
-instance KnownSMTRepr t => ToLisp (Expr t) where
-  toLisp (Var v)                  = toLisp v
-  toLisp (Constant (BoolValue v)) = Symbol $ if v then "true" else "false"
-  toLisp (Constant (IntValue  v)) = if v < 0 then List [Symbol "-", toLisp (abs v)] else toLisp v
-  toLisp (Constant (RealValue v)) = if v < 0 then List [Symbol "-", toLisp (abs v)] else toLisp v
-
-  toLisp (Plus x y)   = List [Symbol "+",   toLisp x, toLisp y]
-  toLisp (Neg x)      = List [Symbol "-",   toLisp x]
-  toLisp (Mul x y)    = List [Symbol "*",   toLisp x, toLisp y]
-  toLisp (Abs x)      = List [Symbol "abs", toLisp x]
-  toLisp (Mod x y)    = List [Symbol "mod", toLisp x, toLisp y]
-  toLisp (Div x y)    = List [Symbol "/",   toLisp x, toLisp y]
-
-  toLisp (LTH x y)    = List [Symbol "<",   toLisp x, toLisp y]
-  toLisp (LTHE x y)   = List [Symbol "<=",  toLisp x, toLisp y]
-  toLisp (EQU x y)    = List [Symbol "=",   toLisp x, toLisp y]
-  toLisp (GTHE x y)   = List [Symbol ">=",  toLisp x, toLisp y]
-  toLisp (GTH x y)    = List [Symbol ">",   toLisp x, toLisp y]
-
-  toLisp (Not x)      = List [Symbol "not", toLisp x]
-  toLisp (And x y)    = List [Symbol "and", toLisp x, toLisp y]
-  toLisp (Or x y)     = List [Symbol "or",  toLisp x, toLisp y]
-  toLisp (Impl x y)   = List [Symbol "=>",  toLisp x, toLisp y]
-  toLisp (Xor x y)    = List [Symbol "xor", toLisp x, toLisp y]
-
-  -- TODO: Replace ??? with actual ones
-  toLisp Pi           = Symbol "real.pi"
-  toLisp (Sqrt x)     = List [Symbol "sqrt",    toLisp x]
-  toLisp (Exp x)      = List [Symbol "exp",     toLisp x]
---  toLisp (Log x)      = List [Symbol "???",     toLisp x]
-  toLisp (Sin x)      = List [Symbol "sin",     toLisp x]
-  toLisp (Cos x)      = List [Symbol "cos",     toLisp x]
-  toLisp (Tan x)      = List [Symbol "tan",     toLisp x]
-  toLisp (Asin x)     = List [Symbol "arcsin",  toLisp x]
-  toLisp (Acos x)     = List [Symbol "arccos",  toLisp x]
-  toLisp (Atan x)     = List [Symbol "arctan",  toLisp x]
---  toLisp (Sinh x)     = List [Symbol "???",     toLisp x]
---  toLisp (Cosh x)     = List [Symbol "???",     toLisp x]
---  toLisp (Tanh x)     = List [Symbol "???",     toLisp x]
---  toLisp (Asinh x)    = List [Symbol "???",     toLisp x]
---  toLisp (Acosh x)    = List [Symbol "???",     toLisp x]
---  toLisp (Atanh x)    = List [Symbol "???",     toLisp x]
-
-  toLisp (ToReal x)   = List [Symbol "to_real", toLisp x]
-  toLisp (ToInt x)    = List [Symbol "to_int",  toLisp x]
-  toLisp (IsInt x)    = List [Symbol "is_int",  toLisp x]
-
-  toLisp (Ite p t f)  = List [Symbol "ite", toLisp p, toLisp t, toLisp f]
