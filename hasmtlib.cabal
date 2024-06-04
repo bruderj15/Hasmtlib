@@ -42,17 +42,17 @@ library
                      , Language.Hasmtlib.Internal.Expr.Num
                      , Language.Hasmtlib.Internal.Render
 
-  build-depends:       attoparsec                   >= 0.14.4 && < 0.15,
-                     , base                         >= 4.17.2 && < 5,
-                     , bytestring                   >= 0.11.5 && < 1,
-                     , containers                   >= 0.6.7  && < 1,
-                     , mtl                          >= 2.2.2  && < 3,
-                     , text                         >= 2.0.2  && < 3,
-                     , data-default                 >= 0.7.1  && < 1,
-                     , lens                         >= 5.3.2  && < 6,
-                     , smtlib-backends              >= 0.3    && < 1,
-                     , smtlib-backends-process      >= 0.3    && < 1,
-                     , utf8-string                  >= 1.0.2  && < 2,
+  build-depends:       attoparsec                   >= 0.14.4 && < 0.15
+                     , base                         >= 4.17.2 && < 5
+                     , bytestring                   >= 0.11.5 && < 1
+                     , containers                   >= 0.6.7  && < 1
+                     , mtl                          >= 2.2.2  && < 3
+                     , text                         >= 2.0.2  && < 3
+                     , data-default                 >= 0.7.1  && < 1
+                     , lens                         >= 5      && < 6
+                     , smtlib-backends              >= 0.3    && < 1
+                     , smtlib-backends-process      >= 0.3    && < 1
+                     , utf8-string                  >= 1.0.2  && < 2
 
 
   ghc-options:       -O2
