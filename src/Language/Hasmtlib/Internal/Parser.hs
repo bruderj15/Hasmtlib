@@ -72,7 +72,8 @@ parseSol = do
   _     <- skipSpace >> char ')'
 
   -- Try to evaluate expression given by solver as solution
-  -- TODO: Better: Take into scope already successfully parsed solutions for other vars.
+  -- Better: Take into scope already successfully parsed solutions for other vars.
+  -- Is This even required though? Do the solvers ever answer like-wise?
   case decode mempty expr of
     Nothing    -> fail $ "Solver reponded with solution for var_" ++ show varId ++ " but it contains "
                       ++ "another var. This cannot be parsed and evaluated currently."
