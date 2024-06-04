@@ -1,19 +1,16 @@
 module Language.Hasmtlib.Solver.Common where
 
 import Language.Hasmtlib.Type.SMT
-import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Internal.Parser
+import Language.Hasmtlib.Internal.Render
 import Data.Sequence hiding ((|>), filter)
 import Data.ByteString.Lazy hiding (singleton)
 import Data.ByteString.Lazy.UTF8 (toString)
 import Data.ByteString.Builder
 import Data.Attoparsec.ByteString
-import Data.AttoLisp
-import Control.Lens hiding (List)
 import Control.Monad
 import Control.Monad.IO.Class
-import qualified Data.Text as T
 import qualified SMTLIB.Backends.Process as P
 import qualified SMTLIB.Backends as B hiding (Solver)
 
@@ -38,14 +35,14 @@ processSolver cfg debugger smt = do
     maybe mempty (`debugSMT` smt) debugger
     solver <- B.initSolver B.Queuing $ P.toBackend handle
 
-    let problem = buildSMT smt
+    let problem = renderSMT smt
     maybe mempty (`debugProblem` problem) debugger
 
     forM_ problem (B.command_ solver)
-    resultResponse <- B.command solver "(check-sat)"
+    resultResponse <- B.command solver renderCheckSat
     maybe mempty (`debugResultResponse` resultResponse) debugger
 
-    modelResponse  <- B.command solver "(get-model)"
+    modelResponse  <- B.command solver renderGetModel
     maybe mempty (`debugModelResponse` modelResponse) debugger
 
     case parseOnly resultParser (toStrict resultResponse) of
@@ -55,16 +52,3 @@ processSolver cfg debugger smt = do
         _     -> case parseOnly anyModelParser (toStrict modelResponse) of
           Left e    -> fail e
           Right sol -> return (res, sol)
-  
-buildSMT :: SMT -> Seq Builder
-buildSMT smt =
-     fromList (fromLispExpr . toLisp <$> smt^.options)
-  >< maybe mempty (\l -> singleton $ fromLispExpr (List [Symbol "set-logic", Symbol (T.pack l)])) (smt^.mlogic)
-  >< buildVars (smt^.vars)
-  >< fmap (\f -> fromLispExpr (List [Symbol "assert", toLisp f])) (smt^.formulas)
-  
-buildVars :: Seq (SomeKnownSMTRepr SMTVar) -> Seq Builder
-buildVars = fmap (\(SomeKnownSMTRepr v) -> fromLispExpr (List [Symbol "declare-fun", toLisp v, Symbol "()", goSing v]))
-  where
-    goSing :: forall t. KnownSMTRepr t => SMTVar t -> Lisp
-    goSing _ = toLisp $ singRepr @t

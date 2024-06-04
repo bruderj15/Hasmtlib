@@ -5,18 +5,11 @@ import Language.Hasmtlib
 main :: IO ()
 main = do
   res <- solveWith cvc5Debug $ do
-    setLogic "QF_LRA"
+    setLogic "ALL"
 
-    x <- var @RealType
     y <- var @RealType
-    b <- var @BoolType
-
-    assert $ x === min' 42 100
-    assert $ b === true
-    assert $ b ==> (y === x)
-
-    return (x, y, b)
+    assert $ y <=? 1500000000000
+    
+    return y
 
   print res
-
-  return ()

@@ -38,6 +38,7 @@ library
 
   other-modules:       Language.Hasmtlib.Internal.Expr
                      , Language.Hasmtlib.Internal.Expr.Num
+                     , Language.Hasmtlib.Internal.Render
 
   build-depends:       base
                      , containers
@@ -48,7 +49,6 @@ library
                      , bytestring
                      , utf8-string
                      , attoparsec
-                     , atto-lisp
                      , smtlib-backends
                      , smtlib-backends-process
 

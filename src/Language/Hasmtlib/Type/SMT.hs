@@ -2,14 +2,16 @@
 
 module Language.Hasmtlib.Type.SMT
  ( SMT, lastVarId, vars, formulas, mlogic, options
- , setLogic, setOption
+ , setLogic, SMTOption(..) 
+-- setOption 
+-- Currently do not export because smtlib-backends handles it vaguely: 
+-- https://github.com/tweag/smtlib-backends/issues/70
  , var, constant
  , assert
  )
  where
 
 import Language.Hasmtlib.Internal.Expr
-import Data.AttoLisp
 import Data.Default
 import Data.Coerce
 import Data.Sequence hiding ((|>), filter)
@@ -17,16 +19,10 @@ import Data.Data (Data, toConstr, showConstr)
 import Control.Monad.State
 import Control.Lens hiding (List)
 
--- Currently do not export because smtlib-backends handles it vaguely: 
--- https://github.com/tweag/smtlib-backends/issues/70
 data SMTOption =
     PrintSuccess  Bool          -- | Print \"success\" after each operation
   | ProduceModels Bool          -- | Produce a satisfying assignment after each successful checkSat
   deriving (Show, Eq, Ord, Data)
-
-instance ToLisp SMTOption where
-  toLisp (PrintSuccess  b) = List [Symbol "set-option", Symbol ":print-success",  Symbol $ if b then "true" else "false"]
-  toLisp (ProduceModels b) = List [Symbol "set-option", Symbol ":produce-models", Symbol $ if b then "true" else "false"]
 
 -- | SMT State
 data SMT = SMT
