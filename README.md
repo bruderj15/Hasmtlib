@@ -1,3 +1,5 @@
+[![Haskell-CI](https://github.com/bruderj15/Hasmtlib/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/bruderj15/Hasmtlib/actions/workflows/haskell-ci.yml)
+
 # Hasmtlib
 
 Hasmtlib is a library for generating SMTLib2-problems using a monad.
