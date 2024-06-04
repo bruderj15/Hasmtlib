@@ -23,6 +23,7 @@ library
                      , Language.Hasmtlib.Codec
                      , Language.Hasmtlib.Iteable
                      , Language.Hasmtlib.Boolean
+                     , Language.Hasmtlib.Variable
                      , Language.Hasmtlib.Equatable
                      , Language.Hasmtlib.Orderable
                      , Language.Hasmtlib.Internal.Parser
