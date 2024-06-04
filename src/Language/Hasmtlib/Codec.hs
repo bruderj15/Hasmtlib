@@ -1,3 +1,5 @@
+{-# LANGUAGE DefaultSignatures #-}
+
 module Language.Hasmtlib.Codec where
 
 import Language.Hasmtlib.Internal.Expr
@@ -16,8 +18,13 @@ class Codec a where
   type Decoded a :: Type
   -- | Decode using given solution
   decode :: Solution -> a -> Maybe (Decoded a)
+  default decode :: (Traversable f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Solution -> a -> Maybe (Decoded a)
+  decode sol x = traverse (decode sol) x
+
   -- | Encode as constant
   encode :: Decoded a -> a
+  default encode :: (Functor f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Decoded a -> a
+  encode = fmap encode
 
 instance KnownSMTRepr t => Codec (Expr t) where
   type Decoded (Expr t) = ValueType t
@@ -114,8 +121,6 @@ instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g, Codec h
 
 instance Codec a => Codec [a] where
   type Decoded [a] = [Decoded a]
-  decode = mapM . decode
-  encode = fmap encode
 
 instance (Codec a, Codec b) => Codec (Either a b) where
   type Decoded (Either a b) = Either (Decoded a) (Decoded b)
@@ -124,28 +129,8 @@ instance (Codec a, Codec b) => Codec (Either a b) where
   encode   (Left  a) = Left  (encode a)
   encode   (Right b) = Right (encode b)
 
-instance Codec a => Codec (IntMap a) where
-  type Decoded (IntMap a) = IntMap (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-
-instance Codec a => Codec (Map k a) where
-  type Decoded (Map k a) = Map k (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-
-instance Codec a => Codec (Maybe a) where
-  type Decoded (Maybe a) = Maybe (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-
-instance Codec a => Codec (Seq a) where
-  type Decoded (Seq a) = Seq (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-
-instance Codec a => Codec (Tree a) where
-  type Decoded (Tree a) = Tree (Decoded a)
-  decode = mapM . decode
-  encode = fmap encode
-  
+instance Codec a => Codec (IntMap a) where type Decoded (IntMap a) = IntMap (Decoded a)
+instance Codec a => Codec (Map k a)  where type Decoded (Map k a)  = Map k  (Decoded a)
+instance Codec a => Codec (Maybe a)  where type Decoded (Maybe a)  = Maybe  (Decoded a)
+instance Codec a => Codec (Seq a)    where type Decoded (Seq a)    = Seq    (Decoded a)
+instance Codec a => Codec (Tree a)   where type Decoded (Tree a)   = Tree   (Decoded a)

@@ -17,7 +17,7 @@ import Control.Monad.State
 class Variable a where
   variable :: MonadState SMT m => m a
   default variable :: (MonadState SMT m, Applicative f, Traversable f, Variable b, a ~ f b) => m a
-  variable = sequence $ pure variable
+  variable = sequenceA $ pure variable
   
 instance KnownSMTRepr t => Variable (Expr t) where
   variable = var
