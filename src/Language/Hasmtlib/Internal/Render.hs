@@ -7,43 +7,50 @@ import Data.Sequence hiding ((|>), filter)
 import Data.Coerce
 import Control.Lens hiding (op)
 
--- TODO: Inline some
 class RenderSMTLib2 a where
   renderSMTLib2 :: a -> Builder
 
 instance RenderSMTLib2 (Repr t) where
-   renderSMTLib2 IntRepr  = "Int"
-   renderSMTLib2 RealRepr = "Real"
-   renderSMTLib2 BoolRepr = "Bool"
-
+  renderSMTLib2 IntRepr  = "Int"
+  renderSMTLib2 RealRepr = "Real"
+  renderSMTLib2 BoolRepr = "Bool"
+  {-# INLINEABLE renderSMTLib2 #-}
+   
 instance RenderSMTLib2 Bool where
   renderSMTLib2 b = if b then "true" else "false"
+  {-# INLINEABLE renderSMTLib2 #-}
 
 instance RenderSMTLib2 Integer where
   renderSMTLib2 x
     | x < 0     = "(- " <> integerDec (abs x) <> ")"
     | otherwise = integerDec x
+  {-# INLINEABLE renderSMTLib2 #-}
 
 instance RenderSMTLib2 Double where
   renderSMTLib2 x
     | x < 0     = "(- " <> formatDouble standardDefaultPrecision (abs x) <> ")"
     | otherwise = formatDouble standardDefaultPrecision x
+  {-# INLINEABLE renderSMTLib2 #-}
 
 instance RenderSMTLib2 Builder where
   renderSMTLib2 = id
+  {-# INLINEABLE renderSMTLib2 #-}
 
 instance RenderSMTLib2 (SMTVar t) where
   renderSMTLib2 v = "var_" <> intDec (coerce @(SMTVar t) @Int v)
+  {-# INLINEABLE renderSMTLib2 #-}
 
--- TODO: Inline
 renderUnary :: RenderSMTLib2 a => Builder -> a -> Builder
 renderUnary op x = "(" <> op <> " " <> renderSMTLib2 x <> ")"
+{-# INLINEABLE renderUnary #-}
 
 renderBinary :: (RenderSMTLib2 a, RenderSMTLib2 b) => Builder -> a -> b -> Builder
 renderBinary op x y = "(" <> op <> " " <> renderSMTLib2 x <> " " <> renderSMTLib2 y <> ")"
+{-# INLINEABLE renderBinary #-}
 
 renderTernary :: (RenderSMTLib2 a, RenderSMTLib2 b, RenderSMTLib2 c) => Builder -> a -> b -> c -> Builder
 renderTernary op x y z = "(" <> op <> " " <> renderSMTLib2 x <> " " <> renderSMTLib2 y <> " " <> renderSMTLib2 z <> ")"
+{-# INLINEABLE renderTernary #-}
 
 instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (Var v)                  = renderSMTLib2 v
@@ -93,6 +100,7 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (IsInt x)    = renderUnary "is_int" x
 
   renderSMTLib2 (Ite p t f)  = renderTernary "ite" p t f
+  {-# INLINEABLE renderSMTLib2 #-}
 
 instance RenderSMTLib2 SMTOption where
   renderSMTLib2 (PrintSuccess  b) = renderBinary "set-option" (":print-success" :: Builder)  b
@@ -101,11 +109,13 @@ instance RenderSMTLib2 SMTOption where
 renderSetLogic :: Builder -> Builder
 renderSetLogic = renderUnary "set-logic"
 
-renderDeclareVar :: Builder -> Repr t -> Builder
-renderDeclareVar name = renderTernary "declare-fun" name ("()" :: Builder)
+renderDeclareVar :: SMTVar t -> Repr t -> Builder
+renderDeclareVar v = renderTernary "declare-fun" v ("()" :: Builder)
+{-# INLINEABLE renderDeclareVar #-}
 
 renderAssert :: Expr BoolType -> Builder
 renderAssert = renderUnary "assert"
+{-# INLINEABLE renderAssert #-}
 
 renderCheckSat :: Builder
 renderCheckSat = "(check-sat)"
@@ -121,7 +131,7 @@ renderSMT smt =
   >< fmap renderAssert (smt^.formulas)
 
 renderVars :: Seq (SomeKnownSMTRepr SMTVar) -> Seq Builder
-renderVars = fmap (\(SomeKnownSMTRepr v) -> renderDeclareVar (renderSMTLib2 v) (goSing v))
+renderVars = fmap (\(SomeKnownSMTRepr v) -> renderDeclareVar v (goSing v))
   where
     goSing :: forall t. KnownSMTRepr t => SMTVar t -> Repr t
     goSing _ = singRepr @t
