@@ -1,7 +1,10 @@
 module Language.Hasmtlib.Boolean where
 
-import Language.Hasmtlib.Internal.Expr
-import Data.Foldable (foldl')
+import Data.Bit
+import Data.Coerce
+import Data.Bits as Bits
+import qualified Data.Vector.Unboxed.Sized as V
+import GHC.TypeNats
   
 class Boolean b where
   -- | Lift a 'Bool'
@@ -64,15 +67,6 @@ class Boolean b where
   infixr 2 |||
   infixr 0 ==>
 
-instance Boolean (Expr BoolType) where
-  bool    = Constant . BoolValue
-  (&&&)   = And
-  (|||)   = Or
-  not'    = Not
-  all' p  = foldl' (\acc expr -> acc &&& p expr) true
-  any' p  = not' . all' (not' . p)
-  xor     = Xor
-
 instance Boolean Bool where
   bool  = id
   true  = True
@@ -85,3 +79,21 @@ instance Boolean Bool where
   all'  = all
   any'  = any
   xor   = (/=)
+  
+instance Boolean Bit where
+  bool  = Bit
+  (&&&)= (.&.) 
+  (|||) = (.|.) 
+  not'  = complement
+  all' p = foldl (\b x -> p x &&& b) true
+  xor   = Bits.xor
+  
+instance KnownNat n => Boolean (V.Vector n Bit) where
+  bool   = V.replicate . coerce
+  (&&&)  = V.zipWith (&&&)
+  (|||)  = V.zipWith (|||)
+  not'   = V.map not'
+  and'   = foldl (&&&) true
+  or'    = foldl (|||) false
+  all' p = foldl (\b bv -> p bv &&& b) true
+  xor    = V.zipWith Bits.xor
