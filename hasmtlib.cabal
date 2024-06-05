@@ -29,6 +29,8 @@ library
                      , Language.Hasmtlib.Equatable
                      , Language.Hasmtlib.Orderable
                      , Language.Hasmtlib.Internal.Parser
+                     , Language.Hasmtlib.Internal.Bitvec
+                     , Language.Hasmtlib.Internal.Render
                      , Language.Hasmtlib.Solver.Common
                      , Language.Hasmtlib.Solver.CVC5
                      , Language.Hasmtlib.Solver.MathSAT
@@ -41,9 +43,8 @@ library
 
   other-modules:       Language.Hasmtlib.Internal.Expr
                      , Language.Hasmtlib.Internal.Expr.Num
-                     , Language.Hasmtlib.Internal.Render
 
-  build-depends:       attoparsec                   >= 0.14.4 && < 0.15
+  build-depends:       attoparsec                   >= 0.14.4 && < 1
                      , base                         >= 4.17.2 && < 5
                      , bytestring                   >= 0.11.5 && < 1
                      , containers                   >= 0.6.7  && < 1
@@ -54,9 +55,9 @@ library
                      , smtlib-backends              >= 0.3    && < 1
                      , smtlib-backends-process      >= 0.3    && < 1
                      , utf8-string                  >= 1.0.2  && < 2
-                     , vector-sized
-                     , bitvec
-                     , finite-typelits
+                     , bitvec                       >= 1.1.5  && < 2
+                     , finite-typelits              >= 0.2.0  && < 1
+                     , vector-sized                 >= 1.6.1  && < 2
 
   ghc-options:       -O2
                      -Wall
