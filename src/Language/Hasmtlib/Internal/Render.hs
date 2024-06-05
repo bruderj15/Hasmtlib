@@ -5,20 +5,27 @@ import Language.Hasmtlib.Type.SMT
 import Data.ByteString.Builder
 import Data.Sequence hiding ((|>), filter)
 import Data.Coerce
+import Data.Bit
+import qualified Data.Vector.Unboxed.Sized as V
 import Control.Lens hiding (op)
+import GHC.TypeNats
 
 class RenderSMTLib2 a where
   renderSMTLib2 :: a -> Builder
 
 instance RenderSMTLib2 (Repr t) where
-  renderSMTLib2 IntRepr  = "Int"
-  renderSMTLib2 RealRepr = "Real"
-  renderSMTLib2 BoolRepr = "Bool"
+  renderSMTLib2 IntRepr    = "Int"
+  renderSMTLib2 RealRepr   = "Real"
+  renderSMTLib2 BoolRepr   = "Bool"
+  renderSMTLib2 (BvRepr p) = renderBinary "_" ("BitVec" :: Builder) (natVal p)
   {-# INLINEABLE renderSMTLib2 #-}
    
 instance RenderSMTLib2 Bool where
   renderSMTLib2 b = if b then "true" else "false"
   {-# INLINEABLE renderSMTLib2 #-}
+
+instance RenderSMTLib2 Nat where
+  renderSMTLib2 = integerDec . fromIntegral
 
 instance RenderSMTLib2 Integer where
   renderSMTLib2 x
@@ -57,7 +64,9 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (Constant (IntValue x))  = renderSMTLib2 x
   renderSMTLib2 (Constant (RealValue x)) = renderSMTLib2 x
   renderSMTLib2 (Constant (BoolValue x)) = renderSMTLib2 x
-
+  renderSMTLib2 (Constant (BvValue   v)) = "#b" <> binPart
+    where 
+      binPart = stringUtf8 $ V.toList $ V.map (\b -> if coerce b then '1' else '0') v
   renderSMTLib2 (Plus x y)   = renderBinary "+" x y
   renderSMTLib2 (Neg x)      = renderUnary  "-" x
   renderSMTLib2 (Mul x y)    = renderBinary "*" x y
@@ -68,6 +77,7 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (LTH x y)    = renderBinary "<" x y
   renderSMTLib2 (LTHE x y)   = renderBinary "<=" x y
   renderSMTLib2 (EQU x y)    = renderBinary "=" x y
+  renderSMTLib2 (Distinct x y) = renderBinary "distinct" x y
   renderSMTLib2 (GTHE x y)   = renderBinary ">=" x y
   renderSMTLib2 (GTH x y)    = renderBinary ">" x y
 
@@ -99,6 +109,31 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (IsInt x)    = renderUnary "is_int" x
 
   renderSMTLib2 (Ite p t f)  = renderTernary "ite" p t f
+  
+  renderSMTLib2 (BvNot x)          = renderUnary  "bvnot"  (renderSMTLib2 x)
+  renderSMTLib2 (BvAnd x y)        = renderBinary "bvand"  (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvOr x y)         = renderBinary "bvor"   (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvXor x y)        = renderBinary "bvxor"  (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvNand x y)       = renderBinary "bvnand" (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvNor x y)        = renderBinary "bvnor"  (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvNeg x)          = renderUnary  "bvneg"  (renderSMTLib2 x)
+  renderSMTLib2 (BvAdd x y)        = renderBinary "bvadd"  (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvSub x y)        = renderBinary "bvsub"  (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvMul x y)        = renderBinary "bvmul"  (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvuDiv x y)       = renderBinary "bvudiv" (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvuRem x y)       = renderBinary "bvurem" (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvShL x y)        = renderBinary "bvshl"  (renderSMTLib2 x) (renderSMTLib2 y)
+  -- TODO: Which of these are parametric and require different rendering due to parametricity?
+  renderSMTLib2 (BvLShR x y)       = renderBinary "bvlshr" (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvConcat x y)     = renderBinary "concat" (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvExtract i j x)  = renderTernary "extract" (renderSMTLib2 (natVal i)) (renderSMTLib2 (natVal j)) (renderSMTLib2 x)
+  renderSMTLib2 (BvZeroExtend i x) = renderBinary "zero_extend" (renderSMTLib2 (natVal i)) (renderSMTLib2 x)
+  renderSMTLib2 (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left" :: Builder) (renderSMTLib2 (natVal i))) (renderSMTLib2 x)
+  renderSMTLib2 (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (renderSMTLib2 (natVal i))) (renderSMTLib2 x)
+  renderSMTLib2 (BvuLT x y)        = renderBinary "bvult"  (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvuLTHE x y)      = renderBinary "bvule"  (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvuGTHE x y)      = renderBinary "bvuge"  (renderSMTLib2 x) (renderSMTLib2 y)
+  renderSMTLib2 (BvuGT x y)        = renderBinary "bvugt"  (renderSMTLib2 x) (renderSMTLib2 y)
   {-# INLINEABLE renderSMTLib2 #-}
 
 instance RenderSMTLib2 SMTOption where
