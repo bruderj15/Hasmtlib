@@ -1,20 +1,20 @@
-cabal-version:       2.2
+cabal-version:         2.2
 
-name:                hasmtlib
-version:             0.1.0.0
-synopsis:            A monad for interfacing with external SMT solvers
-description:         Hasmtlib is a library for generating SMTLib2-problems using a monad. It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types. It is highly inspired by ekmett/ersatz which does the same for QSAT. Communication with external solvers is handled by tweag/smtlib-backends.
-homepage:            https://github.com/bruderj15/Hasmtlib
-license:             GPL-3.0-only
-license-file:        LICENSE
-author:              Julian Bruder
-maintainer:          julian.bruder@outlook.com
-copyright:           2024 Julian Bruder
-category:            SMT
-build-type:          Simple
-extra-source-files:  README.md
+name:                  hasmtlib
+version:               0.1.0.0
+synopsis:              A monad for interfacing with external SMT solvers
+description:           Hasmtlib is a library for generating SMTLib2-problems using a monad. It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types. It is highly inspired by ekmett/ersatz which does the same for QSAT. Communication with external solvers is handled by tweag/smtlib-backends.
+homepage:              https://github.com/bruderj15/Hasmtlib
+license:               GPL-3.0-only
+license-file:          LICENSE
+author:                Julian Bruder
+maintainer:            julian.bruder@outlook.com
+copyright:             2024 Julian Bruder
+category:              SMT
+build-type:            Simple
+extra-source-files:    README.md
 
-tested-with: GHC == 9.6.5
+tested-with:           GHC == 9.6.5
 
 library
   hs-source-dirs:      src
@@ -54,7 +54,9 @@ library
                      , smtlib-backends              >= 0.3    && < 1
                      , smtlib-backends-process      >= 0.3    && < 1
                      , utf8-string                  >= 1.0.2  && < 2
-
+                     , vector-sized
+                     , bitvec
+                     , finite-typelits
 
   ghc-options:       -O2
                      -Wall
