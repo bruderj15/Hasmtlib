@@ -14,7 +14,12 @@ import Data.Map (Map)
 import Data.Sequence (Seq)
 import Data.IntMap as IM
 import Data.Tree (Tree)
+import Data.Finite
+import Data.Bit
+import qualified Data.Bits as Bits
+import qualified Data.Vector.Unboxed.Sized as V
 import Control.Monad
+import GHC.TypeNats
 
 type family DefaultDecoded a :: Type where
   DefaultDecoded (f a) = f (Decoded a)
@@ -84,6 +89,39 @@ instance KnownSMTRepr t => Codec (Expr t) where
   decode sol (ToInt x)  = fmap truncate   (decode sol x)
   decode sol (IsInt x)  = fmap ((0 ==) . snd . properFraction) (decode sol x)
   decode sol (Ite p t f) = liftM3 (\p' t' f' -> if p' then t' else f') (decode sol p) (decode sol t) (decode sol f) 
+  decode sol (BvNot x)          = fmap not' (decode sol x)
+  decode sol (BvAnd x y)        = liftA2 (&&&) (decode sol x) (decode sol y)
+  decode sol (BvOr x y)         = liftA2 (|||) (decode sol x) (decode sol y)
+  decode sol (BvXor x y)        = liftA2 xor (decode sol x) (decode sol y)
+  decode sol (BvNand x y)       = nand <$> sequenceA [decode sol x, decode sol y]
+  decode sol (BvNor x y)        = nor  <$> sequenceA [decode sol x, decode sol y]
+  decode sol (BvNeg x)          = fmap negate (decode sol x)
+  decode sol (BvAdd x y)        = liftA2 (+) (decode sol x) (decode sol y)
+  decode sol (BvSub x y)        = liftA2 (-) (decode sol x) (decode sol y)
+  decode sol (BvMul x y)        = liftA2 (*) (decode sol x) (decode sol y)
+  decode sol (BvuDiv x y)       = liftA2 (/) (decode sol x) (decode sol y)
+  decode sol (BvuRem x y)       = liftA2 rem (decode sol x) (decode sol y)
+  decode sol (BvShL x y)        = do
+    x' <- decode sol x
+    y' <- decode sol y
+    let yInt = V.sum $ V.imap (\fin b -> if coerce b then 2 ^ getFinite fin else 0) $ V.reverse y'
+    return $ Bits.shiftL x' yInt
+    
+  decode sol (BvLShR x y)       = do
+    x' <- decode sol x
+    y' <- decode sol y
+    let yInt = V.sum $ V.imap (\fin b -> if coerce b then 2 ^ getFinite fin else 0) $ V.reverse y'      
+    return $ Bits.shiftL x' yInt
+    
+  decode sol (BvConcat x y)     = liftA2 (V.++) (decode sol x) (decode sol y)
+  decode sol (BvExtract i j x)  = _
+  decode sol (BvZeroExtend i x) = _
+  decode sol (BvRotL i x)       = (\v -> Bits.rotateL v (fromIntegral $ natVal i)) <$> decode sol x
+  decode sol (BvRotR i x)       = (\v -> Bits.rotateR v (fromIntegral $ natVal i)) <$> decode sol x
+  decode sol (BvuLT x y)        = liftA2 (<) (decode sol x) (decode sol y)
+  decode sol (BvuLTHE x y)      = liftA2 (<=) (decode sol x) (decode sol y)
+  decode sol (BvuGTHE x y)      = liftA2 (>=) (decode sol x) (decode sol y)
+  decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
   encode = constant
 
 instance Codec () where
@@ -132,6 +170,8 @@ instance Codec a => Codec (Map k a)
 instance Codec a => Codec (Maybe a)
 instance Codec a => Codec (Seq a)
 instance Codec a => Codec (Tree a)
+
+-- TODO: Codec Bitvec
 
 instance (Codec a, Codec b) => Codec (Either a b) where
   type Decoded (Either a b) = Either (Decoded a) (Decoded b)
