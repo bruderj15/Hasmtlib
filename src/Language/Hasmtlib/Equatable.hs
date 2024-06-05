@@ -28,8 +28,8 @@ class Equatable a where
 infix 4 ===, /==
 
 instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr t) where
-  (===)   = EQU
-  x /== y = not' $ EQU x y
+  (===) = EQU
+  (/==) = Distinct
 
 class GEquatable f where
   (===#) :: f a -> f a -> Expr BoolType
