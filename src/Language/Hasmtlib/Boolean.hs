@@ -3,6 +3,7 @@ module Language.Hasmtlib.Boolean where
 import Data.Bit
 import Data.Coerce
 import Data.Bits as Bits
+import Data.Foldable (foldl')
 import qualified Data.Vector.Unboxed.Sized as V
 import GHC.TypeNats
   
@@ -33,39 +34,40 @@ class Boolean b where
   -- | Logical negation
   not' :: b -> b
 
-  -- | The logical conjunction of several values.
-  and' :: Foldable t => t b -> b
-  and' = all' id
-
-  -- | The logical disjunction of several values.
-  or' :: Foldable t => t b -> b
-  or' = any' id
-
-  -- | The negated logical conjunction of several values.
-  --
-  -- @'nand' = 'neg' . 'and'@
-  nand :: Foldable t => t b -> b
-  nand = not' . and'
-
-  -- | The negated logical disjunction of several values.
-  --
-  -- @'nor' = 'neg' . 'or'@
-  nor :: Foldable t => t b -> b
-  nor = not' . or'
-
-  -- | The logical conjunction of the mapping of a function over several values.
-  all' :: Foldable t => (a -> b) -> t a -> b
-
-  -- | The logical disjunction of the mapping of a function over several values.
-  any' :: Foldable t => (a -> b) -> t a -> b
-  any' p  = not' . all' (not' . p)
-
   -- | Exclusive-or
   xor :: b -> b -> b
  
   infixr 3 &&&
   infixr 2 |||
   infixr 0 ==>
+
+-- | The logical conjunction of several values.
+and' :: (Foldable t, Boolean b) => t b -> b
+and' = foldl' (&&&) true
+
+-- | The logical disjunction of several values.
+or' :: (Foldable t, Boolean b) => t b -> b
+or' = foldl' (|||) false
+
+-- | The negated logical conjunction of several values.
+--
+-- @'nand' = 'neg' . 'and'@
+nand :: (Foldable t, Boolean b) => t b -> b
+nand = not' . and'
+
+-- | The negated logical disjunction of several values.
+--
+-- @'nor' = 'neg' . 'or'@
+nor :: (Foldable t, Boolean b) => t b -> b
+nor = not' . or'
+
+-- | The logical conjunction of the mapping of a function over several values.
+all' :: (Foldable t, Boolean b) => (a -> b) -> t a -> b
+all' p = foldl' (\acc b -> acc &&& p b) true
+
+-- | The logical disjunction of the mapping of a function over several values.
+any' :: (Foldable t, Boolean b) => (a -> b) -> t a -> b
+any' p = foldl' (\acc b -> acc ||| p b) false
 
 instance Boolean Bool where
   bool  = id
@@ -74,10 +76,6 @@ instance Boolean Bool where
   (&&&) = (&&)
   (|||) = (||)
   not'  = not
-  and'  = and
-  or'   = or
-  all'  = all
-  any'  = any
   xor   = (/=)
   
 instance Boolean Bit where
@@ -85,7 +83,6 @@ instance Boolean Bit where
   (&&&)= (.&.) 
   (|||) = (.|.) 
   not'  = complement
-  all' p = foldl (\b x -> p x &&& b) true
   xor   = Bits.xor
   
 instance KnownNat n => Boolean (V.Vector n Bit) where
@@ -93,7 +90,4 @@ instance KnownNat n => Boolean (V.Vector n Bit) where
   (&&&)  = V.zipWith (&&&)
   (|||)  = V.zipWith (|||)
   not'   = V.map not'
-  and'   = foldl (&&&) true
-  or'    = foldl (|||) false
-  all' p = foldl (\b bv -> p bv &&& b) true
   xor    = V.zipWith Bits.xor

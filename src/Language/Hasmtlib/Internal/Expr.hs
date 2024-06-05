@@ -158,8 +158,6 @@ instance Boolean (Expr BoolType) where
   (&&&)   = And
   (|||)   = Or
   not'    = Not
-  all' p  = foldl' (\acc expr -> acc &&& p expr) true
-  any' p  = not' . all' (not' . p)
   xor     = Xor
   
 instance Bounded (Expr BoolType) where
