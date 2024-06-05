@@ -2,12 +2,10 @@
 
 module Language.Hasmtlib.Internal.Expr where
 
+import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Boolean
-import Data.Foldable (foldl')
 import Data.Kind
-import Data.Bit
 import Data.Proxy
-import qualified Data.Vector.Unboxed.Sized as V
 import GHC.TypeNats
 
 -- | Types of variables in SMTLib - used as promoted Type
@@ -21,7 +19,7 @@ type family ValueType (t :: SMTType) = (r :: Type) | r -> t where
   ValueType IntType    = Integer
   ValueType RealType   = Double
   ValueType BoolType   = Bool
-  ValueType (BvType n) = V.Vector n Bit
+  ValueType (BvType n) = Bitvec n
 
 -- | SMT value
 data Value (t :: SMTType) where
@@ -165,5 +163,5 @@ instance Bounded (Expr BoolType) where
   maxBound = true
   
 instance KnownNat n => Bounded (Expr (BvType n)) where
-  minBound = Constant . BvValue $ V.replicate false
-  maxBound = Constant . BvValue $ V.replicate true
+  minBound = Constant $ BvValue minBound
+  maxBound = Constant $ BvValue maxBound

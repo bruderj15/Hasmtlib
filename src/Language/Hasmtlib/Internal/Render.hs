@@ -1,12 +1,11 @@
 module Language.Hasmtlib.Internal.Render where
 
 import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Type.SMT
 import Data.ByteString.Builder
 import Data.Sequence hiding ((|>), filter)
 import Data.Coerce
-import Data.Bit
-import qualified Data.Vector.Unboxed.Sized as V
 import Control.Lens hiding (op)
 import GHC.TypeNats
 
@@ -47,6 +46,9 @@ instance RenderSMTLib2 (SMTVar t) where
   renderSMTLib2 v = "var_" <> intDec (coerce @(SMTVar t) @Int v)
   {-# INLINEABLE renderSMTLib2 #-}
 
+instance RenderSMTLib2 (Bitvec n) where
+  renderSMTLib2 = stringUtf8 . show
+
 renderUnary :: RenderSMTLib2 a => Builder -> a -> Builder
 renderUnary op x = "(" <> op <> " " <> renderSMTLib2 x <> ")"
 {-# INLINEABLE renderUnary #-}
@@ -64,14 +66,14 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (Constant (IntValue x))  = renderSMTLib2 x
   renderSMTLib2 (Constant (RealValue x)) = renderSMTLib2 x
   renderSMTLib2 (Constant (BoolValue x)) = renderSMTLib2 x
-  renderSMTLib2 (Constant (BvValue   v)) = "#b" <> binPart
-    where 
-      binPart = stringUtf8 $ V.toList $ V.map (\b -> if coerce b then '1' else '0') v
+  renderSMTLib2 (Constant (BvValue   v)) = "#b" <> renderSMTLib2 v
+
   renderSMTLib2 (Plus x y)   = renderBinary "+" x y
   renderSMTLib2 (Neg x)      = renderUnary  "-" x
   renderSMTLib2 (Mul x y)    = renderBinary "*" x y
   renderSMTLib2 (Abs x)      = renderUnary  "abs" x
   renderSMTLib2 (Mod x y)    = renderBinary "mod" x y
+  renderSMTLib2 (IDiv x y)   = renderBinary "div" x y
   renderSMTLib2 (Div x y)    = renderBinary "/" x y
 
   renderSMTLib2 (LTH x y)    = renderBinary "<" x y
@@ -109,7 +111,7 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (IsInt x)    = renderUnary "is_int" x
 
   renderSMTLib2 (Ite p t f)  = renderTernary "ite" p t f
-  
+
   renderSMTLib2 (BvNot x)          = renderUnary  "bvnot"  (renderSMTLib2 x)
   renderSMTLib2 (BvAnd x y)        = renderBinary "bvand"  (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvOr x y)         = renderBinary "bvor"   (renderSMTLib2 x) (renderSMTLib2 y)
@@ -123,7 +125,7 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (BvuDiv x y)       = renderBinary "bvudiv" (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuRem x y)       = renderBinary "bvurem" (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvShL x y)        = renderBinary "bvshl"  (renderSMTLib2 x) (renderSMTLib2 y)
-  -- TODO: Which of these are parametric and require different rendering due to parametricity?
+  -- TODO: Which of these are parametric and require different rendering?
   renderSMTLib2 (BvLShR x y)       = renderBinary "bvlshr" (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvConcat x y)     = renderBinary "concat" (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvExtract i j x)  = renderTernary "extract" (renderSMTLib2 (natVal i)) (renderSMTLib2 (natVal j)) (renderSMTLib2 x)
