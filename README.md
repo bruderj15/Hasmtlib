@@ -10,7 +10,7 @@ Building expressions with type-level representations of the SMTLib2-Types guaran
 
 Although Hasmtlib does not yet make use of _observable_ sharing [(StableNames)](https://downloads.haskell.org/ghc/9.6.1/docs/libraries/base-4.18.0.0/System-Mem-StableName.html#:~:text=Stable%20Names,-data%20StableName%20a&text=An%20abstract%20name%20for%20an,makeStableName%20on%20the%20same%20object.) like Ersatz does, sharing in the API still allows for pure formula construction.
 
-Therefore this allows you to use the much richer subset of Haskell than a purely monadic meta-language would, which [hgoes/smtlib2](https://github.com/hgoes/smtlib2) is one of. This ultimately results in extremely compact code.
+Therefore, this allows you to use the much richer subset of Haskell than a purely monadic meta-language would, which [hgoes/smtlib2](https://github.com/hgoes/smtlib2) is one of. This ultimately results in extremely compact code.
 
 For instance, to define the addition of two `V3` containing a Real-SMT-Expression:
 ```haskell
@@ -30,6 +30,8 @@ instance Num a => Num (V3 a) where
 ```
 Hence, no extra definition is needed at all. We can use the existing instances:
 ```haskell
+{-# LANGUAGE DataKinds #-}
+
 import Language.Hasmtlib
 import Linear
 
@@ -42,7 +44,7 @@ main = do
   res <- solveWith cvc5 $ do
     setLogic "QF_NRA"
 
-    u :: V3 (Expr RealType ) <- variable
+    u :: V3 (Expr RealType) <- variable
     v <- variable
 
     assert $ dot u v === 5
@@ -54,7 +56,7 @@ main = do
 May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 
 ## Roadmap
-- [ ] Type-level length-indexed and encoding-indexed Bitvectors (work in progress)
+- [x] Type-level length-indexed Bitvectors
 - [ ] Incremental solving
 - [ ] Observable sharing
 - [ ] Quantifiers `for_all` and `exists` (postponed)
@@ -65,4 +67,4 @@ There are some examples in [here](https://github.com/bruderj15/Hasmtlib/tree/mas
 ## Contact information
 Contributions, critics and bug reports are welcome!
 
-Please feel free to contact me through Github.
+Please feel free to contact me through GitHub.
