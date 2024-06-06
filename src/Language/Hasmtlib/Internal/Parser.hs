@@ -2,22 +2,25 @@
 
 module Language.Hasmtlib.Internal.Parser where
 
+import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Internal.Expr
-import Language.Hasmtlib.Orderable
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Type.Solution
+import Data.Bit
 import Data.Coerce
+import Data.Proxy
 import Data.Ratio ((%))
 import Data.ByteString
 import Data.ByteString.Builder
-import Data.Attoparsec.ByteString hiding (Result)
+import Data.Attoparsec.ByteString hiding (Result, skipWhile)
 import Data.Attoparsec.ByteString.Char8 hiding (Result)
 import qualified Data.IntMap as IM
 import Control.Applicative
+import GHC.TypeNats
 
 answerParser :: Parser (Result, Solution)
 answerParser = do
@@ -58,6 +61,14 @@ parseSomeSol :: Parser (SomeKnownSMTRepr SMTVarSol)
 parseSomeSol = SomeKnownSMTRepr <$> (parseSol @IntType)
            <|> SomeKnownSMTRepr <$> (parseSol @RealType)
            <|> SomeKnownSMTRepr <$> (parseSol @BoolType)
+           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 1))
+           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 2))
+           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 4))
+           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 8))
+           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 16))
+           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 32))
+           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 64))
+           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 128))
 
 parseSol :: forall t. KnownSMTRepr t => Parser (SMTVarSol t)
 parseSol = do
@@ -95,15 +106,18 @@ parseExpr = case singRepr @t of
           <|> parsePi <|> parseUnOp "sqrt" sqrt <|> parseUnOp "exp" exp <|> parseUnOp "log" log
           <|> parseUnOp "sin" sin <|> parseUnOp "cos" cos <|> parseUnOp "tan" tan
           <|> parseUnOp "arcsin" asin <|> parseUnOp "arccos" acos <|> parseUnOp "arctan" atan
---          <|> parseUnOp _ sinh <|> parseUnOp _ cosh <|> parseUnOp _ tanh
---          <|> parseUnOp _ asinh <|> parseUnOp _ acosh <|> parseUnOp _ atanh
   BoolRepr -> parseVar <|> parseConstant
-          <|> parseBinOrdOp @t "<" (<?) <|> parseBinOrdOp @t "<=" (<=?)
-          <|> parseBinOrdOp @t "=" (===)
-          <|> parseBinOrdOp @t ">" (>?) <|> parseBinOrdOp @t ">=" (>=?)
+          <|> parseBinOrdOp @t "=" (===) <|> parseBinOrdOp @t "distinct" (/==)
           <|> parseIsIntFun
           <|> parseUnOp "not" not'
           <|> parseBinOp "and" (&&&)  <|> parseBinOp "or" (|||) <|> parseBinOp "=>" (==>) <|> parseBinOp "xor" xor
+  BvRepr _ -> parseVar <|> parseConstant
+          <|> parseUnOp "bvnot" not'
+          <|> parseBinOp "bvand" (&&&)  <|> parseBinOp "bvor" (|||) <|> parseBinOp "bvxor" xor <|> parseBinOp "bvnand" BvNand <|> parseBinOp "bvnor" BvNor
+          <|> parseUnOp  "bvneg" negate
+          <|> parseBinOp "bvadd" (+)  <|> parseBinOp "bvsub" (-) <|> parseBinOp "bvmul" (*)
+          <|> parseBinOp "bvudiv" BvuDiv <|> parseBinOp "bvurem" BvuRem
+          <|> parseBinOp "bvshl" BvShL <|> parseBinOp "bvlshr" BvLShR
 
 parseVar :: Parser (Expr t)
 parseVar = do
@@ -119,9 +133,40 @@ parseConstant = do
     IntRepr  -> anyValue decimal
     RealRepr -> anyValue parseRatioDouble <|> parseToRealDouble <|> anyValue rational
     BoolRepr -> parseBool
+    BvRepr p -> anyBitvector p
 
   return $ Constant $ putValue cval
 {-# INLINEABLE parseConstant #-}
+
+anyBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
+anyBitvector p = binBitvector p <|> hexBitvector p <|> literalBitvector p
+
+binBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
+binBitvector p = do
+  _  <- string "#b" >> skipSpace
+  bs <- many $ char '0' <|> char '1'
+  let bs' :: [Bit] = fmap (\b -> ite (b == '1') true false) bs
+  case bvFromListN' p bs' of
+    Nothing -> fail $ "Expected BitVector of length" <> show (natVal p) <> ", but got a different one"
+    Just v  -> return v
+{-# INLINEABLE binBitvector #-}
+
+hexBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
+hexBitvector _ = do
+  _ <- string "#x" >> skipSpace
+  fromInteger <$> hexadecimal
+{-# INLINEABLE hexBitvector #-}
+
+literalBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
+literalBitvector _ = do
+  _ <- char '(' >> skipSpace
+  _ <- char '_' >> skipSpace
+  _ <- string "bv"
+  x <- decimal
+  _ <- skipWhile (/= ')') >> char ')'
+
+  return $ fromInteger x
+{-# INLINEABLE literalBitvector #-}
 
 parseUnOp :: forall t. KnownSMTRepr t => ByteString -> (Expr t -> Expr t) -> Parser (Expr t)
 parseUnOp opStr op = do

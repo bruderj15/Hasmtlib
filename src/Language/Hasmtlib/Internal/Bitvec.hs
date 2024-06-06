@@ -77,6 +77,9 @@ bvToList = V.toList . coerce
 bvFromListN :: forall n. KnownNat n => [Bit] -> Maybe (Bitvec n)
 bvFromListN = coerce . V.fromListN @n
 
+bvFromListN' :: forall n. KnownNat n => Proxy n -> [Bit] -> Maybe (Bitvec n)
+bvFromListN' _ = bvFromListN
+
 bvRotL :: forall n i. KnownNat (Mod i n) => Proxy i -> Bitvec n -> Bitvec n
 bvRotL _ (coerce -> x) = coerce $ r V.++ l
   where

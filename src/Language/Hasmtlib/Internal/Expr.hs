@@ -156,6 +156,13 @@ instance Boolean (Expr BoolType) where
   not'    = Not
   xor     = Xor
   
+instance KnownNat n => Boolean (Expr (BvType n)) where
+  bool    = Constant . BvValue . bool
+  (&&&)   = BvAnd
+  (|||)   = BvOr
+  not'    = BvNot
+  xor     = BvXor
+  
 instance Bounded (Expr BoolType) where
   minBound = false
   maxBound = true
