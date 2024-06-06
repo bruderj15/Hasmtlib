@@ -61,14 +61,13 @@ parseSomeSol :: Parser (SomeKnownSMTRepr SMTVarSol)
 parseSomeSol = SomeKnownSMTRepr <$> (parseSol @IntType)
            <|> SomeKnownSMTRepr <$> (parseSol @RealType)
            <|> SomeKnownSMTRepr <$> (parseSol @BoolType)
-           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 1))
-           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 2))
-           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 4))
-           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 8))
-           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 16))
-           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 32))
-           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 64))
-           <|> SomeKnownSMTRepr <$> (parseSol @(BvType 128))
+           <|> parseAnyBvUpToLength 128
+
+parseAnyBvUpToLength :: Natural -> Parser (SomeKnownSMTRepr SMTVarSol)
+parseAnyBvUpToLength hi = asum $ fmap ((\case SomeNat p -> goProxy p) . someNatVal) [0..hi]
+  where
+    goProxy :: forall n. KnownNat n => Proxy n -> Parser (SomeKnownSMTRepr SMTVarSol)
+    goProxy _ = SomeKnownSMTRepr <$> parseSol @(BvType n)
 
 parseSol :: forall t. KnownSMTRepr t => Parser (SMTVarSol t)
 parseSol = do
