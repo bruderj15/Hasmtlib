@@ -14,6 +14,7 @@ import Data.Bifunctor
 import qualified Data.Vector.Unboxed.Sized as V
 import GHC.TypeNats
 
+-- | MSB first length-indexed Bitvector
 newtype Bitvec (n :: Nat) = Bitvec { unBitvec :: V.Vector n Bit }
   deriving stock (Eq, Ord)
   deriving newtype (Boolean)
