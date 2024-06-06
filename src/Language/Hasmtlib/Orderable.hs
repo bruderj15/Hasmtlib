@@ -8,11 +8,12 @@ import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Boolean
-import GHC.Generics
-import Numeric.Natural
 import Data.Int
 import Data.Word
 import Data.Void
+import Numeric.Natural
+import GHC.Generics
+import GHC.TypeNats
 
 -- | Compare two as as SMT-Expression.
 --   Usage:
@@ -45,11 +46,23 @@ min' x y = ite (x <=? y) x y
 max' :: (Orderable a, Iteable (Expr BoolType) a) => a -> a -> a
 max' x y = ite (y <=? x) x y
 
-instance (KnownSMTRepr t, Ord (ValueType t)) => Orderable (Expr t) where
+instance Orderable (Expr IntType) where
   (<?)     = LTH
   (<=?)    = LTHE
   (>=?)    = GTHE
   (>?)     = GTH
+
+instance Orderable (Expr RealType) where
+  (<?)     = LTH
+  (<=?)    = LTHE
+  (>=?)    = GTHE
+  (>?)     = GTH
+
+instance KnownNat n => Orderable (Expr (BvType n)) where
+  (<?)     = BvuLT
+  (<=?)    = BvuLTHE
+  (>=?)    = BvuGTHE
+  (>?)     = BvuGT
 
 class GEquatable f => GOrderable f where
   (<?#)  :: f a -> f a -> Expr BoolType

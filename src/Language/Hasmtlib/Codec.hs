@@ -4,17 +4,21 @@
 
 module Language.Hasmtlib.Codec where
 
+import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.SMT (constant)
 import Language.Hasmtlib.Boolean
 import Data.Kind
 import Data.Coerce
+import Data.Proxy
 import Data.Map (Map)
 import Data.Sequence (Seq)
 import Data.IntMap as IM
 import Data.Tree (Tree)
+import qualified Data.Vector.Unboxed.Sized as V
 import Control.Monad
+import GHC.TypeNats
 
 type family DefaultDecoded a :: Type where
   DefaultDecoded (f a) = f (Decoded a)
@@ -47,16 +51,25 @@ instance KnownSMTRepr t => Codec (Expr t) where
       BoolRepr  -> case someSol of
                     SomeKnownSMTRepr (SMTVarSol _ (BoolValue v)) -> Just v
                     _                                            -> Nothing
+      BvRepr p  -> case someSol of
+                    SomeKnownSMTRepr (SMTVarSol _ (BvValue v))   -> goN p v
+                    _                                            -> Nothing
+        where
+          goN :: forall n m. KnownNat n => Proxy n -> Bitvec m -> Maybe (Bitvec n)
+          goN _ = coerce . V.toSized @n . V.fromSized . coerce
+
   decode _ (Constant v) = Just $ extractValue v
   decode sol (Plus x y) = liftA2 (+)   (decode sol x) (decode sol y)
   decode sol (Neg x)    = fmap negate  (decode sol x)
   decode sol (Mul x y)  = liftA2 (-)   (decode sol x) (decode sol y)
   decode sol (Abs x)    = fmap abs     (decode sol x)
   decode sol (Mod x y)  = liftA2 mod   (decode sol x) (decode sol y)
+  decode sol (IDiv x y) = liftA2 div   (decode sol x) (decode sol y)
   decode sol (Div x y)  = liftA2 (/)   (decode sol x) (decode sol y)
   decode sol (LTH x y)  = liftA2 (<)   (decode sol x) (decode sol y)
   decode sol (LTHE x y) = liftA2 (<=)  (decode sol x) (decode sol y)
   decode sol (EQU x y)  = liftA2 (==)  (decode sol x) (decode sol y)
+  decode sol (Distinct x y)  = liftA2 (/=)  (decode sol x) (decode sol y)
   decode sol (GTHE x y) = liftA2 (>=)  (decode sol x) (decode sol y)
   decode sol (GTH x y)  = liftA2 (>)   (decode sol x) (decode sol y)
   decode sol (Not x)    = fmap   not'  (decode sol x)
@@ -84,6 +97,27 @@ instance KnownSMTRepr t => Codec (Expr t) where
   decode sol (ToInt x)  = fmap truncate   (decode sol x)
   decode sol (IsInt x)  = fmap ((0 ==) . snd . properFraction) (decode sol x)
   decode sol (Ite p t f) = liftM3 (\p' t' f' -> if p' then t' else f') (decode sol p) (decode sol t) (decode sol f) 
+  decode sol (BvNot x)          = fmap not' (decode sol x)
+  decode sol (BvAnd x y)        = liftA2 (&&&) (decode sol x) (decode sol y)
+  decode sol (BvOr x y)         = liftA2 (|||) (decode sol x) (decode sol y)
+  decode sol (BvXor x y)        = liftA2 xor (decode sol x) (decode sol y)
+  decode sol (BvNand x y)       = nand <$> sequenceA [decode sol x, decode sol y]
+  decode sol (BvNor x y)        = nor  <$> sequenceA [decode sol x, decode sol y]
+  decode sol (BvNeg x)          = fmap negate (decode sol x)
+  decode sol (BvAdd x y)        = liftA2 (+) (decode sol x) (decode sol y)
+  decode sol (BvSub x y)        = liftA2 (-) (decode sol x) (decode sol y)
+  decode sol (BvMul x y)        = liftA2 (*) (decode sol x) (decode sol y)
+  decode sol (BvuDiv x y)       = liftA2 div (decode sol x) (decode sol y)
+  decode sol (BvuRem x y)       = liftA2 rem (decode sol x) (decode sol y)
+  decode sol (BvShL x y)        = join $ liftA2 bvShL (decode sol x) (decode sol y)
+  decode sol (BvLShR x y)       = join $ liftA2 bvLShR (decode sol x) (decode sol y)
+  decode sol (BvConcat x y)     = liftA2 bvConcat (decode sol x) (decode sol y)
+  decode sol (BvRotL i x)       = bvRotL i <$> decode sol x
+  decode sol (BvRotR i x)       = bvRotR i <$> decode sol x
+  decode sol (BvuLT x y)        = liftA2 (<) (decode sol x) (decode sol y)
+  decode sol (BvuLTHE x y)      = liftA2 (<=) (decode sol x) (decode sol y)
+  decode sol (BvuGTHE x y)      = liftA2 (>=) (decode sol x) (decode sol y)
+  decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
   encode = constant
 
 instance Codec () where

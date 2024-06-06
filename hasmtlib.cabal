@@ -1,20 +1,20 @@
-cabal-version:       2.2
+cabal-version:         2.2
 
-name:                hasmtlib
-version:             0.1.0.0
-synopsis:            A monad for interfacing with external SMT solvers
-description:         Hasmtlib is a library for generating SMTLib2-problems using a monad. It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types. It is highly inspired by ekmett/ersatz which does the same for QSAT. Communication with external solvers is handled by tweag/smtlib-backends.
-homepage:            https://github.com/bruderj15/Hasmtlib
-license:             GPL-3.0-only
-license-file:        LICENSE
-author:              Julian Bruder
-maintainer:          julian.bruder@outlook.com
-copyright:           2024 Julian Bruder
-category:            SMT
-build-type:          Simple
-extra-source-files:  README.md
+name:                  hasmtlib
+version:               0.1.0.0
+synopsis:              A monad for interfacing with external SMT solvers
+description:           Hasmtlib is a library for generating SMTLib2-problems using a monad. It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types. It is highly inspired by ekmett/ersatz which does the same for QSAT. Communication with external solvers is handled by tweag/smtlib-backends.
+homepage:              https://github.com/bruderj15/Hasmtlib
+license:               GPL-3.0-only
+license-file:          LICENSE
+author:                Julian Bruder
+maintainer:            julian.bruder@outlook.com
+copyright:             2024 Julian Bruder
+category:              SMT
+build-type:            Simple
+extra-source-files:    README.md
 
-tested-with: GHC == 9.6.5
+tested-with:           GHC == 9.6.5
 
 library
   hs-source-dirs:      src
@@ -29,6 +29,8 @@ library
                      , Language.Hasmtlib.Equatable
                      , Language.Hasmtlib.Orderable
                      , Language.Hasmtlib.Internal.Parser
+                     , Language.Hasmtlib.Internal.Bitvec
+                     , Language.Hasmtlib.Internal.Render
                      , Language.Hasmtlib.Solver.Common
                      , Language.Hasmtlib.Solver.CVC5
                      , Language.Hasmtlib.Solver.MathSAT
@@ -41,9 +43,8 @@ library
 
   other-modules:       Language.Hasmtlib.Internal.Expr
                      , Language.Hasmtlib.Internal.Expr.Num
-                     , Language.Hasmtlib.Internal.Render
 
-  build-depends:       attoparsec                   >= 0.14.4 && < 0.15
+  build-depends:       attoparsec                   >= 0.14.4 && < 1
                      , base                         >= 4.17.2 && < 5
                      , bytestring                   >= 0.11.5 && < 1
                      , containers                   >= 0.6.7  && < 1
@@ -54,7 +55,9 @@ library
                      , smtlib-backends              >= 0.3    && < 1
                      , smtlib-backends-process      >= 0.3    && < 1
                      , utf8-string                  >= 1.0.2  && < 2
-
+                     , bitvec                       >= 1.1.5  && < 2
+                     , finite-typelits              >= 0.1.0  && < 1
+                     , vector-sized                 >= 1      && < 2
 
   ghc-options:       -O2
                      -Wall

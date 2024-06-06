@@ -12,19 +12,37 @@ import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Orderable  
-    
-class    SMTNumber (t :: SMTType) where smtValueFromInteger :: Integer -> Value t
-instance SMTNumber RealType       where smtValueFromInteger = RealValue . fromIntegral
-instance SMTNumber IntType        where smtValueFromInteger = IntValue  
+import GHC.TypeNats
   
-instance (KnownSMTRepr t, SMTNumber t, Num (ValueType t), Ord (ValueType t)) => Num (Expr t) where
-  fromInteger = Constant . smtValueFromInteger
-  (+)         = Plus
-  x - y       = Plus x (Neg y)
-  (*)         = Mul
-  negate      = Neg
-  abs         = Abs
-  signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
+instance Num (Expr IntType) where
+   fromInteger = Constant . IntValue
+   (+)     = Plus
+   (-) x y = Plus x (Neg y)
+   (*)     = Mul
+   negate  = Neg
+   abs     = Abs
+   signum x   = ite ((x === 0) :: Expr BoolType)
+                  0 $
+                  ite ((x <? 0) :: Expr BoolType) (-1) 1
+
+instance Num (Expr RealType) where
+   fromInteger = Constant . RealValue . fromIntegral
+   (+)      = Plus
+   x - y    = Plus x (Neg y)
+   (*)      = Mul
+   negate   = Neg
+   abs      = Abs
+   signum x = ite ((x === 0) :: Expr BoolType)
+                  0 $
+                  ite ((x <? 0) :: Expr BoolType) (-1) 1
+
+instance KnownNat n => Num (Expr (BvType n)) where
+   fromInteger = Constant . BvValue . fromInteger 
+   (+)         = BvAdd
+   (-)         = BvSub
+   (*)         = BvMul
+   abs         = id
+   signum _    = 0
 
 instance Fractional (Expr RealType) where
   fromRational = Constant . RealValue . fromRational
