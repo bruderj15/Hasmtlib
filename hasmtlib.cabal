@@ -56,8 +56,8 @@ library
                      , smtlib-backends-process      >= 0.3    && < 1
                      , utf8-string                  >= 1.0.2  && < 2
                      , bitvec                       >= 1.1.5  && < 2
-                     , finite-typelits              >= 0.2.0  && < 1
-                     , vector-sized                 >= 1.6.1  && < 2
+                     , finite-typelits              >= 0.1.0  && < 1
+                     , vector-sized                 >= 1      && < 2
 
   ghc-options:       -O2
                      -Wall
