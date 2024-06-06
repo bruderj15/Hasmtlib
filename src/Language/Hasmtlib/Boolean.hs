@@ -84,7 +84,8 @@ instance Boolean Bit where
   (|||) = (.|.) 
   not'  = complement
   xor   = Bits.xor
-  
+
+-- | Bitwise operations
 instance KnownNat n => Boolean (V.Vector n Bit) where
   bool   = V.replicate . coerce
   (&&&)  = V.zipWith (&&&)

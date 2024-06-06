@@ -75,8 +75,8 @@ var = do
 --      >>> constant @IntType 5
 --          Constant (IntValue 5)
 -- 
---      >>> constant @RealType 5
---          Constant (RealValue 5)
+--      >>> constant @(BvType 8) 5
+--          Constant (BvValue 0000101)
 constant :: KnownSMTRepr t => ValueType t -> Expr t
 constant = Constant . putValue 
 

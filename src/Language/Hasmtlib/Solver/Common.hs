@@ -30,6 +30,7 @@ instance Default Debugger where
     , debugModelResponse  = liftIO . mapM_ (putStrLn . toString) . split 13
     }
 
+-- | Use an external process for solver
 processSolver :: MonadIO m => P.Config -> Maybe Debugger -> Solver SMT m
 processSolver cfg debugger smt = do
   liftIO $ P.with cfg $ \handle -> do

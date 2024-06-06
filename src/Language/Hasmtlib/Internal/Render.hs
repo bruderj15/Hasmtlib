@@ -25,6 +25,7 @@ instance RenderSMTLib2 Bool where
 
 instance RenderSMTLib2 Nat where
   renderSMTLib2 = integerDec . fromIntegral
+  {-# INLINEABLE renderSMTLib2 #-}
 
 instance RenderSMTLib2 Integer where
   renderSMTLib2 x
@@ -48,6 +49,7 @@ instance RenderSMTLib2 (SMTVar t) where
 
 instance RenderSMTLib2 (Bitvec n) where
   renderSMTLib2 = stringUtf8 . show
+  {-# INLINEABLE renderSMTLib2 #-}
 
 renderUnary :: RenderSMTLib2 a => Builder -> a -> Builder
 renderUnary op x = "(" <> op <> " " <> renderSMTLib2 x <> ")"

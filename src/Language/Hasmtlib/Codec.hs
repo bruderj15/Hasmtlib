@@ -20,6 +20,7 @@ import qualified Data.Vector.Unboxed.Sized as V
 import Control.Monad
 import GHC.TypeNats
 
+-- | Compute the default Decoded-type for every wrapper
 type family DefaultDecoded a :: Type where
   DefaultDecoded (f a) = f (Decoded a)
 
@@ -37,6 +38,7 @@ class Codec a where
   default encode :: (Functor f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Decoded a -> a
   encode = fmap encode
 
+-- | Decode and evaluate expressions
 instance KnownSMTRepr t => Codec (Expr t) where
   type Decoded (Expr t) = ValueType t
   decode sol (Var var)    = do

@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE NoStarIsType #-}
+{-# LANGUAGE RoleAnnotations #-}
 
 module Language.Hasmtlib.Internal.Expr where
 
@@ -13,6 +14,7 @@ import GHC.TypeNats
 data SMTType = IntType | RealType | BoolType | BvType Nat
 
 -- | SMT variable
+type role SMTVar phantom
 newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
 
 -- | Computes the Haskell type of the SMTLib-Type

@@ -62,29 +62,38 @@ instance Floating (Expr RealType) where
     acosh = Acosh
     atanh = Atanh
 
+-- | Integer modulus
 mod' :: Expr IntType -> Expr IntType -> Expr IntType
 mod' = Mod
 
+-- | Integer division
 div' :: Expr IntType -> Expr IntType -> Expr IntType
 div' = IDiv
 
+-- | Unsigned bitvector division
 bvuDiv   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
 bvuDiv   = BvuDiv
 
+-- | Unsigned bitvector remainder
 bvuRem   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
 bvuRem   = BvuRem
 
+-- | Bitvector shift left
 bvShL    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
 bvShL    = BvShL
 
+-- | Bitvector logical shift right
 bvLShR   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
 bvLShR   = BvLShR
 
+-- | Concat two bitvectors
 bvConcat :: (KnownNat n, KnownNat m) => Expr (BvType n) -> Expr (BvType m) -> Expr (BvType (n + m))
 bvConcat = BvConcat
 
+-- | Rotate bitvector left
 bvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
 bvRotL   = BvRotL
 
+-- | Rotate bitvector right
 bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
 bvRotR   = BvRotR
