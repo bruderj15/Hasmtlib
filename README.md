@@ -55,11 +55,20 @@ main = do
 ```
 May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 
-## Roadmap
-- [x] Type-level length-indexed Bitvectors
+## Features
+
+### Supported
+- [x] SMTLib2 types in the haskell type
+- [x] Full support for SMTLib2 types Int, Real, Bool and unsigned BitVec
+- [x] Type-level length-indexed Bitvectors for BitVec
+- [x] Pure API with Expression-instances for Num, Floating, Bounded, ...
+- [x] Solvers via external process: CVC5, Z3, Yices2-SMT & MathSAT
+- [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solver.hs)
+
+### Coming
 - [ ] Incremental solving
 - [ ] Observable sharing
-- [ ] Quantifiers `for_all` and `exists` (postponed)
+- [ ] Quantifiers `for_all` and `exists`
 
 ## Examples
 There are some examples in [here](https://github.com/bruderj15/Hasmtlib/tree/master/src/Language/Hasmtlib/Example).
