@@ -1,17 +1,13 @@
 -- Required for class constraints of form: c (ValueType t) :: Constraint
 {-# LANGUAGE UndecidableInstances #-}
 
-module Language.Hasmtlib.Internal.Expr.Num 
-(
-  Num(..)
-, Fractional(..)
-, Floating(..)
-) where
+module Language.Hasmtlib.Internal.Expr.Num where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Orderable  
+import Data.Proxy
 import GHC.TypeNats
   
 instance Num (Expr IntType) where
@@ -66,3 +62,29 @@ instance Floating (Expr RealType) where
     acosh = Acosh
     atanh = Atanh
 
+mod' :: Expr IntType -> Expr IntType -> Expr IntType
+mod' = Mod
+
+div' :: Expr IntType -> Expr IntType -> Expr IntType
+div' = IDiv
+
+bvuDiv   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
+bvuDiv   = BvuDiv
+
+bvuRem   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
+bvuRem   = BvuRem
+
+bvShL    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
+bvShL    = BvShL
+
+bvLShR   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
+bvLShR   = BvLShR
+
+bvConcat :: (KnownNat n, KnownNat m) => Expr (BvType n) -> Expr (BvType m) -> Expr (BvType (n + m))
+bvConcat = BvConcat
+
+bvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
+bvRotL   = BvRotL
+
+bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
+bvRotR   = BvRotR
