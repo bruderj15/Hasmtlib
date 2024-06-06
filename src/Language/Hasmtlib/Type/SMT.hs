@@ -79,6 +79,7 @@ var = do
 --          Constant (BvValue 0000101)
 constant :: KnownSMTRepr t => ValueType t -> Expr t
 constant = Constant . putValue 
+{-# INLINEABLE constant #-}
 
 -- | Assert a boolean expression.
 --   Usage

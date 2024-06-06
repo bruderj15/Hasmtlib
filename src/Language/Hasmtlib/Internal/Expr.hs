@@ -36,6 +36,7 @@ extractValue (IntValue  v) = v
 extractValue (RealValue v) = v
 extractValue (BoolValue v) = v
 extractValue (BvValue   v) = v
+{-# INLINEABLE extractValue #-}
 
 putValue :: forall t. KnownSMTRepr t => ValueType t -> Value t
 putValue = case singRepr @t of
@@ -43,6 +44,7 @@ putValue = case singRepr @t of
   RealRepr -> RealValue
   BoolRepr -> BoolValue
   BvRepr _ -> BvValue
+{-# INLINEABLE putValue #-}
 
 deriving instance Show (Value t)
 deriving instance Eq   (Value t)
