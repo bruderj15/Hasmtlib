@@ -47,9 +47,6 @@ instance KnownNat n => Integral (Bitvec n) where
   toInteger = fromIntegral . fromEnum
   quotRem x y = bimap fromInteger fromInteger $ quotRem (toInteger x) (toInteger y)
 
--- TODO: Make extra class for some (?) of these and instance Expr (BvType n), Bitvec n, ... 
--- Is the Finite in the way?
-
 bvReverse :: Bitvec n -> Bitvec n
 bvReverse = coerce . V.reverse . coerce
 
@@ -57,13 +54,28 @@ bvReplicate :: forall n. KnownNat n => Bit -> Bitvec n
 bvReplicate = coerce . V.replicate @n
 
 bvReplicate' :: forall n proxy. KnownNat n => proxy n -> Bit -> Bitvec n
-bvReplicate' _ = coerce . V.replicate @n
+bvReplicate' _ = bvReplicate
 
 bvGenerate :: forall n. KnownNat n => (Finite n -> Bit) -> Bitvec n
 bvGenerate = coerce . V.generate @n . coerce
 
 bvConcat :: Bitvec n -> Bitvec m -> Bitvec (n + m)
 bvConcat (coerce -> x) (coerce -> y) = coerce $ x V.++ y
+
+bvTake' :: forall n m proxy . KnownNat n => proxy n -> Bitvec (n+m) -> Bitvec n
+bvTake' p = coerce . V.take' p . coerce
+
+bvDrop' :: forall n m proxy . KnownNat n => proxy n -> Bitvec (n+m) -> Bitvec m
+bvDrop' p = coerce . V.drop' p . coerce
+
+bvSplitAt' :: forall n m proxy. KnownNat n => proxy n -> Bitvec (n+m) -> (Bitvec n, Bitvec m)
+bvSplitAt' p = coerce . V.splitAt' p . coerce
+
+bvToList :: Bitvec n -> [Bit]
+bvToList = V.toList . coerce
+
+bvFromListN :: forall n. KnownNat n => [Bit] -> Maybe (Bitvec n)
+bvFromListN = coerce . V.fromListN @n
 
 bvRotL :: forall n i. KnownNat (Mod i n) => Proxy i -> Bitvec n -> Bitvec n
 bvRotL _ (coerce -> x) = coerce $ r V.++ l
@@ -73,14 +85,24 @@ bvRotL _ (coerce -> x) = coerce $ r V.++ l
 bvRotR :: forall n i. KnownNat (Mod i n) => Proxy i -> Bitvec n -> Bitvec n
 bvRotR p = bvReverse . bvRotL p . bvReverse
 
-bvShL :: Bitvec n -> Bitvec n -> Bitvec n
-bvShL x y = _
+bvShL :: KnownNat n => Bitvec n -> Bitvec n -> Maybe (Bitvec n)
+bvShL x y = bvFromListN $ (++ replicate i false) $ drop i $ bvToList x
+  where 
+    i = fromIntegral y 
+    
+bvLShR :: KnownNat n => Bitvec n -> Bitvec n -> Maybe (Bitvec n)
+bvLShR x y = fmap bvReverse $ bvFromListN $ (++ replicate i false) $ drop i $ bvToList $ bvReverse x
+  where 
+    i = fromIntegral y 
   
-bvShR :: Bitvec n -> Bitvec n -> Bitvec n
-bvShR x y = _
+bvZeroExtend :: KnownNat i => Proxy i -> Bitvec n -> Bitvec (n+i)
+bvZeroExtend p x = bvConcat x $ bvReplicate' p false 
   
-bvZeroExtend :: (KnownNat n, KnownNat i, i + n ~ n + i) => Proxy i -> Bitvec n -> Bitvec (n+i)
-bvZeroExtend = _
-  
-bvExtract :: (KnownNat n, KnownNat i, KnownNat j, i <= j, i <= n, j <= n) => Proxy i -> Proxy j -> Bitvec n -> Bitvec (( j - i ) + 1)
-bvExtract = _
+bvExtract :: forall n i j. 
+  ( KnownNat i, KnownNat ((j - i) + 1)
+  , (i+(n-i)) ~ n
+  , (((j - i) + 1) + ((n - i)-((j - i) + 1))) ~ (n - i)
+  ) => Proxy i -> Proxy j -> Bitvec n -> Bitvec (( j - i ) + 1)
+bvExtract pri _ x = bvTake' @_ @((n-i)-((j-i)+1)) (Proxy @((j-i)+1)) x'
+  where
+    x' :: Bitvec (n-i) = bvDrop' pri x

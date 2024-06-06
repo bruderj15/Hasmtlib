@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE NoStarIsType #-}
 
 module Language.Hasmtlib.Internal.Expr where
 
@@ -138,16 +139,13 @@ data Expr (t :: SMTType) where
   BvShL    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
   BvLShR   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
   BvConcat :: (KnownNat n, KnownNat m) => Expr (BvType n) -> Expr (BvType m) -> Expr (BvType (n + m))
-  BvExtract :: (KnownNat n, KnownNat i, KnownNat j, i <= j, i <= n, j <= n) => Proxy i -> Proxy j -> Expr (BvType n) -> Expr (BvType ((j-i)+1))
---  BvRepeat  :: (KnownNat n, KnownNat i) => Proxy i -> Expr (BvType n) -> Expr (BvType (n*i) b)
-  BvZeroExtend  :: (KnownNat n, KnownNat i, i + n ~ n + i) => Proxy i -> Expr (BvType n) -> Expr (BvType (n+i))
-  BvRotL        :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
-  BvRotR        :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
+  BvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
+  BvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
 
-  BvuLT      :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
-  BvuLTHE    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
-  BvuGTHE    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
-  BvuGT      :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
+  BvuLT    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
+  BvuLTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
+  BvuGTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
+  BvuGT    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
 
 deriving instance Show (Expr t)
 

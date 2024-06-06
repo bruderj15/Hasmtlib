@@ -125,12 +125,9 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (BvuDiv x y)       = renderBinary "bvudiv" (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuRem x y)       = renderBinary "bvurem" (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvShL x y)        = renderBinary "bvshl"  (renderSMTLib2 x) (renderSMTLib2 y)
-  -- TODO: Which of these are parametric and require different rendering?
   renderSMTLib2 (BvLShR x y)       = renderBinary "bvlshr" (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvConcat x y)     = renderBinary "concat" (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvExtract i j x)  = renderTernary "extract" (renderSMTLib2 (natVal i)) (renderSMTLib2 (natVal j)) (renderSMTLib2 x)
-  renderSMTLib2 (BvZeroExtend i x) = renderBinary "zero_extend" (renderSMTLib2 (natVal i)) (renderSMTLib2 x)
-  renderSMTLib2 (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left" :: Builder) (renderSMTLib2 (natVal i))) (renderSMTLib2 x)
+  renderSMTLib2 (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left"  :: Builder) (renderSMTLib2 (natVal i))) (renderSMTLib2 x)
   renderSMTLib2 (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (renderSMTLib2 (natVal i))) (renderSMTLib2 x)
   renderSMTLib2 (BvuLT x y)        = renderBinary "bvult"  (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuLTHE x y)      = renderBinary "bvule"  (renderSMTLib2 x) (renderSMTLib2 y)
