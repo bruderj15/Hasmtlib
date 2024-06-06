@@ -4,6 +4,7 @@ import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Internal.Parser
 import Language.Hasmtlib.Internal.Render
+import Data.Default
 import Data.Sequence hiding ((|>), filter)
 import Data.ByteString.Lazy hiding (singleton)
 import Data.ByteString.Lazy.UTF8 (toString)
@@ -21,13 +22,13 @@ data Debugger = Debugger {
   , debugModelResponse  :: ByteString -> IO ()
   }
 
-defaultDebugger :: Debugger
-defaultDebugger = Debugger {
-    debugSMT            = const $ return ()
-  , debugProblem        = liftIO . mapM_ (putStrLn . toString . toLazyByteString)
-  , debugResultResponse = liftIO . putStrLn . (\s -> "\n" ++ s ++ "\n") . toString
-  , debugModelResponse  = liftIO . mapM_ (putStrLn . toString) . split 13
-  }
+instance Default Debugger where
+  def = Debugger
+    { debugSMT            = const $ return ()
+    , debugProblem        = liftIO . mapM_ (putStrLn . toString . toLazyByteString)
+    , debugResultResponse = liftIO . putStrLn . (\s -> "\n" ++ s ++ "\n") . toString
+    , debugModelResponse  = liftIO . mapM_ (putStrLn . toString) . split 13
+    }
 
 processSolver :: MonadIO m => P.Config -> Maybe Debugger -> Solver SMT m
 processSolver cfg debugger smt = do

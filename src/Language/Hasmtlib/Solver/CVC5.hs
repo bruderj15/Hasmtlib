@@ -3,6 +3,7 @@ module Language.Hasmtlib.Solver.CVC5 where
 import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Solver.Common
+import Data.Default
 import qualified SMTLIB.Backends.Process as P
 import Control.Monad.State
 
@@ -15,4 +16,4 @@ cvc5 :: MonadIO m => Solver SMT m
 cvc5 = processSolver cvc5Conf Nothing
 
 cvc5Debug :: MonadIO m => Solver SMT m
-cvc5Debug = processSolver cvc5Conf $ Just defaultDebugger
+cvc5Debug = processSolver cvc5Conf $ Just def
