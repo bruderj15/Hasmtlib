@@ -1,4 +1,4 @@
-module Language.Hasmtlib.Example.Basic3 where
+module Language.Hasmtlib.Example.Monad where
 
 import Language.Hasmtlib
 import Control.Monad

@@ -1,4 +1,4 @@
-module Language.Hasmtlib.Example.Basic2 where
+module Language.Hasmtlib.Example.Transcendental where
 
 import Language.Hasmtlib
 
