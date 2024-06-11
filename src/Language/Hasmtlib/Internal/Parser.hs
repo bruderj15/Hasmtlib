@@ -6,6 +6,7 @@ import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Equatable
+import Language.Hasmtlib.Orderable
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Codec
@@ -91,43 +92,47 @@ parseSol = do
 {-# INLINEABLE parseSol #-}
 
 parseExpr :: forall t. KnownSMTRepr t => Parser (Expr t)
-parseExpr = case singRepr @t of
-  IntRepr  -> parseVar <|> parseConstant
-          <|> parseUnOp "abs" abs <|> parseUnOp  "-" negate
-          <|> parseBinOp "+" (+)  <|> parseBinOp "-" (-) <|> parseBinOp "+" (*) <|> parseBinOp "mod" Mod
-          <|> parseToIntFun
-          <|> parseIte
-  RealRepr -> parseVar <|> parseConstant
-          <|> parseUnOp "abs" abs <|> parseUnOp  "-" negate
-          <|> parseBinOp "+" (+)  <|> parseBinOp "-" (-) <|> parseBinOp "+" (*) <|> parseBinOp "/" (/)
-          <|> parseToRealFun
-          <|> parseIte
-          <|> parsePi <|> parseUnOp "sqrt" sqrt <|> parseUnOp "exp" exp <|> parseUnOp "log" log
-          <|> parseUnOp "sin" sin <|> parseUnOp "cos" cos <|> parseUnOp "tan" tan
-          <|> parseUnOp "arcsin" asin <|> parseUnOp "arccos" acos <|> parseUnOp "arctan" atan
-  BoolRepr -> parseVar <|> parseConstant
-          <|> parseBinOrdOp @t "=" (===) <|> parseBinOrdOp @t "distinct" (/==)
-          <|> parseIsIntFun
-          <|> parseUnOp "not" not'
-          <|> parseBinOp "and" (&&&)  <|> parseBinOp "or" (|||) <|> parseBinOp "=>" (==>) <|> parseBinOp "xor" xor
-  BvRepr _ -> parseVar <|> parseConstant
-          <|> parseUnOp "bvnot" not'
-          <|> parseBinOp "bvand" (&&&)  <|> parseBinOp "bvor" (|||) <|> parseBinOp "bvxor" xor <|> parseBinOp "bvnand" BvNand <|> parseBinOp "bvnor" BvNor
-          <|> parseUnOp  "bvneg" negate
-          <|> parseBinOp "bvadd" (+)  <|> parseBinOp "bvsub" (-) <|> parseBinOp "bvmul" (*)
-          <|> parseBinOp "bvudiv" BvuDiv <|> parseBinOp "bvurem" BvuRem
-          <|> parseBinOp "bvshl" BvShL <|> parseBinOp "bvlshr" BvLShR
+parseExpr = var <|> constant <|> smtIte
+        <|> case singRepr @t of
+              IntRepr  -> unary "abs" abs <|> unary  "-" negate
+                      <|> binary "+" (+)  <|> binary "-" (-) <|> binary "*" (*) <|> binary "mod" Mod
+                      <|> toIntFun
+              RealRepr -> unary "abs" abs <|> unary  "-" negate
+                      <|> binary "+" (+)  <|> binary "-" (-) <|> binary "*" (*) <|> binary "/" (/)
+                      <|> toRealFun
+                      <|> smtPi <|> unary "sqrt" sqrt <|> unary "exp" exp
+                      <|> unary "sin" sin <|> unary "cos" cos <|> unary "tan" tan
+                      <|> unary "arcsin" asin <|> unary "arccos" acos <|> unary "arctan" atan
+              BoolRepr -> isIntFun
+                      <|> unary "not" not'
+                      <|> nary "and" and'  <|> nary "or" or' <|> binary "=>" (==>) <|> binary "xor" xor
+                      <|> binary @IntType  "=" (===) <|> binary @IntType  "distinct" (/==)
+                      <|> binary @RealType "=" (===) <|> binary @RealType "distinct" (/==)
+                      <|> binary @BoolType "=" (===) <|> binary @BoolType "distinct" (/==)
+                      <|> binary @IntType "<" (<?) <|> binary @IntType "<=" (<=?)
+                      <|> binary @IntType ">=" (>=?) <|> binary @IntType ">" (>?)
+                      <|> binary @RealType "<" (<?) <|> binary @RealType "<=" (<=?)
+                      <|> binary @RealType ">=" (>=?) <|> binary @RealType ">" (>?)
+                      -- TODO: All (?) bv lengths - also for '=' and 'distinct'
+--                      <|> binary @(BvType 10) "bvult" (<?) <|> binary @(BvType 10) "bvule" (<=?)
+--                      <|> binary @(BvType 10) "bvuge" (>=?) <|> binary @(BvType 10) "bvugt" (>?)
+              BvRepr _ -> unary "bvnot" not'
+                      <|> binary "bvand" (&&&)  <|> binary "bvor" (|||) <|> binary "bvxor" xor <|> binary "bvnand" BvNand <|> binary "bvnor" BvNor
+                      <|> unary  "bvneg" negate
+                      <|> binary "bvadd" (+)  <|> binary "bvsub" (-) <|> binary "bvmul" (*)
+                      <|> binary "bvudiv" BvuDiv <|> binary "bvurem" BvuRem
+                      <|> binary "bvshl" BvShL <|> binary "bvlshr" BvLShR
 
-parseVar :: Parser (Expr t)
-parseVar = do
+var :: Parser (Expr t)
+var = do
   _     <- string "var_"
   varId <- decimal @Int
 
   return $ Var $ coerce varId
-{-# INLINEABLE parseVar #-}
+{-# INLINEABLE var #-}
 
-parseConstant :: forall t. KnownSMTRepr t => Parser (Expr t)
-parseConstant = do
+constant :: forall t. KnownSMTRepr t => Parser (Expr t)
+constant = do
   cval <- case singRepr @t of
     IntRepr  -> anyValue decimal
     RealRepr -> anyValue parseRatioDouble <|> parseToRealDouble <|> anyValue rational
@@ -135,7 +140,7 @@ parseConstant = do
     BvRepr p -> anyBitvector p
 
   return $ Constant $ putValue cval
-{-# INLINEABLE parseConstant #-}
+{-# INLINEABLE constant #-}
 
 anyBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
 anyBitvector p = binBitvector p <|> hexBitvector p <|> literalBitvector p
@@ -167,76 +172,72 @@ literalBitvector _ = do
   return $ fromInteger x
 {-# INLINEABLE literalBitvector #-}
 
-parseUnOp :: forall t. KnownSMTRepr t => ByteString -> (Expr t -> Expr t) -> Parser (Expr t)
-parseUnOp opStr op = do
+unary :: forall t r. KnownSMTRepr t => ByteString -> (Expr t -> Expr r) -> Parser (Expr r)
+unary opStr op = do
   _ <- char '(' >> skipSpace
   _ <- string opStr >> skipSpace
   val <- parseExpr
   _ <- skipSpace >> char ')'
 
   return $ op val
-{-# INLINEABLE parseUnOp #-}
+{-# INLINEABLE unary #-}
 
-parseBinOp :: forall t. KnownSMTRepr t => ByteString -> (Expr t -> Expr t -> Expr t) -> Parser (Expr t)
-parseBinOp opStr op = do
+binary :: forall t r. KnownSMTRepr t => ByteString -> (Expr t -> Expr t -> Expr r) -> Parser (Expr r)
+binary opStr op = do
   _ <- char '(' >> skipSpace
   _ <- string opStr >> skipSpace
   l <- parseExpr
   _ <- skipSpace
   r <- parseExpr
   _ <- skipSpace >> char ')'
-
   return $ l `op` r
-{-# INLINEABLE parseBinOp #-}
+{-# INLINEABLE binary #-}
 
-parseBinOrdOp :: forall t. KnownSMTRepr t => ByteString -> (Expr t -> Expr t -> Expr BoolType) -> Parser (Expr BoolType)
-parseBinOrdOp opStr op = do
-  _ <- char '(' >> skipSpace
-  _ <- string opStr >> skipSpace
-  l <- parseExpr
-  _ <- skipSpace
-  r <- parseExpr
-  _ <- skipSpace >> char ')'
+nary :: forall t r. KnownSMTRepr t => ByteString -> ([Expr t] -> Expr r) -> Parser (Expr r)
+nary opStr op = do
+  _    <- char '(' >> skipSpace
+  _    <- string opStr >> skipSpace
+  args <- some $ parseExpr <* skipSpace
+  _    <- skipSpace >> char ')'
+  return $ op args
+{-# INLINEABLE nary #-}
 
-  return $ l `op` r
-{-# INLINEABLE parseBinOrdOp #-}
+smtPi :: Parser (Expr RealType)
+smtPi = string "real.pi" *> return pi
+{-# INLINEABLE smtPi #-}
 
-parsePi :: Parser (Expr RealType)
-parsePi = string "real.pi" *> return pi
-{-# INLINEABLE parsePi #-}
-
-parseToRealFun :: Parser (Expr RealType)
-parseToRealFun = do
+toRealFun :: Parser (Expr RealType)
+toRealFun = do
   _ <- char '(' >> skipSpace
   _ <- string "to_real" >> skipSpace
   val <- parseExpr
   _ <- skipSpace >> char ')'
 
   return $ ToReal val
-{-# INLINEABLE parseToRealFun #-}
+{-# INLINEABLE toRealFun #-}
 
-parseToIntFun :: Parser (Expr IntType)
-parseToIntFun = do
+toIntFun :: Parser (Expr IntType)
+toIntFun = do
   _ <- char '(' >> skipSpace
   _ <- string "to_int" >> skipSpace
   val <- parseExpr
   _ <- skipSpace >> char ')'
 
   return $ ToInt val
-{-# INLINEABLE parseToIntFun #-}
+{-# INLINEABLE toIntFun #-}
 
-parseIsIntFun :: Parser (Expr BoolType)
-parseIsIntFun = do
+isIntFun :: Parser (Expr BoolType)
+isIntFun = do
   _ <- char '(' >> skipSpace
   _ <- string "is_int" >> skipSpace
   val <- parseExpr
   _ <- skipSpace >> char ')'
 
   return $ IsInt val
-{-# INLINEABLE parseIsIntFun #-}
+{-# INLINEABLE isIntFun #-}
 
-parseIte :: forall t. KnownSMTRepr t => Parser (Expr t)
-parseIte = do
+smtIte :: forall t. KnownSMTRepr t => Parser (Expr t)
+smtIte = do
   _ <- char '(' >> skipSpace
   _ <- string "ite" >> skipSpace
   p <- parseExpr @BoolType
@@ -247,7 +248,7 @@ parseIte = do
   _ <- skipSpace >> char ')'
 
   return $ ite p t f
-{-# INLINEABLE parseIte #-}
+{-# INLINEABLE smtIte #-}
 
 anyValue :: Num a => Parser a -> Parser a
 anyValue p = negativeValue p <|> p
