@@ -108,7 +108,7 @@ parseExpr = var <|> constant <|> smtIte
                       <|> nary "and" and'  <|> nary "or" or' <|> binary "=>" (==>) <|> binary "xor" xor
                       <|> binary @IntType  "=" (===) <|> binary @IntType  "distinct" (/==)
                       <|> binary @RealType "=" (===) <|> binary @RealType "distinct" (/==)
-                      <|> binary @RealType "=" (===) <|> binary @RealType "distinct" (/==)
+                      <|> binary @BoolType "=" (===) <|> binary @BoolType "distinct" (/==)
                       <|> binary @IntType "<" (<?) <|> binary @IntType "<=" (<=?)
                       <|> binary @IntType ">=" (>=?) <|> binary @IntType ">" (>?)
                       <|> binary @RealType "<" (<?) <|> binary @RealType "<=" (<=?)
