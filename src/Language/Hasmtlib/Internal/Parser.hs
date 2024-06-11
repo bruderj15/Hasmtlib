@@ -103,7 +103,7 @@ parseExpr = var <|> constant <|> smtIte
                       <|> smtPi <|> unary "sqrt" sqrt <|> unary "exp" exp
                       <|> unary "sin" sin <|> unary "cos" cos <|> unary "tan" tan
                       <|> unary "arcsin" asin <|> unary "arccos" acos <|> unary "arctan" atan
-              BoolRepr -> parseIsIntFun
+              BoolRepr -> isIntFun
                       <|> unary "not" not'
                       <|> nary "and" and'  <|> nary "or" or' <|> binary "=>" (==>) <|> binary "xor" xor
                       <|> binary @IntType  "=" (===) <|> binary @IntType  "distinct" (/==)
@@ -226,15 +226,15 @@ toIntFun = do
   return $ ToInt val
 {-# INLINEABLE toIntFun #-}
 
-parseIsIntFun :: Parser (Expr BoolType)
-parseIsIntFun = do
+isIntFun :: Parser (Expr BoolType)
+isIntFun = do
   _ <- char '(' >> skipSpace
   _ <- string "is_int" >> skipSpace
   val <- parseExpr
   _ <- skipSpace >> char ')'
 
   return $ IsInt val
-{-# INLINEABLE parseIsIntFun #-}
+{-# INLINEABLE isIntFun #-}
 
 smtIte :: forall t. KnownSMTRepr t => Parser (Expr t)
 smtIte = do
