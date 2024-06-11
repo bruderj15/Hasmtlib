@@ -2,8 +2,6 @@
 
 module Language.Hasmtlib.Internal.Parser where
 
-import Prelude hiding (readFile)  
-  
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Internal.Expr
@@ -107,7 +105,7 @@ parseExpr = var <|> constant <|> smtIte
                       <|> unary "arcsin" asin <|> unary "arccos" acos <|> unary "arctan" atan
               BoolRepr -> parseIsIntFun
                       <|> unary "not" not'
-                      <|> binary "and" (&&&)  <|> binary "or" (|||) <|> binary "=>" (==>) <|> binary "xor" xor
+                      <|> nary "and" and'  <|> nary "or" or' <|> binary "=>" (==>) <|> binary "xor" xor
                       <|> binary @IntType  "=" (===) <|> binary @IntType  "distinct" (/==)
                       <|> binary @RealType "=" (===) <|> binary @RealType "distinct" (/==)
                       <|> binary @RealType "=" (===) <|> binary @RealType "distinct" (/==)
@@ -192,9 +190,17 @@ binary opStr op = do
   _ <- skipSpace
   r <- parseExpr
   _ <- skipSpace >> char ')'
-
   return $ l `op` r
 {-# INLINEABLE binary #-}
+
+nary :: forall t r. KnownSMTRepr t => ByteString -> ([Expr t] -> Expr r) -> Parser (Expr r)
+nary opStr op = do
+  _    <- char '(' >> skipSpace
+  _    <- string opStr >> skipSpace
+  args <- some $ parseExpr <* skipSpace
+  _    <- skipSpace >> char ')'
+  return $ op args
+{-# INLINEABLE nary #-}
 
 smtPi :: Parser (Expr RealType)
 smtPi = string "real.pi" *> return pi
