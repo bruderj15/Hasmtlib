@@ -1,11 +1,10 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-
 module Language.Hasmtlib
   (
     module Language.Hasmtlib.Type.SMT
   , module Language.Hasmtlib.Type.Expr
   , module Language.Hasmtlib.Type.Solver
   , module Language.Hasmtlib.Type.Solution
+  , module Language.Hasmtlib.Integraled
   , module Language.Hasmtlib.Iteable
   , module Language.Hasmtlib.Boolean
   , module Language.Hasmtlib.Equatable
@@ -16,7 +15,6 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Solver.Z3
   , module Language.Hasmtlib.Solver.Yices
   , module Language.Hasmtlib.Solver.MathSAT
-  , module Prelude
   )
   where
 
@@ -24,6 +22,7 @@ import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.Solver
 import Language.Hasmtlib.Type.Solution
+import Language.Hasmtlib.Integraled
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Equatable
@@ -34,4 +33,3 @@ import Language.Hasmtlib.Solver.CVC5
 import Language.Hasmtlib.Solver.Z3
 import Language.Hasmtlib.Solver.Yices
 import Language.Hasmtlib.Solver.MathSAT
-import Prelude hiding (not, or, and, all, any, (&&), (||))

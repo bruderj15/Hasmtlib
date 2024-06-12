@@ -1,6 +1,8 @@
 module Language.Hasmtlib.Internal.Expr.Num where
 
+import Prelude hiding (div, mod, quotRem, rem, quot, divMod)
 import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Integraled
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Orderable  
@@ -55,17 +57,21 @@ instance Floating (Expr RealType) where
     acosh = error "SMT-Solver currently do not support acosh"
     atanh = error "SMT-Solver currently do not support atanh"
 
--- | Integer modulus
-mod' :: Expr IntType -> Expr IntType -> Expr IntType
-mod' = Mod
+instance Integraled (Expr IntType) where
+  quot = IDiv
+  rem  = Mod
+  div  = IDiv
+  mod  = Mod
+  quotRem x y = (quot x y, rem x y)
+  divMod x y  = (div x y, mod x y)
 
--- | Integer division
-div' :: Expr IntType -> Expr IntType -> Expr IntType
-div' = IDiv
-
--- | Unsigned bitvector remainder
-bvuRem   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-bvuRem   = BvuRem
+instance KnownNat n => Integraled (Expr (BvType n)) where
+  quot        = BvuDiv
+  rem         = BvuRem
+  div         = BvuDiv
+  mod         = BvuRem
+  quotRem x y = (quot x y, rem x y)
+  divMod x y  = (div x y, mod x y)
 
 -- | Bitvector shift left
 bvShL    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
