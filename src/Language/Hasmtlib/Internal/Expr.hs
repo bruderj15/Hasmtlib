@@ -78,8 +78,6 @@ instance KnownNat n => KnownSMTRepr (BvType n) where singRepr = BvRepr (Proxy @n
 data SomeKnownSMTRepr f where
   SomeKnownSMTRepr :: forall (t :: SMTType) f. KnownSMTRepr t => f t -> SomeKnownSMTRepr f
 
--- newtype Some k c f = Some {_some :: forall (t :: k). c t => f t}
-
 -- | SMT Expression
 data Expr (t :: SMTType) where
   -- Terms
