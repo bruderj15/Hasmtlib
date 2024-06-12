@@ -64,9 +64,9 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 - [x] Pure API with Expression-instances for Num, Floating, Bounded, ...
 - [x] Solvers via external process: CVC5, Z3, Yices2-SMT & MathSAT
 - [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solver.hs)
+- [x] Incremental solving
 
 ### Coming
-- [ ] Incremental solving (work in progress)
 - [ ] Observable sharing
 - [ ] Quantifiers `for_all` and `exists`
 
