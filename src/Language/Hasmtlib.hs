@@ -4,6 +4,7 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Type.Expr
   , module Language.Hasmtlib.Type.Solver
   , module Language.Hasmtlib.Type.Solution
+  , module Language.Hasmtlib.Integraled
   , module Language.Hasmtlib.Iteable
   , module Language.Hasmtlib.Boolean
   , module Language.Hasmtlib.Equatable
@@ -21,6 +22,7 @@ import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.Solver
 import Language.Hasmtlib.Type.Solution
+import Language.Hasmtlib.Integraled
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Equatable

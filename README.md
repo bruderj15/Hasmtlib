@@ -15,12 +15,12 @@ Therefore, this allows you to use the much richer subset of Haskell than a purel
 For instance, to define the addition of two `V3` containing a Real-SMT-Expression:
 ```haskell
 v3Add :: V3 (Expr RealType) -> V3 (Expr RealType) -> V3 (Expr RealType)
-v3Add = _
+v3Add = liftA2 (+)
 ```
 Even better, the [Expr-GADT](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Internal/Expr.hs) allows for a polymorph definition:
 ```haskell
 v3Add :: Num (Expr t) => V3 (Expr t) -> V3 (Expr t) -> V3 (Expr t)
-v3Add = _
+v3Add = liftA2 (+)
 ```
 This looks a lot like the [definition of Num](https://hackage.haskell.org/package/linear-1.23/docs/src/Linear.V3.html#local-6989586621679182277) for `V3 a`:
 ```haskell
@@ -66,7 +66,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 - [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solver.hs)
 
 ### Coming
-- [ ] Incremental solving
+- [ ] Incremental solving (work in progress)
 - [ ] Observable sharing
 - [ ] Quantifiers `for_all` and `exists`
 

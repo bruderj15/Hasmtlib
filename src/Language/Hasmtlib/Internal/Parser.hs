@@ -2,6 +2,7 @@
 
 module Language.Hasmtlib.Internal.Parser where
 
+import Prelude hiding (not, (&&), (||), and , or)
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Internal.Expr
@@ -104,8 +105,8 @@ parseExpr = var <|> constant <|> smtIte
                       <|> unary "sin" sin <|> unary "cos" cos <|> unary "tan" tan
                       <|> unary "arcsin" asin <|> unary "arccos" acos <|> unary "arctan" atan
               BoolRepr -> isIntFun
-                      <|> unary "not" not'
-                      <|> nary "and" and'  <|> nary "or" or' <|> binary "=>" (==>) <|> binary "xor" xor
+                      <|> unary "not" not
+                      <|> nary "and" and  <|> nary "or" or <|> binary "=>" (==>) <|> binary "xor" xor
                       <|> binary @IntType  "=" (===) <|> binary @IntType  "distinct" (/==)
                       <|> binary @RealType "=" (===) <|> binary @RealType "distinct" (/==)
                       <|> binary @BoolType "=" (===) <|> binary @BoolType "distinct" (/==)
@@ -116,8 +117,8 @@ parseExpr = var <|> constant <|> smtIte
                       -- TODO: All (?) bv lengths - also for '=' and 'distinct'
 --                      <|> binary @(BvType 10) "bvult" (<?) <|> binary @(BvType 10) "bvule" (<=?)
 --                      <|> binary @(BvType 10) "bvuge" (>=?) <|> binary @(BvType 10) "bvugt" (>?)
-              BvRepr _ -> unary "bvnot" not'
-                      <|> binary "bvand" (&&&)  <|> binary "bvor" (|||) <|> binary "bvxor" xor <|> binary "bvnand" BvNand <|> binary "bvnor" BvNor
+              BvRepr _ -> unary "bvnot" not
+                      <|> binary "bvand" (&&)  <|> binary "bvor" (||) <|> binary "bvxor" xor <|> binary "bvnand" BvNand <|> binary "bvnor" BvNor
                       <|> unary  "bvneg" negate
                       <|> binary "bvadd" (+)  <|> binary "bvsub" (-) <|> binary "bvmul" (*)
                       <|> binary "bvudiv" BvuDiv <|> binary "bvurem" BvuRem

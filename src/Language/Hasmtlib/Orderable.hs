@@ -4,6 +4,7 @@
 
 module Language.Hasmtlib.Orderable where
 
+import Prelude hiding (not, (&&), (||))
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Iteable
@@ -31,10 +32,10 @@ class Equatable a => Orderable a where
   x >=? y = y <=? x
   
   (<?)  :: a -> a -> Expr BoolType
-  x <? y = not' $ y <=? x
+  x <? y = not $ y <=? x
 
   (>?)  :: a -> a -> Expr BoolType
-  x >? y = not' $ x <=? y
+  x >? y = not $ x <=? y
 
 infix 4 <?, <=?, >=?, >?
 
@@ -77,8 +78,8 @@ instance GOrderable V1 where
   x <=?# y = x `seq` y `seq` error "GOrderable[V1].<=?#"
 
 instance (GOrderable f, GOrderable g) => GOrderable (f :*: g) where
-  (a :*: b) <?#  (c :*: d) = (a <?# c) ||| (a ===# c &&& b <?# d)
-  (a :*: b) <=?# (c :*: d) = (a <?# c) ||| (a ===# c &&& b <=?# d)
+  (a :*: b) <?#  (c :*: d) = (a <?# c) || (a ===# c && b <?# d)
+  (a :*: b) <=?# (c :*: d) = (a <?# c) || (a ===# c && b <=?# d)
 
 instance (GOrderable f, GOrderable g) => GOrderable (f :+: g) where
   L1 _ <?# R1 _ = true

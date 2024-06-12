@@ -147,18 +147,18 @@ data Expr (t :: SMTType) where
 deriving instance Show (Expr t)
 
 instance Boolean (Expr BoolType) where
-  bool    = Constant . BoolValue
-  (&&&)   = And
-  (|||)   = Or
-  not'    = Not
-  xor     = Xor
+  bool = Constant . BoolValue
+  (&&) = And
+  (||) = Or
+  not  = Not
+  xor  = Xor
   
 instance KnownNat n => Boolean (Expr (BvType n)) where
-  bool    = Constant . BvValue . bool
-  (&&&)   = BvAnd
-  (|||)   = BvOr
-  not'    = BvNot
-  xor     = BvXor
+  bool = Constant . BvValue . bool
+  (&&) = BvAnd
+  (||) = BvOr
+  not  = BvNot
+  xor  = BvXor
   
 instance Bounded (Expr BoolType) where
   minBound = false
