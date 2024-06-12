@@ -5,6 +5,7 @@ import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Solver.Common
 import Data.Default
 import qualified SMTLIB.Backends.Process as P
+import qualified SMTLIB.Backends as B
 import Control.Monad.State
 
 yicesConf :: P.Config
@@ -15,3 +16,8 @@ yices = processSolver yicesConf Nothing
 
 yicesDebug :: MonadIO m => Solver SMT m
 yicesDebug = processSolver yicesConf $ Just def
+
+yicesAlive :: MonadIO m => m B.Solver
+yicesAlive = liftIO $ do
+  handle  <- P.new yicesConf
+  B.initSolver B.Queuing $ P.toBackend handle
