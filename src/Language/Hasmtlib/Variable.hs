@@ -15,13 +15,13 @@ import Data.Proxy
 --    >>> varV3 <- variable @(V3 (Expr RealType)) ; varV3
 --        V3 (Var RealType) (Var RealType) (Var RealType)
 class Variable a where
-  variable :: SMTMonad s m => m a
-  default variable :: (SMTMonad s m, Applicative f, Traversable f, Variable b, a ~ f b) => m a
+  variable :: MonadSMT s m => m a
+  default variable :: (MonadSMT s m, Applicative f, Traversable f, Variable b, a ~ f b) => m a
   variable = sequenceA $ pure variable
   {-# INLINEABLE variable #-}
 
 -- | Wrapper for @variable@ which takes a Proxy
-variable' :: forall s m a. (SMTMonad s m, Variable a) => Proxy a -> m a
+variable' :: forall s m a. (MonadSMT s m, Variable a) => Proxy a -> m a
 variable' _ = variable @a
 
 instance KnownSMTRepr t => Variable (Expr t) where

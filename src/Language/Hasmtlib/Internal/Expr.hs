@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE NoStarIsType #-}
 {-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Language.Hasmtlib.Internal.Expr where
 
@@ -11,6 +12,7 @@ import Data.Kind
 import Data.Proxy
 import Data.Coerce
 import Data.ByteString.Builder
+import Control.Lens
 import GHC.TypeNats
 
 -- | Types of variables in SMTLib - used as promoted Type
@@ -18,7 +20,8 @@ data SMTType = IntType | RealType | BoolType | BvType Nat
 
 -- | SMT variable
 type role SMTVar phantom
-newtype SMTVar (t :: SMTType) = SMTVar { varId :: Int } deriving (Show, Eq, Ord)
+newtype SMTVar (t :: SMTType) = SMTVar { _varId :: Int } deriving (Show, Eq, Ord)
+$(makeLenses ''SMTVar)
 
 -- | Computes the Haskell type of the SMTLib-Type
 type family ValueType (t :: SMTType) = (r :: Type) | r -> t where
@@ -74,6 +77,8 @@ instance KnownNat n => KnownSMTRepr (BvType n) where singRepr = BvRepr (Proxy @n
 -- | Existential for KnownSMTRepr t
 data SomeKnownSMTRepr f where
   SomeKnownSMTRepr :: forall (t :: SMTType) f. KnownSMTRepr t => f t -> SomeKnownSMTRepr f
+
+-- newtype Some k c f = Some {_some :: forall (t :: k). c t => f t}
 
 -- | SMT Expression
 data Expr (t :: SMTType) where
@@ -170,7 +175,7 @@ instance Bounded (Expr BoolType) where
 instance KnownNat n => Bounded (Expr (BvType n)) where
   minBound = Constant $ BvValue minBound
   maxBound = Constant $ BvValue maxBound
-  
+
 instance RenderSMTLib2 (Repr t) where
   renderSMTLib2 IntRepr    = "Int"
   renderSMTLib2 RealRepr   = "Real"
@@ -181,7 +186,7 @@ instance RenderSMTLib2 (Repr t) where
 instance RenderSMTLib2 (SMTVar t) where
   renderSMTLib2 v = "var_" <> intDec (coerce @(SMTVar t) @Int v)
   {-# INLINEABLE renderSMTLib2 #-}
-  
+
 instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (Var v)                  = renderSMTLib2 v
   renderSMTLib2 (Constant (IntValue x))  = renderSMTLib2 x

@@ -4,8 +4,8 @@
 module Language.Hasmtlib.Type.SMT
  ( SMT, lastVarId, vars, formulas, mlogic, options
  , var, constant
- , SMTMonad(..)
- , SMTOption(Incremental) 
+ , MonadSMT(..)
+ , SMTOption(Incremental)
  , renderSMT, renderSetLogic, renderAssert, renderVars, renderDeclareVar
  )
  where
@@ -21,7 +21,7 @@ import Data.ByteString.Builder
 import Control.Monad.State
 import Control.Lens hiding (List)
 
-class MonadState s m => SMTMonad s m where
+class MonadState s m => MonadSMT s m where
   -- | Construct a variable.
   --   Usage:
   --      x :: Expr RealType <- var' (Proxy @RealType)
@@ -42,7 +42,7 @@ class MonadState s m => SMTMonad s m where
   setLogic  :: String -> m ()
 
 -- | Wrapper for @var'@ which hides the Proxy
-var :: forall t s m. (KnownSMTRepr t, SMTMonad s m) => m (Expr t)
+var :: forall t s m. (KnownSMTRepr t, MonadSMT s m) => m (Expr t)
 var = var' (Proxy @t)
 {-# INLINE var #-}
 
@@ -83,7 +83,7 @@ instance Default SMT where
 
 $(makeLenses ''SMT)
 
-instance MonadState SMT m => SMTMonad SMT m where
+instance MonadState SMT m => MonadSMT SMT m where
   var' _ = do
     smt <- get
     let la' = smt^.lastVarId + 1

@@ -3,9 +3,9 @@
 
 module Language.Hasmtlib.Type.Pipe
  ( Pipe, withSolver
- , SMTMonad(..)
+ , MonadSMT(..)
  , push, pop
- , solve, checkSat, getModel, getValue 
+ , solve, checkSat, getModel, getValue
  )
  where
 
@@ -16,6 +16,7 @@ import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Internal.Parser hiding (var, constant)
 import qualified SMTLIB.Backends as B
+import Data.IntMap (singleton)
 import Data.Coerce
 import Data.ByteString.Builder
 import Data.ByteString.Lazy hiding (filter, singleton)
@@ -34,7 +35,7 @@ $(makeLenses ''Pipe)
 withSolver :: B.Solver -> Pipe
 withSolver = Pipe 0
 
-instance (MonadState Pipe m, MonadIO m) => SMTMonad Pipe m where
+instance (MonadState Pipe m, MonadIO m) => MonadSMT Pipe m where
   var' _ = do
     smt <- get
     let la' = smt^.lastPipeVarId + 1
@@ -56,23 +57,23 @@ instance (MonadState Pipe m, MonadIO m) => SMTMonad Pipe m where
     liftIO $ B.command_ (smt^.pipe) $ renderSetLogic (stringUtf8 l)
 
 -- | Push a new context to the solvers context-stack.
-push :: (SMTMonad Pipe m, MonadIO m) => m ()
+push :: (MonadSMT Pipe m, MonadIO m) => m ()
 push = do
   smt <- get
   liftIO $ B.command_ (smt^.pipe) "(push 1)"
 
 -- | Pop the solver context-stack.
-pop :: (SMTMonad Pipe m, MonadIO m) => m ()
+pop :: (MonadSMT Pipe m, MonadIO m) => m ()
 pop = do
   smt <- get
   liftIO $ B.command_ (smt^.pipe) "(pop 1)"
 
 -- | Run check-sat and get-model on the current problem
-solve :: (SMTMonad Pipe m, MonadIO m) => m (Result, Solution)
+solve :: (MonadSMT Pipe m, MonadIO m) => m (Result, Solution)
 solve = liftM2 (,) checkSat getModel
 
 -- | Run check-sat on the current problem
-checkSat :: forall m. (SMTMonad Pipe m, MonadIO m) => m Result
+checkSat :: forall m. (MonadSMT Pipe m, MonadIO m) => m Result
 checkSat = do
   smt <- get
   result <- liftIO $ B.command (smt^.pipe) "(check-sat)"
@@ -83,7 +84,7 @@ checkSat = do
     Right res -> return res
 
 -- | Run get-model on the current problem
-getModel :: (SMTMonad Pipe m, MonadIO m) => m Solution
+getModel :: (MonadSMT Pipe m, MonadIO m) => m Solution
 getModel = do
   smt   <- get
   model <- liftIO $ B.command (smt^.pipe) "(get-model)"
@@ -93,10 +94,17 @@ getModel = do
       error e
     Right sol -> return sol
 
--- TODO: Split cases for performance: (Var x) -> custom parser ;  _ -> getModel => decode:
 -- | Evaluate any expressions value in the solvers model.
 --   Requires a SAT or UNKNOWN check-sat response beforehand.
-getValue :: ((SMTMonad Pipe m), MonadIO m, KnownSMTRepr t) => Expr t -> m (Maybe (Decoded (Expr t)))
+getValue ::  forall m t. (MonadSMT Pipe m, MonadIO m, KnownSMTRepr t) => Expr t -> m (Maybe (Decoded (Expr t)))
+getValue v@(Var x) = do
+  smt   <- get
+  model <- liftIO $ B.command (smt^.pipe) $ renderUnary "get-value" $ "(" <> renderSMTLib2 x <> ")"
+  case parseOnly (getValueParser @t x) (toStrict model) of
+    Left e    -> liftIO $ do
+      print model
+      error e
+    Right sol -> return $ decode (singleton (sol^.solVar.varId) (SomeKnownSMTRepr sol)) v
 getValue expr = do
   model <- getModel
   return $ decode model expr
