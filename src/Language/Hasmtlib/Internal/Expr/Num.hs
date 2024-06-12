@@ -11,45 +11,76 @@ import GHC.TypeNats
   
 instance Num (Expr IntType) where
    fromInteger = Constant . IntValue
+   {-# INLINE fromInteger #-}
    (+)         = Plus
+   {-# INLINE (+) #-}
    (-) x y     = Plus x (Neg y)
+   {-# INLINE (-) #-}
    (*)         = Mul
+   {-# INLINE (*) #-}
    negate      = Neg
+   {-# INLINE negate #-}
    abs         = Abs
+   {-# INLINE abs #-}
    signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
+   {-# INLINE signum #-}
 
 instance Num (Expr RealType) where
    fromInteger = Constant . RealValue . fromIntegral
+   {-# INLINE fromInteger #-}
    (+)         = Plus
+   {-# INLINE (+) #-}
    x - y       = Plus x (Neg y)
+   {-# INLINE (-) #-}
    (*)         = Mul
+   {-# INLINE (*) #-}
    negate      = Neg
+   {-# INLINE negate #-}
    abs         = Abs
+   {-# INLINE abs #-}
    signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
+   {-# INLINE signum #-}
 
 instance KnownNat n => Num (Expr (BvType n)) where
    fromInteger = Constant . BvValue . fromInteger 
+   {-# INLINE fromInteger #-}
    (+)         = BvAdd
+   {-# INLINE (+) #-}
    (-)         = BvSub
+   {-# INLINE (-) #-}
    (*)         = BvMul
+   {-# INLINE (*) #-}
    abs         = id
+   {-# INLINE abs #-}
    signum _    = 0
-
+   {-# INLINE signum #-}
+   
 instance Fractional (Expr RealType) where
   fromRational = Constant . RealValue . fromRational
+  {-# INLINE fromRational #-}
   (/)          = Div
+  {-# INLINE (/) #-}
 
 instance Floating (Expr RealType) where
     pi    = Pi
+    {-# INLINE pi #-}
     exp   = Exp
+    {-# INLINE exp #-}
     log   = error "SMT-Solvers currently do not support log"
     sqrt  = Sqrt
+    {-# INLINE sqrt #-}
     sin   = Sin
+    {-# INLINE sin #-}
     cos   = Cos
+    {-# INLINE cos #-}
     tan   = Tan
+    {-# INLINE tan #-}
     asin  = Asin
+    {-# INLINE asin #-}
     acos  = Acos
+    {-# INLINE acos #-}
     atan  = Atan
+    {-# INLINE atan #-}
     sinh  = error "SMT-Solver currently do not support sinh"
     cosh  = error "SMT-Solver currently do not support cosh"
     tanh  = error "SMT-Solver currently do not support tanh"
@@ -59,36 +90,53 @@ instance Floating (Expr RealType) where
 
 instance Integraled (Expr IntType) where
   quot = IDiv
+  {-# INLINE quot #-}  
   rem  = Mod
+  {-# INLINE rem #-}  
   div  = IDiv
+  {-# INLINE div #-}  
   mod  = Mod
+  {-# INLINE mod #-}  
   quotRem x y = (quot x y, rem x y)
+  {-# INLINE quotRem #-}  
   divMod x y  = (div x y, mod x y)
+  {-# INLINE divMod #-}
 
 instance KnownNat n => Integraled (Expr (BvType n)) where
   quot        = BvuDiv
+  {-# INLINE quot #-}
   rem         = BvuRem
+  {-# INLINE rem #-}
   div         = BvuDiv
+  {-# INLINE div #-}
   mod         = BvuRem
+  {-# INLINE mod #-}
   quotRem x y = (quot x y, rem x y)
+  {-# INLINE quotRem #-}
   divMod x y  = (div x y, mod x y)
+  {-# INLINE divMod #-}
 
 -- | Bitvector shift left
 bvShL    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
 bvShL    = BvShL
+{-# INLINE bvShL #-}
 
 -- | Bitvector logical shift right
 bvLShR   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
 bvLShR   = BvLShR
+{-# INLINE bvLShR #-}
 
 -- | Concat two bitvectors
 bvConcat :: (KnownNat n, KnownNat m) => Expr (BvType n) -> Expr (BvType m) -> Expr (BvType (n + m))
 bvConcat = BvConcat
+{-# INLINE bvConcat #-}
 
 -- | Rotate bitvector left
 bvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
 bvRotL   = BvRotL
+{-# INLINE bvRotL #-}
 
 -- | Rotate bitvector right
 bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
 bvRotR   = BvRotR
+{-# INLINE bvRotR #-}

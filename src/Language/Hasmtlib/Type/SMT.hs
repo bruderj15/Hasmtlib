@@ -90,6 +90,7 @@ instance MonadState SMT m => MonadSMT SMT m where
         newVar = coerce la'
     modify $ \s -> s & vars %~ (|> SomeKnownSMTRepr newVar) & lastVarId %~ (+1)
     return $ Var newVar
+  {-# INLINEABLE var' #-}
 
   assert expr = modify $ \s -> s & formulas %~ (|> expr)
   {-# INLINE assert #-}

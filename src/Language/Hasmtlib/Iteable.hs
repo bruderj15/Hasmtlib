@@ -14,9 +14,11 @@ class Iteable b a where
 
 instance Iteable (Expr BoolType) (Expr t) where
   ite = Ite
+  {-# INLINE ite #-}
 
 instance Iteable Bool a where
   ite p t f = if p then t else f
+  {-# INLINE ite #-}
 
 instance Iteable (Expr BoolType) a => Iteable (Expr BoolType) [a]
 instance Iteable (Expr BoolType) a => Iteable (Expr BoolType) (Maybe a)

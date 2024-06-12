@@ -49,22 +49,34 @@ max' x y = ite (y <=? x) x y
 
 instance Orderable (Expr IntType) where
   (<?)     = LTH
+  {-# INLINE (<?) #-}  
   (<=?)    = LTHE
+  {-# INLINE (<=?) #-}  
   (>=?)    = GTHE
+  {-# INLINE (>=?) #-}  
   (>?)     = GTH
+  {-# INLINE (>?) #-}
 
 instance Orderable (Expr RealType) where
   (<?)     = LTH
+  {-# INLINE (<?) #-}  
   (<=?)    = LTHE
+  {-# INLINE (<=?) #-}  
   (>=?)    = GTHE
+  {-# INLINE (>=?) #-}  
   (>?)     = GTH
+  {-# INLINE (>?) #-}
 
 instance KnownNat n => Orderable (Expr (BvType n)) where
   (<?)     = BvuLT
+  {-# INLINE (<?) #-}  
   (<=?)    = BvuLTHE
+  {-# INLINE (<=?) #-}  
   (>=?)    = BvuGTHE
+  {-# INLINE (>=?) #-}  
   (>?)     = BvuGT
-
+  {-# INLINE (>?) #-}
+  
 class GEquatable f => GOrderable f where
   (<?#)  :: f a -> f a -> Expr BoolType
   (<=?#) :: f a -> f a -> Expr BoolType

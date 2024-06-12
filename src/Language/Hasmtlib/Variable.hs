@@ -23,9 +23,11 @@ class Variable a where
 -- | Wrapper for @variable@ which takes a Proxy
 variable' :: forall s m a. (MonadSMT s m, Variable a) => Proxy a -> m a
 variable' _ = variable @a
+{-# INLINE variable' #-}
 
 instance KnownSMTRepr t => Variable (Expr t) where
   variable = var
+  {-# INLINE variable #-}
 
 instance Variable () where
   variable = return ()

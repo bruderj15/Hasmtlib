@@ -154,17 +154,27 @@ deriving instance Show (Expr t)
 
 instance Boolean (Expr BoolType) where
   bool = Constant . BoolValue
+  {-# INLINE bool #-}
   (&&) = And
+  {-# INLINE (&&) #-}
   (||) = Or
+  {-# INLINE (||) #-}
   not  = Not
+  {-# INLINE not #-}
   xor  = Xor
+  {-# INLINE xor #-}
   
 instance KnownNat n => Boolean (Expr (BvType n)) where
   bool = Constant . BvValue . bool
+  {-# INLINE bool #-}
   (&&) = BvAnd
+  {-# INLINE (&&) #-}
   (||) = BvOr
+  {-# INLINE (||) #-}
   not  = BvNot
+  {-# INLINE not #-}
   xor  = BvXor
+  {-# INLINE xor #-}
   
 instance Bounded (Expr BoolType) where
   minBound = false
@@ -250,4 +260,3 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (BvuLTHE x y)      = renderBinary "bvule"  (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuGTHE x y)      = renderBinary "bvuge"  (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuGT x y)        = renderBinary "bvugt"  (renderSMTLib2 x) (renderSMTLib2 y)
-  {-# INLINEABLE renderSMTLib2 #-}
