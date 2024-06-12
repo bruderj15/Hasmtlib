@@ -1,6 +1,7 @@
 module Language.Hasmtlib
   (
     module Language.Hasmtlib.Type.SMT
+  , module Language.Hasmtlib.Type.Pipe
   , module Language.Hasmtlib.Type.Expr
   , module Language.Hasmtlib.Type.Solver
   , module Language.Hasmtlib.Type.Solution
@@ -19,6 +20,7 @@ module Language.Hasmtlib
   where
 
 import Language.Hasmtlib.Type.SMT
+import Language.Hasmtlib.Type.Pipe
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.Solver
 import Language.Hasmtlib.Type.Solution

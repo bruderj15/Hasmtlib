@@ -22,6 +22,7 @@ import Data.Attoparsec.ByteString hiding (Result, skipWhile)
 import Data.Attoparsec.ByteString.Char8 hiding (Result)
 import qualified Data.IntMap as IM
 import Control.Applicative
+import Control.Lens hiding (op)
 import GHC.TypeNats
 
 answerParser :: Parser (Result, Solution)
@@ -57,7 +58,7 @@ smt2ModelParser = do
   return $ fromSomeList varSols
 
 fromSomeList :: [SomeKnownSMTRepr SMTVarSol] -> Solution
-fromSomeList = IM.fromList . fmap (\case someVarSol@(SomeKnownSMTRepr varSol) -> (coerce (smtVar varSol), someVarSol))
+fromSomeList = IM.fromList . fmap (\case someVarSol@(SomeKnownSMTRepr varSol) -> (coerce (varSol^.solVar), someVarSol))
 
 parseSomeSol :: Parser (SomeKnownSMTRepr SMTVarSol)
 parseSomeSol = SomeKnownSMTRepr <$> (parseSol @IntType)
@@ -76,7 +77,7 @@ parseSol = do
   _     <- char '(' >> skipSpace
   _     <- string "define-fun" >> skipSpace
   _     <- string "var_"
-  varId <- decimal @Int
+  vId <- decimal @Int
   _     <- skipSpace >> string "()" >> skipSpace
   _     <- string $ toStrict $ toLazyByteString $ renderSMTLib2 (singRepr @t)
   _     <- skipSpace
@@ -87,9 +88,9 @@ parseSol = do
   -- Better: Take into scope already successfully parsed solutions for other vars.
   -- Is This even required though? Do the solvers ever answer like-wise?
   case decode mempty expr of
-    Nothing    -> fail $ "Solver reponded with solution for var_" ++ show varId ++ " but it contains "
+    Nothing    -> fail $ "Solver reponded with solution for var_" ++ show vId ++ " but it contains "
                       ++ "another var. This cannot be parsed and evaluated currently."
-    Just value -> return $ SMTVarSol (coerce varId) (putValue value)
+    Just value -> return $ SMTVarSol (coerce vId) (putValue value)
 {-# INLINEABLE parseSol #-}
 
 parseExpr :: forall t. KnownSMTRepr t => Parser (Expr t)
@@ -127,9 +128,9 @@ parseExpr = var <|> constant <|> smtIte
 var :: Parser (Expr t)
 var = do
   _     <- string "var_"
-  varId <- decimal @Int
+  vId <- decimal @Int
 
-  return $ Var $ coerce varId
+  return $ Var $ coerce vId
 {-# INLINEABLE var #-}
 
 constant :: forall t. KnownSMTRepr t => Parser (Expr t)
@@ -287,3 +288,15 @@ parseToRealDouble = do
 parseBool :: Parser Bool
 parseBool = (string "true" *> pure True) <|> (string "false" *> pure False)
 {-# INLINEABLE parseBool #-}
+
+getValueParser :: KnownSMTRepr t => SMTVar t -> Parser (SMTVarSol t)
+getValueParser v = do
+  _ <- char '(' >> skipSpace >> char '(' >> skipSpace
+  _ <- string $ toStrict $ toLazyByteString $ renderSMTLib2 v
+  _ <- skipSpace
+  expr <- parseExpr
+  _ <- skipSpace >> char ')' >> skipSpace >> char ')'
+  case decode mempty expr of
+    Nothing    -> fail $ "Solver reponded with solution for var_" ++ show (v^.varId) ++ " but it contains "
+                      ++ "another var. This cannot be parsed and evaluated currently."
+    Just value -> return $ SMTVarSol v (putValue value)

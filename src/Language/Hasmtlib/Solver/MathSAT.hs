@@ -5,6 +5,7 @@ import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Solver.Common
 import Data.Default
 import qualified SMTLIB.Backends.Process as P
+import qualified SMTLIB.Backends as B
 import Control.Monad.State
 
 mathsatConf :: P.Config
@@ -15,3 +16,8 @@ mathsat = processSolver mathsatConf Nothing
 
 mathsatDebug :: MonadIO m => Solver SMT m
 mathsatDebug = processSolver mathsatConf $ Just def
+
+mathsatAlive :: MonadIO m => m B.Solver
+mathsatAlive = liftIO $ do
+  handle  <- P.new mathsatConf
+  B.initSolver B.Queuing $ P.toBackend handle
