@@ -8,7 +8,6 @@ import Prelude hiding (not, (&&), (||))
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Solution
-import Language.Hasmtlib.Type.SMT (constant)
 import Language.Hasmtlib.Boolean
 import Data.Kind
 import Data.Coerce
@@ -114,7 +113,7 @@ instance KnownSMTRepr t => Codec (Expr t) where
   decode sol (BvuLTHE x y)      = liftA2 (<=) (decode sol x) (decode sol y)
   decode sol (BvuGTHE x y)      = liftA2 (>=) (decode sol x) (decode sol y)
   decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
-  encode = constant
+  encode = Constant . putValue
 
 instance Codec () where
   type Decoded () = ()

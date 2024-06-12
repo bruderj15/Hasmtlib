@@ -39,6 +39,7 @@ library
                      , Language.Hasmtlib.Solver.Z3
                      , Language.Hasmtlib.Type.Expr
                      , Language.Hasmtlib.Type.SMT
+                     , Language.Hasmtlib.Type.Pipe
                      , Language.Hasmtlib.Type.Solution
                      , Language.Hasmtlib.Type.Solver
 

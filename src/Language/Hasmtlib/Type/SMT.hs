@@ -1,34 +1,79 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Language.Hasmtlib.Type.SMT
  ( SMT, lastVarId, vars, formulas, mlogic, options
- , setLogic, SMTOption(..) 
--- setOption 
--- Currently do not export because smtlib-backends handles it vaguely: 
--- https://github.com/tweag/smtlib-backends/issues/70
  , var, constant
- , assert
+ , SMTMonad(..)
+ , SMTOption(Incremental) 
+ , renderSMT, renderSetLogic, renderAssert, renderVars, renderDeclareVar
  )
  where
 
 import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Internal.Render
 import Data.Default
 import Data.Coerce
+import Data.Proxy
 import Data.Sequence hiding ((|>), filter)
 import Data.Data (Data, toConstr, showConstr)
+import Data.ByteString.Builder
 import Control.Monad.State
 import Control.Lens hiding (List)
 
+class MonadState s m => SMTMonad s m where
+  -- | Construct a variable.
+  --   Usage:
+  --      x :: Expr RealType <- var' (Proxy @RealType)
+  var'       :: forall t. KnownSMTRepr t => Proxy t -> m (Expr t)
+
+  -- | Assert a boolean expression.
+  --   Usage
+  --      x :: Expr IntType <- var @IntType
+  --      assert $ x + 5 === 42
+  assert    :: Expr BoolType -> m ()
+
+  -- | Set an SMT-Solver-Option.
+  setOption :: SMTOption -> m ()
+
+  -- | Set the logic for the SMT-Solver to use.
+  --   Usage:
+  --      setLogic "QF_LRA"
+  setLogic  :: String -> m ()
+
+-- | Wrapper for @var'@ which hides the Proxy
+var :: forall t s m. (KnownSMTRepr t, SMTMonad s m) => m (Expr t)
+var = var' (Proxy @t)
+{-# INLINE var #-}
+
+-- | Create a constant.
+--   Usage
+--      >>> constant True
+--          Constant (BoolValue True)
+--
+--      >>> let x :: Integer = 10 ; constant x
+--          Constant (IntValue 10)
+--
+--      >>> constant @IntType 5
+--          Constant (IntValue 5)
+--
+--      >>> constant @(BvType 8) 5
+--          Constant (BvValue 0000101)
+constant :: KnownSMTRepr t => ValueType t -> Expr t
+constant = Constant . putValue
+{-# INLINE constant #-}
+
 data SMTOption =
-    PrintSuccess  Bool          -- | Print \"success\" after each operation
-  | ProduceModels Bool          -- | Produce a satisfying assignment after each successful checkSat
+    PrintSuccess  Bool              -- | Print \"success\" after each operation
+  | ProduceModels Bool              -- | Produce a satisfying assignment after each successful checkSat
+  | Incremental   Bool              -- | Incremental solving
   deriving (Show, Eq, Ord, Data)
 
 -- | SMT State
 data SMT = SMT
   { _lastVarId :: {-# UNPACK #-} !Int             -- | Last Id assigned to a new var
-  , _vars     :: Seq (SomeKnownSMTRepr SMTVar)    -- | All constructed variables
-  , _formulas :: Seq (Expr BoolType)              -- | All asserted formulas
+  , _vars     :: !(Seq (SomeKnownSMTRepr SMTVar)) -- | All constructed variables
+  , _formulas :: !(Seq (Expr BoolType))           -- | All asserted formulas
   , _mlogic   :: Maybe String                     -- | Logic for the SMT-Solver
   , _options  :: [SMTOption]                      -- | All manually configured SMT-Solver-Options
   }
@@ -38,52 +83,47 @@ instance Default SMT where
 
 $(makeLenses ''SMT)
 
--- | Set the logic for the SMT-Solver to use.
---   Usage:
---      setLogic "QF_LRA"
-setLogic :: MonadState SMT m => String -> m ()
-setLogic l = mlogic ?= l
+instance MonadState SMT m => SMTMonad SMT m where
+  var' _ = do
+    smt <- get
+    let la' = smt^.lastVarId + 1
+        newVar = coerce la'
+    modify $ \s -> s & vars %~ (|> SomeKnownSMTRepr newVar) & lastVarId %~ (+1)
+    return $ Var newVar
 
--- | Set an SMT-Solver-Option.
-setOption :: MonadState SMT m => SMTOption -> m ()
-setOption opt = options %= ((opt:) . filter (not . eqCon opt))
-  where
-    eqCon :: SMTOption -> SMTOption -> Bool
-    eqCon l r = showConstr (toConstr l) == showConstr (toConstr r)
+  assert expr = modify $ \s -> s & formulas %~ (|> expr)
+  {-# INLINE assert #-}
 
--- | Construct a variable.
---   Usage:
---      x :: Expr RealType <- var @RealType
-var :: forall t m. (KnownSMTRepr t, MonadState SMT m) => m (Expr t)
-var = do
-  smt <- get
-  let la' = smt^.lastVarId + 1
-      newVar = coerce la'
-  modify $ \s -> s & vars %~ (|> SomeKnownSMTRepr newVar) & lastVarId %~ (+1)
-  return $ Var newVar
+  setOption opt = options %= ((opt:) . filter (not . eqCon opt))
+    where
+      eqCon :: SMTOption -> SMTOption -> Bool
+      eqCon l r = showConstr (toConstr l) == showConstr (toConstr r)
 
--- | Create a constant.
---   This may be used to create constants from parameters.
---   Otherwise usage of overloaded numbers (fromInteger) should be preferred, if type can be inferred. 
---   Usage
---      >>> constant True
---          Constant (BoolValue True) 
--- 
---      >>> let x :: Integer = 10 ; constant x
---          Constant (IntValue 10)
--- 
---      >>> constant @IntType 5
---          Constant (IntValue 5)
--- 
---      >>> constant @(BvType 8) 5
---          Constant (BvValue 0000101)
-constant :: KnownSMTRepr t => ValueType t -> Expr t
-constant = Constant . putValue 
-{-# INLINEABLE constant #-}
+  setLogic l = mlogic ?= l
 
--- | Assert a boolean expression.
---   Usage
---      x :: Expr IntType <- var @IntType
---      assert $ x + 5 === 42
-assert :: MonadState SMT m => Expr BoolType -> m ()
-assert expr = modify $ \s -> s & formulas %~ (|> expr)
+instance RenderSMTLib2 SMTOption where
+  renderSMTLib2 (PrintSuccess  b) = renderBinary "set-option" (":print-success"  :: Builder) b
+  renderSMTLib2 (ProduceModels b) = renderBinary "set-option" (":produce-models" :: Builder) b
+  renderSMTLib2 (Incremental   b) = renderBinary "set-option" (":incremental"    :: Builder) b
+
+renderSMT :: SMT -> Seq Builder
+renderSMT smt =
+     fromList (renderSMTLib2 <$> smt^.options)
+  >< maybe mempty (singleton . renderSetLogic . stringUtf8) (smt^.mlogic)
+  >< renderVars (smt^.vars)
+  >< fmap renderAssert (smt^.formulas)
+
+renderSetLogic :: Builder -> Builder
+renderSetLogic = renderUnary "set-logic"
+
+renderDeclareVar :: forall t. KnownSMTRepr t => SMTVar t -> Builder
+renderDeclareVar v = renderTernary "declare-fun" v ("()" :: Builder) (singRepr @t)
+{-# INLINEABLE renderDeclareVar #-}
+
+renderAssert :: Expr BoolType -> Builder
+renderAssert = renderUnary "assert"
+{-# INLINEABLE renderAssert #-}
+
+renderVars :: Seq (SomeKnownSMTRepr SMTVar) -> Seq Builder
+renderVars = fmap (\(SomeKnownSMTRepr v) -> renderDeclareVar v)
+{-# INLINEABLE renderVars #-}

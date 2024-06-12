@@ -4,6 +4,8 @@
 module Language.Hasmtlib.Internal.Bitvec where
 
 import Language.Hasmtlib.Boolean
+import Language.Hasmtlib.Internal.Render
+import Data.ByteString.Builder
 import Data.Bit
 import Data.Bits
 import Data.Coerce
@@ -21,6 +23,10 @@ newtype Bitvec (n :: Nat) = Bitvec { unBitvec :: V.Vector n Bit }
 
 instance Show (Bitvec n) where
   show = V.toList . V.map (\b -> if coerce b then '1' else '0') . coerce @_ @(V.Vector n Bit)
+
+instance RenderSMTLib2 (Bitvec n) where
+  renderSMTLib2 = stringUtf8 . show
+  {-# INLINEABLE renderSMTLib2 #-}
 
 instance KnownNat n => Num (Bitvec n) where
    fromInteger x = coerce . V.reverse $ V.generate @n (coerce . testBit x . fromInteger . getFinite) 
