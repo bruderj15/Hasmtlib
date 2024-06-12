@@ -1,6 +1,3 @@
--- Required for class constraints of form: c (ValueType t) :: Constraint
-{-# LANGUAGE UndecidableInstances #-}
-
 module Language.Hasmtlib.Internal.Expr.Num where
 
 import Language.Hasmtlib.Internal.Expr
@@ -12,25 +9,21 @@ import GHC.TypeNats
   
 instance Num (Expr IntType) where
    fromInteger = Constant . IntValue
-   (+)     = Plus
-   (-) x y = Plus x (Neg y)
-   (*)     = Mul
-   negate  = Neg
-   abs     = Abs
-   signum x   = ite ((x === 0) :: Expr BoolType)
-                  0 $
-                  ite ((x <? 0) :: Expr BoolType) (-1) 1
+   (+)         = Plus
+   (-) x y     = Plus x (Neg y)
+   (*)         = Mul
+   negate      = Neg
+   abs         = Abs
+   signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
 
 instance Num (Expr RealType) where
    fromInteger = Constant . RealValue . fromIntegral
-   (+)      = Plus
-   x - y    = Plus x (Neg y)
-   (*)      = Mul
-   negate   = Neg
-   abs      = Abs
-   signum x = ite ((x === 0) :: Expr BoolType)
-                  0 $
-                  ite ((x <? 0) :: Expr BoolType) (-1) 1
+   (+)         = Plus
+   x - y       = Plus x (Neg y)
+   (*)         = Mul
+   negate      = Neg
+   abs         = Abs
+   signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
 
 instance KnownNat n => Num (Expr (BvType n)) where
    fromInteger = Constant . BvValue . fromInteger 
@@ -47,7 +40,7 @@ instance Fractional (Expr RealType) where
 instance Floating (Expr RealType) where
     pi    = Pi
     exp   = Exp
-    log   = Log
+    log   = error "SMT-Solvers currently do not support log"
     sqrt  = Sqrt
     sin   = Sin
     cos   = Cos
@@ -55,12 +48,12 @@ instance Floating (Expr RealType) where
     asin  = Asin
     acos  = Acos
     atan  = Atan
-    sinh  = Sinh
-    cosh  = Cosh
-    tanh  = Tanh
-    asinh = Asinh
-    acosh = Acosh
-    atanh = Atanh
+    sinh  = error "SMT-Solver currently do not support sinh"
+    cosh  = error "SMT-Solver currently do not support cosh"
+    tanh  = error "SMT-Solver currently do not support tanh"
+    asinh = error "SMT-Solver currently do not support asinh"
+    acosh = error "SMT-Solver currently do not support acosh"
+    atanh = error "SMT-Solver currently do not support atanh"
 
 -- | Integer modulus
 mod' :: Expr IntType -> Expr IntType -> Expr IntType
@@ -69,10 +62,6 @@ mod' = Mod
 -- | Integer division
 div' :: Expr IntType -> Expr IntType -> Expr IntType
 div' = IDiv
-
--- | Unsigned bitvector division
-bvuDiv   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-bvuDiv   = BvuDiv
 
 -- | Unsigned bitvector remainder
 bvuRem   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)

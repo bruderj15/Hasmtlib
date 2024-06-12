@@ -104,19 +104,12 @@ data Expr (t :: SMTType) where
   Pi       :: Expr RealType
   Sqrt     :: Expr RealType -> Expr RealType
   Exp      :: Expr RealType -> Expr RealType
-  Log      :: Expr RealType -> Expr RealType
   Sin      :: Expr RealType -> Expr RealType
   Cos      :: Expr RealType -> Expr RealType
   Tan      :: Expr RealType -> Expr RealType
   Asin     :: Expr RealType -> Expr RealType
   Acos     :: Expr RealType -> Expr RealType
   Atan     :: Expr RealType -> Expr RealType
-  Sinh     :: Expr RealType -> Expr RealType
-  Cosh     :: Expr RealType -> Expr RealType
-  Tanh     :: Expr RealType -> Expr RealType
-  Asinh    :: Expr RealType -> Expr RealType
-  Acosh    :: Expr RealType -> Expr RealType
-  Atanh    :: Expr RealType -> Expr RealType
 
   -- Conversion
   ToReal   :: Expr IntType  -> Expr RealType
