@@ -4,6 +4,7 @@
 
 module Language.Hasmtlib.Codec where
 
+import Prelude hiding (not, (&&), (||))
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Solution
@@ -74,9 +75,9 @@ instance KnownSMTRepr t => Codec (Expr t) where
   decode sol (Distinct x y)  = liftA2 (/=)  (decode sol x) (decode sol y)
   decode sol (GTHE x y) = liftA2 (>=)  (decode sol x) (decode sol y)
   decode sol (GTH x y)  = liftA2 (>)   (decode sol x) (decode sol y)
-  decode sol (Not x)    = fmap   not'  (decode sol x)
-  decode sol (And x y)  = liftA2 (&&&) (decode sol x) (decode sol y)
-  decode sol (Or x y)   = liftA2 (|||) (decode sol x) (decode sol y)
+  decode sol (Not x)    = fmap   not  (decode sol x)
+  decode sol (And x y)  = liftA2 (&&) (decode sol x) (decode sol y)
+  decode sol (Or x y)   = liftA2 (||) (decode sol x) (decode sol y)
   decode sol (Impl x y) = liftA2 (==>) (decode sol x) (decode sol y)
   decode sol (Xor x y)  = liftA2 xor   (decode sol x) (decode sol y)
   decode _ Pi           = Just pi
@@ -92,9 +93,9 @@ instance KnownSMTRepr t => Codec (Expr t) where
   decode sol (ToInt x)  = fmap truncate   (decode sol x)
   decode sol (IsInt x)  = fmap ((0 ==) . snd . properFraction) (decode sol x)
   decode sol (Ite p t f) = liftM3 (\p' t' f' -> if p' then t' else f') (decode sol p) (decode sol t) (decode sol f) 
-  decode sol (BvNot x)          = fmap not' (decode sol x)
-  decode sol (BvAnd x y)        = liftA2 (&&&) (decode sol x) (decode sol y)
-  decode sol (BvOr x y)         = liftA2 (|||) (decode sol x) (decode sol y)
+  decode sol (BvNot x)          = fmap not (decode sol x)
+  decode sol (BvAnd x y)        = liftA2 (&&) (decode sol x) (decode sol y)
+  decode sol (BvOr x y)         = liftA2 (||) (decode sol x) (decode sol y)
   decode sol (BvXor x y)        = liftA2 xor (decode sol x) (decode sol y)
   decode sol (BvNand x y)       = nand <$> sequenceA [decode sol x, decode sol y]
   decode sol (BvNor x y)        = nor  <$> sequenceA [decode sol x, decode sol y]

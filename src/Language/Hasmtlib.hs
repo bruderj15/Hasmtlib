@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Language.Hasmtlib
   (
     module Language.Hasmtlib.Type.SMT
@@ -14,6 +16,7 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Solver.Z3
   , module Language.Hasmtlib.Solver.Yices
   , module Language.Hasmtlib.Solver.MathSAT
+  , module Prelude
   )
   where
 
@@ -31,3 +34,4 @@ import Language.Hasmtlib.Solver.CVC5
 import Language.Hasmtlib.Solver.Z3
 import Language.Hasmtlib.Solver.Yices
 import Language.Hasmtlib.Solver.MathSAT
+import Prelude hiding (not, or, and, all, any, (&&), (||))

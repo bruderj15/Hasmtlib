@@ -4,6 +4,7 @@
 
 module Language.Hasmtlib.Equatable where
 
+import Prelude hiding (not, (&&))
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Boolean
 import GHC.Generics
@@ -23,7 +24,7 @@ class Equatable a where
   a === b = from a ===# from b
 
   (/==) :: a -> a -> Expr BoolType
-  x /== y = not' $ x === y
+  x /== y = not $ x === y
 
 infix 4 ===, /==
 
@@ -41,7 +42,7 @@ instance GEquatable V1 where
   x ===# y = x `seq` y `seq` error "GEquatable[V1].===#"
 
 instance (GEquatable f, GEquatable g) => GEquatable (f :*: g) where
-  (a :*: b) ===# (c :*: d) = (a ===# c) &&& (b ===# d)
+  (a :*: b) ===# (c :*: d) = (a ===# c) && (b ===# d)
 
 instance (GEquatable f, GEquatable g) => GEquatable (f :+: g) where
   L1 a ===# L1 b = a ===# b
