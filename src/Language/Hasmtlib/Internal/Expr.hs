@@ -149,8 +149,9 @@ data Expr (t :: SMTType) where
   BvuLTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
   BvuGTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
   BvuGT    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
-
-deriving instance Show (Expr t)
+  
+  ForAll   :: KnownSMTRepr t => (Expr t -> Expr BoolType) -> Expr BoolType
+  Exists   :: KnownSMTRepr t => (Expr t -> Expr BoolType) -> Expr BoolType
 
 instance Boolean (Expr BoolType) where
   bool = Constant . BoolValue

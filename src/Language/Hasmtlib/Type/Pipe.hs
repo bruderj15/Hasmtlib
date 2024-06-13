@@ -10,6 +10,7 @@ module Language.Hasmtlib.Type.Pipe
  where
 
 import Language.Hasmtlib.Type.SMT
+import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.Solution
