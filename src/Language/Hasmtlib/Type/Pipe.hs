@@ -25,6 +25,8 @@ import Control.Monad
 import Control.Monad.State
 import Control.Lens hiding (List)
 
+-- | Pipe to the solver.
+-- | If @B.Solver@ is @B.Queuing@ then all commands but those that expect an answer are sent to the queue.
 data Pipe = Pipe
   { _lastPipeVarId :: {-# UNPACK #-} !Int
   , _pipe          :: !B.Solver
@@ -38,10 +40,8 @@ withSolver = Pipe 0
 instance (MonadState Pipe m, MonadIO m) => MonadSMT Pipe m where
   var' _ = do
     smt <- get
-    let la' = smt^.lastPipeVarId + 1
-        newVar = coerce la'
+    newVar <- fmap coerce $ lastPipeVarId <+= 1 
     liftIO $ B.command_ (smt^.pipe) $ renderDeclareVar newVar
-    modify $ \ s -> s & lastPipeVarId %~ (+1)
     return $ Var newVar
 
   assert expr = do
