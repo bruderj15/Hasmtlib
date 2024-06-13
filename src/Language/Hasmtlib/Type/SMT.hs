@@ -77,18 +77,15 @@ data SMT = SMT
   , _mlogic   :: Maybe String                     -- | Logic for the SMT-Solver
   , _options  :: [SMTOption]                      -- | All manually configured SMT-Solver-Options
   }
+$(makeLenses ''SMT)
 
 instance Default SMT where
   def = SMT 0 mempty mempty mempty mempty
 
-$(makeLenses ''SMT)
-
 instance MonadState SMT m => MonadSMT SMT m where
   var' _ = do
-    smt <- get
-    let la' = smt^.lastVarId + 1
-        newVar = coerce la'
-    modify $ \s -> s & vars %~ (|> SomeKnownSMTRepr newVar) & lastVarId %~ (+1)
+    newVar <- fmap coerce $ lastVarId <+= 1
+    vars %= (|> SomeKnownSMTRepr newVar)
     return $ Var newVar
   {-# INLINEABLE var' #-}
 
