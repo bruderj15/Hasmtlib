@@ -3,7 +3,7 @@
 module Language.Hasmtlib.Variable where
 
 import Language.Hasmtlib.Internal.Expr
-import Language.Hasmtlib.Type.SMT
+import Language.Hasmtlib.Type.MonadSMT
 import Data.Proxy
 
 -- | Construct a datum of a data-type by creating variables for all its fields.

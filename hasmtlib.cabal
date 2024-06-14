@@ -38,10 +38,12 @@ library
                      , Language.Hasmtlib.Solver.Yices
                      , Language.Hasmtlib.Solver.Z3
                      , Language.Hasmtlib.Type.Expr
+                     , Language.Hasmtlib.Type.MonadSMT
                      , Language.Hasmtlib.Type.SMT
                      , Language.Hasmtlib.Type.Pipe
                      , Language.Hasmtlib.Type.Solution
                      , Language.Hasmtlib.Type.Solver
+                     , Language.Hasmtlib.Type.Option
 
   other-modules:       Language.Hasmtlib.Internal.Expr
                      , Language.Hasmtlib.Internal.Expr.Num

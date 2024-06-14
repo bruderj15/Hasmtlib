@@ -13,7 +13,7 @@ import Data.Proxy
 import Data.Coerce
 import Data.ByteString.Builder
 import Control.Lens
-import GHC.TypeNats
+import GHC.TypeLits
 
 -- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType | BvType Nat
@@ -150,7 +150,8 @@ data Expr (t :: SMTType) where
   BvuGTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
   BvuGT    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
 
-deriving instance Show (Expr t)
+  ForAll   :: KnownSMTRepr t => Maybe (SMTVar t) -> (Expr t -> Expr BoolType) -> Expr BoolType
+  Exists   :: KnownSMTRepr t => Maybe (SMTVar t) -> (Expr t -> Expr BoolType) -> Expr BoolType
 
 instance Boolean (Expr BoolType) where
   bool = Constant . BoolValue
@@ -260,3 +261,16 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (BvuLTHE x y)      = renderBinary "bvule"  (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuGTHE x y)      = renderBinary "bvuge"  (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuGT x y)        = renderBinary "bvugt"  (renderSMTLib2 x) (renderSMTLib2 y)
+
+  renderSMTLib2 (ForAll mQvar f) = renderQuantifier "forall" mQvar f
+  renderSMTLib2 (Exists mQvar f) = renderQuantifier "exists" mQvar f
+
+renderQuantifier :: forall t. KnownSMTRepr t => Builder -> Maybe (SMTVar t) -> (Expr t -> Expr BoolType) -> Builder
+renderQuantifier qname (Just qvar) f =
+  renderBinary
+    qname
+    ("(" <> renderUnary (renderSMTLib2 qvar) (singRepr @t) <> ")")
+    expr
+  where
+    expr = renderSMTLib2 $ f $ Var qvar
+renderQuantifier _ Nothing _ = mempty

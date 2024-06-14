@@ -65,10 +65,11 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 - [x] Solvers via external process: CVC5, Z3, Yices2-SMT & MathSAT
 - [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solver.hs)
 - [x] Incremental solving
+- [x] Quantifiers `for_all` and `exists`
 
 ### Coming
 - [ ] Observable sharing
-- [ ] Quantifiers `for_all` and `exists`
+- [ ] (Maybe) signed BitVec with corresponding encoding on the type-level (unsigned, ones-complement, twos-complement)
 
 ## Examples
 There are some examples in [here](https://github.com/bruderj15/Hasmtlib/tree/master/src/Language/Hasmtlib/Example).
