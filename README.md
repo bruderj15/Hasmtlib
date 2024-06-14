@@ -6,11 +6,11 @@ Hasmtlib is a library for generating SMTLib2-problems using a monad.
 It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types.
 It is highly inspired by [ekmett/ersatz](https://github.com/ekmett/ersatz) which does the same for QSAT. Communication with external solvers is handled by [tweag/smtlib-backends](https://github.com/tweag/smtlib-backends).
 
-Building expressions with type-level representations of the SMTLib2-Types guarantees type-safety when communicating with an external solver.
+Building expressions with type-level representations of the SMTLib2-Types guarantees type-safety for building expressions and when communicating with external solvers.
 
 Although Hasmtlib does not yet make use of _observable_ sharing [(StableNames)](https://downloads.haskell.org/ghc/9.6.1/docs/libraries/base-4.18.0.0/System-Mem-StableName.html#:~:text=Stable%20Names,-data%20StableName%20a&text=An%20abstract%20name%20for%20an,makeStableName%20on%20the%20same%20object.) like Ersatz does, sharing in the API still allows for pure formula construction.
 
-Therefore, this allows you to use the much richer subset of Haskell than a purely monadic meta-language would, which [hgoes/smtlib2](https://github.com/hgoes/smtlib2) is one of. This ultimately results in extremely compact code.
+Therefore, this allows you to use the much richer subset of Haskell than a purely monadic meta-language would, which the strong [hgoes/smtlib2](https://github.com/hgoes/smtlib2) is one of. This ultimately results in extremely compact code.
 
 For instance, to define the addition of two `V3` containing a Real-SMT-Expression:
 ```haskell
@@ -59,17 +59,69 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 
 ### Supported
 - [x] SMTLib2 types in the haskell type
-- [x] Full support for SMTLib2 types Int, Real, Bool and unsigned BitVec
+  ```haskell
+    -- | Sorts in SMTLib - used as data-kind
+    data SMTType = IntType | RealType | BoolType | BvType Nat
+    data Expr (t :: SMTType) where ...
+  
+    ite :: Expr BoolType -> Expr t -> Expr t -> Expr t
+  ```
+- [x] Full SMTLib 2.6 standard support for Int, Real, Bool and unsigned BitVec
 - [x] Type-level length-indexed Bitvectors for BitVec
+  ```haskell
+    bvConcat :: (KnownNat n, KnownNat m) => Expr (BvType n) -> Expr (BvType m) -> Expr (BvType (n + m))
+  ```
 - [x] Pure API with Expression-instances for Num, Floating, Bounded, ...
-- [x] Solvers via external process: CVC5, Z3, Yices2-SMT & MathSAT
-- [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solver.hs)
+  ```haskell
+    solveWith yices $ do
+      setLogic "QF_BV"
+      x <- var @(BvType 16)
+      y <- var
+      assert $ x - (maxBound `mod` 8) === y * y 
+      return (x,y)
+  ```
+- [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solution.hs)
+  ```haskell
+    -- | Function that turns a state (SMT) into a result and a solution
+    type Solver s m = s -> m (Result, Solution)
+  ```
+- [x] Solvers via external processes: CVC5, Z3, Yices2-SMT & MathSAT
+  ```haskell
+    (result, solution) <- solveWith mathsat $ do
+      setLogic "QF_LIA" 
+      assert $ ...
+  ```
 - [x] Incremental solving
-- [x] Quantifiers `for_all` and `exists`
+  ```haskell
+      cvc5Living <- cvc5Alive
+      interactive cvc5Living $ do
+        x <- var @IntType
+        assert $ x === 42
+        result <- checkSat
+        push
+        assert $ x <? 0
+        (result, solution) <- solve
+        case result of
+          Sat   -> return solution
+          Unsat -> pop >> ...
+  ```
+- [x] Pure quantifiers `for_all` and `exists`
+  ```haskell
+    solveWith z3 $ do
+      setLogic "LIA"
+      z <- var @IntType
+      assert $ z === 0
+      assert $
+        for_all $ \x ->
+            exists $ \y ->
+              x + y === z
+      return z
+  ```
 
 ### Coming
-- [ ] Observable sharing
+- [ ] Observable sharing & access to the expression-tree (useful for rewriting, ...)
 - [ ] (Maybe) signed BitVec with corresponding encoding on the type-level (unsigned, ones-complement, twos-complement)
+- [ ] ...
 
 ## Examples
 There are some examples in [here](https://github.com/bruderj15/Hasmtlib/tree/master/src/Language/Hasmtlib/Example).
