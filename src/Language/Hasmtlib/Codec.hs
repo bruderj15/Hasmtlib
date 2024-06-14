@@ -113,6 +113,8 @@ instance KnownSMTRepr t => Codec (Expr t) where
   decode sol (BvuLTHE x y)      = liftA2 (<=) (decode sol x) (decode sol y)
   decode sol (BvuGTHE x y)      = liftA2 (>=) (decode sol x) (decode sol y)
   decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
+  decode _ (ForAll _ _)       = Nothing
+  decode _ (Exists _ _)       = Nothing
   encode = Constant . putValue
 
 instance Codec () where
