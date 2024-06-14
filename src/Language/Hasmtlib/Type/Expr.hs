@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Language.Hasmtlib.Type.Expr
  ( SMTType(..)
  , SMTVar(..)
@@ -12,9 +14,11 @@ where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Expr.Num
+import Data.Proxy
+import GHC.TypeLits
 
-for_all :: KnownSMTRepr t => (Expr t -> Expr BoolType) -> Expr BoolType
-for_all = ForAll
+for_all :: forall t s. (KnownSMTRepr t, KnownSymbol s) => (Expr t -> Expr BoolType) -> Expr BoolType
+for_all = ForAll (Proxy @s)
 
-exists :: KnownSMTRepr t => (Expr t -> Expr BoolType) -> Expr BoolType
-exists = Exists
+exists :: forall t s. (KnownSMTRepr t, KnownSymbol s) => (Expr t -> Expr BoolType) -> Expr BoolType
+exists = Exists (Proxy @s)

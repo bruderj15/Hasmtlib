@@ -13,7 +13,8 @@ import Data.Proxy
 import Data.Coerce
 import Data.ByteString.Builder
 import Control.Lens
-import GHC.TypeNats
+import GHC.TypeLits
+import Data.Hashable
 
 -- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType | BvType Nat
@@ -149,9 +150,9 @@ data Expr (t :: SMTType) where
   BvuLTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
   BvuGTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
   BvuGT    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
-  
-  ForAll   :: KnownSMTRepr t => (Expr t -> Expr BoolType) -> Expr BoolType
-  Exists   :: KnownSMTRepr t => (Expr t -> Expr BoolType) -> Expr BoolType
+
+  ForAll   :: (KnownSMTRepr t, KnownSymbol s) => Proxy s -> (Expr t -> Expr BoolType) -> Expr BoolType
+  Exists   :: (KnownSMTRepr t, KnownSymbol s) => Proxy s -> (Expr t -> Expr BoolType) -> Expr BoolType
 
 instance Boolean (Expr BoolType) where
   bool = Constant . BoolValue
@@ -261,3 +262,20 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (BvuLTHE x y)      = renderBinary "bvule"  (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuGTHE x y)      = renderBinary "bvuge"  (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuGT x y)        = renderBinary "bvugt"  (renderSMTLib2 x) (renderSMTLib2 y)
+
+  renderSMTLib2 (ForAll p f) = renderQuantifier "forall" p f
+  renderSMTLib2 (Exists p f) = renderQuantifier "exists" p f
+
+-- TODO: Maybe use MonadState Quantifiers Identity
+-- In renderSMTLib remember all quantified vars, maybe add a separate type and render it as qvar_...
+
+-- Hash given 's' and assign it as varId
+renderQuantifier :: forall t s. (KnownSMTRepr t, KnownSymbol s) => Builder -> Proxy s -> (Expr t -> Expr BoolType) -> Builder
+renderQuantifier qname vname f =
+  renderBinary
+    qname
+    ("(" <> renderUnary (renderSMTLib2 qVar) (singRepr @t) <> ")")
+    expr
+  where
+    expr = renderSMTLib2 $ f qVar
+    qVar = Var $ coerce @Int @(SMTVar t) $ hash $ symbolVal vname

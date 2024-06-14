@@ -14,9 +14,8 @@ import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.Option
 import Data.Default
 import Data.Coerce
-import Data.Proxy
 import Data.Sequence hiding ((|>), filter)
-import Data.Data (Data, toConstr, showConstr)
+import Data.Data (toConstr, showConstr)
 import Data.ByteString.Builder
 import Control.Monad.State
 import Control.Lens hiding (List)

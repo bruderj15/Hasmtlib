@@ -4,7 +4,7 @@ import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Option
 import Data.Proxy
 import Control.Monad.State
-    
+
 class MonadState s m => MonadSMT s m where
   -- | Construct a variable.
   --   Usage:
@@ -45,5 +45,4 @@ var = var' (Proxy @t)
 --          Constant (BvValue 0000101)
 constant :: KnownSMTRepr t => ValueType t -> Expr t
 constant = Constant . putValue
-{-# INLINE constant #-}  
-  
+{-# INLINE constant #-}
