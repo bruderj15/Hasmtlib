@@ -19,6 +19,7 @@ import Data.Data (toConstr, showConstr)
 import Data.ByteString.Builder
 import Control.Monad.State
 import Control.Lens hiding (List)
+
 -- | SMT State
 data SMT = SMT
   { _lastVarId :: {-# UNPACK #-} !Int             -- | Last Id assigned to a new var
@@ -33,13 +34,18 @@ instance Default SMT where
   def = SMT 0 mempty mempty mempty mempty
 
 instance MonadState SMT m => MonadSMT SMT m where
-  var' _ = do
-    newVar <- fmap coerce $ lastVarId <+= 1
+  smtvar' _ = fmap coerce $ lastVarId <+= 1
+  {-# INLINE smtvar' #-}
+
+  var' p = do
+    newVar <- smtvar' p
     vars %= (|> SomeKnownSMTRepr newVar)
     return $ Var newVar
   {-# INLINEABLE var' #-}
 
-  assert expr = modify $ \s -> s & formulas %~ (|> expr)
+  assert expr = do
+    qExpr <- quantify expr
+    modify $ \s -> s & formulas %~ (|> qExpr)
   {-# INLINE assert #-}
 
   setOption opt = options %= ((opt:) . filter (not . eqCon opt))

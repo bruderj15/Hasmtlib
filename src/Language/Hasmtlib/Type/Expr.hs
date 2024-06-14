@@ -14,11 +14,32 @@ where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Expr.Num
-import Data.Proxy
-import GHC.TypeLits
 
-for_all :: forall t s. (KnownSMTRepr t, KnownSymbol s) => (Expr t -> Expr BoolType) -> Expr BoolType
-for_all = ForAll (Proxy @s)
+-- | A universal quantification for any specific type
+--   If the type cannot be inferred, apply a type-annotation.
+--   Nested quantifiers are also supported.
+-- 
+--   Usage:
+--   assert $
+--      for_all @IntType $ \x ->
+--         x + 0 === x && 0 + x === 0 
+--    
+--   The lambdas 'x' is all-quantified here.
+--   It will only be scoped for the lambdas body.
+for_all :: forall t. KnownSMTRepr t => (Expr t -> Expr BoolType) -> Expr BoolType
+for_all = ForAll Nothing
 
-exists :: forall t s. (KnownSMTRepr t, KnownSymbol s) => (Expr t -> Expr BoolType) -> Expr BoolType
-exists = Exists (Proxy @s)
+-- | An existential quantification for any specific type
+--   If the type cannot be inferred, apply a type-annotation.
+--   Nested quantifiers are also supported.
+-- 
+--   Usage:
+--   assert $
+--      for_all @(BvType 8) $ \x ->
+--          exists $ \y ->
+--            x - y === 0 
+--    
+--   The lambdas 'y' is existentially quantified here.
+--   It will only be scoped for the lambdas body.
+exists :: forall t. KnownSMTRepr t => (Expr t -> Expr BoolType) -> Expr BoolType
+exists = Exists Nothing

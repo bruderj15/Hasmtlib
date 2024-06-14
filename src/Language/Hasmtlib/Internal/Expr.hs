@@ -14,7 +14,6 @@ import Data.Coerce
 import Data.ByteString.Builder
 import Control.Lens
 import GHC.TypeLits
-import Data.Hashable
 
 -- | Types of variables in SMTLib - used as promoted Type
 data SMTType = IntType | RealType | BoolType | BvType Nat
@@ -151,8 +150,8 @@ data Expr (t :: SMTType) where
   BvuGTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
   BvuGT    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
 
-  ForAll   :: (KnownSMTRepr t, KnownSymbol s) => Proxy s -> (Expr t -> Expr BoolType) -> Expr BoolType
-  Exists   :: (KnownSMTRepr t, KnownSymbol s) => Proxy s -> (Expr t -> Expr BoolType) -> Expr BoolType
+  ForAll   :: KnownSMTRepr t => Maybe (SMTVar t) -> (Expr t -> Expr BoolType) -> Expr BoolType
+  Exists   :: KnownSMTRepr t => Maybe (SMTVar t) -> (Expr t -> Expr BoolType) -> Expr BoolType
 
 instance Boolean (Expr BoolType) where
   bool = Constant . BoolValue
@@ -263,19 +262,15 @@ instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
   renderSMTLib2 (BvuGTHE x y)      = renderBinary "bvuge"  (renderSMTLib2 x) (renderSMTLib2 y)
   renderSMTLib2 (BvuGT x y)        = renderBinary "bvugt"  (renderSMTLib2 x) (renderSMTLib2 y)
 
-  renderSMTLib2 (ForAll p f) = renderQuantifier "forall" p f
-  renderSMTLib2 (Exists p f) = renderQuantifier "exists" p f
+  renderSMTLib2 (ForAll mQvar f) = renderQuantifier "forall" mQvar f
+  renderSMTLib2 (Exists mQvar f) = renderQuantifier "exists" mQvar f
 
--- TODO: Maybe use MonadState Quantifiers Identity
--- In renderSMTLib remember all quantified vars, maybe add a separate type and render it as qvar_...
-
--- Hash given 's' and assign it as varId
-renderQuantifier :: forall t s. (KnownSMTRepr t, KnownSymbol s) => Builder -> Proxy s -> (Expr t -> Expr BoolType) -> Builder
-renderQuantifier qname vname f =
+renderQuantifier :: forall t. KnownSMTRepr t => Builder -> Maybe (SMTVar t) -> (Expr t -> Expr BoolType) -> Builder
+renderQuantifier qname (Just qvar) f =
   renderBinary
     qname
-    ("(" <> renderUnary (renderSMTLib2 qVar) (singRepr @t) <> ")")
+    ("(" <> renderUnary (renderSMTLib2 qvar) (singRepr @t) <> ")")
     expr
   where
-    expr = renderSMTLib2 $ f qVar
-    qVar = Var $ coerce @Int @(SMTVar t) $ hash $ symbolVal vname
+    expr = renderSMTLib2 $ f $ Var qvar
+renderQuantifier _ Nothing _ = mempty

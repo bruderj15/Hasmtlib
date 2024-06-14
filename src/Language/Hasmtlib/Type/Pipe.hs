@@ -3,7 +3,6 @@
 
 module Language.Hasmtlib.Type.Pipe
  ( Pipe, withSolver
- , MonadSMT(..)
  , push, pop
  , solve, checkSat, getModel, getValue
  )
@@ -39,15 +38,21 @@ withSolver :: B.Solver -> Pipe
 withSolver = Pipe 0
 
 instance (MonadState Pipe m, MonadIO m) => MonadSMT Pipe m where
-  var' _ = do
+  smtvar' _ = fmap coerce $ lastPipeVarId <+= 1
+  {-# INLINE smtvar' #-}
+
+  var' p = do
     smt <- get
-    newVar <- fmap coerce $ lastPipeVarId <+= 1 
+    newVar <- smtvar' p
     liftIO $ B.command_ (smt^.pipe) $ renderDeclareVar newVar
     return $ Var newVar
+  {-# INLINEABLE var' #-}
 
   assert expr = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $ renderAssert expr
+    qExpr <- quantify expr
+    liftIO $ B.command_ (smt^.pipe) $ renderAssert qExpr
+  {-# INLINEABLE assert #-}
 
   setOption opt = do
     smt <- get
