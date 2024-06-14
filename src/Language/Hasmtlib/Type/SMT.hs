@@ -12,6 +12,7 @@ import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.Option
+import Data.List (isPrefixOf)
 import Data.Default
 import Data.Coerce
 import Data.Sequence hiding ((|>), filter)
@@ -44,7 +45,10 @@ instance MonadState SMT m => MonadSMT SMT m where
   {-# INLINEABLE var' #-}
 
   assert expr = do
-    qExpr <- quantify expr
+    smt <- get
+    qExpr <- case smt^.mlogic of
+      Nothing    -> return expr
+      Just logic -> if "QF" `isPrefixOf` logic then return expr else quantify expr
     modify $ \s -> s & formulas %~ (|> qExpr)
   {-# INLINE assert #-}
 
