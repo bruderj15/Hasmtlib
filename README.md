@@ -6,7 +6,7 @@ Hasmtlib is a library for generating SMTLib2-problems using a monad.
 It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types.
 It is highly inspired by [ekmett/ersatz](https://github.com/ekmett/ersatz) which does the same for QSAT. Communication with external solvers is handled by [tweag/smtlib-backends](https://github.com/tweag/smtlib-backends).
 
-Building expressions with type-level representations of the SMTLib2-Types guarantees type-safety for building expressions and when communicating with external solvers.
+Building expressions with type-level representations of the SMTLib2-Types guarantees type-safety when communicating with external solvers.
 
 Although Hasmtlib does not yet make use of _observable_ sharing [(StableNames)](https://downloads.haskell.org/ghc/9.6.1/docs/libraries/base-4.18.0.0/System-Mem-StableName.html#:~:text=Stable%20Names,-data%20StableName%20a&text=An%20abstract%20name%20for%20an,makeStableName%20on%20the%20same%20object.) like Ersatz does, sharing in the API still allows for pure formula construction.
 
