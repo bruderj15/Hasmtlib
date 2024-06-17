@@ -77,7 +77,7 @@ parseSol = do
   _     <- char '(' >> skipSpace
   _     <- string "define-fun" >> skipSpace
   _     <- string "var_"
-  vId <- decimal @Int
+  vId   <- decimal @Int
   _     <- skipSpace >> string "()" >> skipSpace
   _     <- string $ toStrict $ toLazyByteString $ renderSMTLib2 (singRepr @t)
   _     <- skipSpace
@@ -86,7 +86,7 @@ parseSol = do
 
   -- Try to evaluate expression given by solver as solution
   -- Better: Take into scope already successfully parsed solutions for other vars.
-  -- Is This even required though? Do the solvers ever answer like-wise?
+  -- Is this even required though? Do the solvers ever answer like-wise?
   case decode mempty expr of
     Nothing    -> fail $ "Solver reponded with solution for var_" ++ show vId ++ " but it contains "
                       ++ "another var. This cannot be parsed and evaluated currently."
@@ -97,10 +97,10 @@ parseExpr :: forall t. KnownSMTRepr t => Parser (Expr t)
 parseExpr = var <|> constant <|> smtIte
         <|> case singRepr @t of
               IntRepr  -> unary "abs" abs <|> unary  "-" negate
-                      <|> binary "+" (+)  <|> binary "-" (-) <|> binary "*" (*) <|> binary "mod" Mod
+                      <|> nary "+" sum  <|> binary "-" (-) <|> nary "*" product <|> binary "mod" Mod
                       <|> toIntFun
               RealRepr -> unary "abs" abs <|> unary  "-" negate
-                      <|> binary "+" (+)  <|> binary "-" (-) <|> binary "*" (*) <|> binary "/" (/)
+                      <|> nary "+" sum  <|> binary "-" (-) <|> nary "*" product <|> binary "/" (/)
                       <|> toRealFun
                       <|> smtPi <|> unary "sqrt" sqrt <|> unary "exp" exp
                       <|> unary "sin" sin <|> unary "cos" cos <|> unary "tan" tan
@@ -199,7 +199,7 @@ nary :: forall t r. KnownSMTRepr t => ByteString -> ([Expr t] -> Expr r) -> Pars
 nary opStr op = do
   _    <- char '(' >> skipSpace
   _    <- string opStr >> skipSpace
-  args <- some $ parseExpr <* skipSpace
+  args <- parseExpr `sepBy1` skipSpace
   _    <- skipSpace >> char ')'
   return $ op args
 {-# INLINEABLE nary #-}
