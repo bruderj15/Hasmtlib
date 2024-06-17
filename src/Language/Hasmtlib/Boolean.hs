@@ -3,6 +3,7 @@
 module Language.Hasmtlib.Boolean where
 
 import Prelude (Bool(..), (.), id, Eq(..))  
+import qualified Prelude as P
 import Data.Bit
 import Data.Coerce
 import Data.Bits as Bits
@@ -46,11 +47,11 @@ class Boolean b where
 
 -- | The logical conjunction of several values.
 and :: (Foldable t, Boolean b) => t b -> b
-and = foldl' (&&) true
+and = foldl (&&) true
 
 -- | The logical disjunction of several values.
 or :: (Foldable t, Boolean b) => t b -> b
-or = foldl' (||) false
+or = foldl (||) false
 
 -- | The negated logical conjunction of several values.
 --
@@ -66,19 +67,19 @@ nor = not . or
 
 -- | The logical conjunction of the mapping of a function over several values.
 all :: (Foldable t, Boolean b) => (a -> b) -> t a -> b
-all p = foldl' (\acc b -> acc && p b) true
+all p = foldl (\acc b -> acc && p b) true
 
 -- | The logical disjunction of the mapping of a function over several values.
 any :: (Foldable t, Boolean b) => (a -> b) -> t a -> b
-any p = foldl' (\acc b -> acc || p b) false
+any p = foldl (\acc b -> acc || p b) false
 
 instance Boolean Bool where
   bool  = id
   true  = True
   false = False
-  (&&)  = (&&)
-  (||)  = (||)
-  not   = not
+  (&&)  = (P.&&)
+  (||)  = (P.||)
+  not   = P.not
   xor   = (/=)
   
 instance Boolean Bit where
