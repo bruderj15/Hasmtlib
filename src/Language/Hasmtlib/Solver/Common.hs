@@ -13,10 +13,28 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import qualified SMTLIB.Backends.Process as P
-import qualified SMTLIB.Backends as B hiding (Solver)
+import qualified SMTLIB.Backends as B
 
-data Debugger = Debugger {
-    debugSMT            :: SMT -> IO ()
+-- | A newtype-wrapper for 'P.Config' which configures a solver via external process.
+newtype ProcessSolver = ProcessSolver { conf :: P.Config }
+
+-- | Creates a 'Solver' from a 'ProcessSolver'
+solver :: MonadIO m => ProcessSolver -> Solver SMT m
+solver (ProcessSolver cfg) = processSolver cfg Nothing
+
+-- | Creates a debugging 'Solver' from a 'ProcessSolver'
+debug :: MonadIO m => ProcessSolver -> Solver SMT m
+debug (ProcessSolver cfg) = processSolver cfg $ Just def
+
+-- | Creates an interactive session with a solver by creating and returning an alive process-handle 'P.Handle'.
+interactiveSolver :: MonadIO m => ProcessSolver -> m (B.Solver, P.Handle)
+interactiveSolver (ProcessSolver cfg) = liftIO $ do
+  handle  <- P.new cfg
+  liftM2 (,) (B.initSolver B.Queuing $ P.toBackend handle) (return handle)
+
+-- | A type holding actions to execute for debugging 'SMT' solving.
+data Debugger = Debugger
+  { debugSMT            :: SMT -> IO ()
   , debugProblem        :: Seq Builder -> IO ()
   , debugResultResponse :: ByteString -> IO ()
   , debugModelResponse  :: ByteString -> IO ()
@@ -32,21 +50,33 @@ instance Default Debugger where
     , debugModelResponse  = liftIO . mapM_ (putStrLn . toString) . split 13
     }
 
--- | Use an external process for solver
+-- | A 'Solver' which holds an external process with a SMT-Solver.
+--   This will:
+-- 
+-- 1. Encode the 'SMT'-problem,
+-- 
+-- 2. Start a new external process for the SMT-Solver,
+-- 
+-- 3. Send the problem to the SMT-Solver,
+-- 
+-- 4. Wait for an answer and parse it and
+-- 
+-- 5. close the process and clean up all resources.
+-- 
 processSolver :: MonadIO m => P.Config -> Maybe Debugger -> Solver SMT m
 processSolver cfg debugger smt = do
   liftIO $ P.with cfg $ \handle -> do
     maybe mempty (`debugSMT` smt) debugger
-    solver <- B.initSolver B.Queuing $ P.toBackend handle
+    pSolver <- B.initSolver B.Queuing $ P.toBackend handle
 
     let problem = renderSMT smt
     maybe mempty (`debugProblem` problem) debugger
 
-    forM_ problem (B.command_ solver)
-    resultResponse <- B.command solver "(check-sat)"
+    forM_ problem (B.command_ pSolver)
+    resultResponse <- B.command pSolver "(check-sat)"
     maybe mempty (`debugResultResponse` resultResponse) debugger
 
-    modelResponse  <- B.command solver "(get-model)"
+    modelResponse  <- B.command pSolver "(get-model)"
     maybe mempty (`debugModelResponse` modelResponse) debugger
 
     case parseOnly resultParser (toStrict resultResponse) of

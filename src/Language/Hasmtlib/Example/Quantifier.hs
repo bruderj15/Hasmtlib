@@ -5,10 +5,10 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith cvc5Debug $ do
+  res <- solveWith (debug cvc5) $ do
     setLogic "BV"
 
-    z <- var @(BvType 8)
+    z <- var @(BvSort 8)
 
     assert $ z === 0
 

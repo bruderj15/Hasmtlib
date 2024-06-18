@@ -4,11 +4,11 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith yicesDebug $ do
+  res <- solveWith (debug yices) $ do
     setLogic "QF_BV"
 
     xbv8 <- variable
-    ybv8 <- var @(BvType 8)
+    ybv8 <- var @(BvSort 8)
 
     assert $ true === (xbv8 `xor` ybv8)
     assert $ xbv8 <=? maxBound

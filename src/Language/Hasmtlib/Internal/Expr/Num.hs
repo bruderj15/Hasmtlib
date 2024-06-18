@@ -9,7 +9,7 @@ import Language.Hasmtlib.Orderable
 import Data.Proxy
 import GHC.TypeNats
   
-instance Num (Expr IntType) where
+instance Num (Expr IntSort) where
    fromInteger = Constant . IntValue
    {-# INLINE fromInteger #-}
    (+)         = Plus
@@ -25,7 +25,7 @@ instance Num (Expr IntType) where
    signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
    {-# INLINE signum #-}
 
-instance Num (Expr RealType) where
+instance Num (Expr RealSort) where
    fromInteger = Constant . RealValue . fromIntegral
    {-# INLINE fromInteger #-}
    (+)         = Plus
@@ -41,7 +41,7 @@ instance Num (Expr RealType) where
    signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
    {-# INLINE signum #-}
 
-instance KnownNat n => Num (Expr (BvType n)) where
+instance KnownNat n => Num (Expr (BvSort n)) where
    fromInteger = Constant . BvValue . fromInteger 
    {-# INLINE fromInteger #-}
    (+)         = BvAdd
@@ -55,13 +55,13 @@ instance KnownNat n => Num (Expr (BvType n)) where
    signum _    = 0
    {-# INLINE signum #-}
    
-instance Fractional (Expr RealType) where
+instance Fractional (Expr RealSort) where
   fromRational = Constant . RealValue . fromRational
   {-# INLINE fromRational #-}
   (/)          = Div
   {-# INLINE (/) #-}
 
-instance Floating (Expr RealType) where
+instance Floating (Expr RealSort) where
     pi    = Pi
     {-# INLINE pi #-}
     exp   = Exp
@@ -88,7 +88,7 @@ instance Floating (Expr RealType) where
     acosh = error "SMT-Solver currently do not support acosh"
     atanh = error "SMT-Solver currently do not support atanh"
 
-instance Integraled (Expr IntType) where
+instance Integraled (Expr IntSort) where
   quot = IDiv
   {-# INLINE quot #-}  
   rem  = Mod
@@ -102,7 +102,7 @@ instance Integraled (Expr IntType) where
   divMod x y  = (div x y, mod x y)
   {-# INLINE divMod #-}
 
-instance KnownNat n => Integraled (Expr (BvType n)) where
+instance KnownNat n => Integraled (Expr (BvSort n)) where
   quot        = BvuDiv
   {-# INLINE quot #-}
   rem         = BvuRem
@@ -117,26 +117,26 @@ instance KnownNat n => Integraled (Expr (BvType n)) where
   {-# INLINE divMod #-}
 
 -- | Bitvector shift left
-bvShL    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
+bvShL    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
 bvShL    = BvShL
 {-# INLINE bvShL #-}
 
 -- | Bitvector logical shift right
-bvLShR   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
+bvLShR   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
 bvLShR   = BvLShR
 {-# INLINE bvLShR #-}
 
 -- | Concat two bitvectors
-bvConcat :: (KnownNat n, KnownNat m) => Expr (BvType n) -> Expr (BvType m) -> Expr (BvType (n + m))
+bvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
 bvConcat = BvConcat
 {-# INLINE bvConcat #-}
 
 -- | Rotate bitvector left
-bvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
+bvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
 bvRotL   = BvRotL
 {-# INLINE bvRotL #-}
 
 -- | Rotate bitvector right
-bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
+bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
 bvRotR   = BvRotR
 {-# INLINE bvRotR #-}

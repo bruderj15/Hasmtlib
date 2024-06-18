@@ -5,10 +5,10 @@ import Control.Monad
 
 main :: IO ()
 main = do
-  res <- solveWith cvc5 $ do
+  res <- solveWith (solver cvc5) $ do
     setLogic "QF_LIA"
 
-    xs <- replicateM 100 $ var @IntType
+    xs <- replicateM 100 $ var @IntSort
 
     forM_ (zip xs [1 :: Integer .. ]) $ \(x, i) -> assert $ x === fromInteger i
   

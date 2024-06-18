@@ -20,47 +20,49 @@ import qualified Data.Vector.Unboxed.Sized as V
 import Control.Monad
 import GHC.TypeNats
 
--- | Compute the default Decoded-type for every wrapper
+-- | Compute the default 'Decoded' 'Type' for every functor-wrapper.
+--   Useful for instances using default signatures.
 type family DefaultDecoded a :: Type where
   DefaultDecoded (f a) = f (Decoded a)
 
+-- | Lift values to SMT-Values or decode them.
 class Codec a where
   type Decoded a :: Type
   type Decoded a = DefaultDecoded a
 
-  -- | Decode using given solution
+  -- | Decode a value using given solution.
   decode :: Solution -> a -> Maybe (Decoded a)
   default decode :: (Traversable f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Solution -> a -> Maybe (Decoded a)
   decode sol = traverse (decode sol)
 
-  -- | Encode as constant
+  -- | Encode a value as constant.
   encode :: Decoded a -> a
   default encode :: (Functor f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Decoded a -> a
   encode = fmap encode
 
 -- | Decode and evaluate expressions
-instance KnownSMTRepr t => Codec (Expr t) where
-  type Decoded (Expr t) = ValueType t
+instance KnownSMTSort t => Codec (Expr t) where
+  type Decoded (Expr t) = HaskellType t
   decode sol (Var var)    = do
     someSol <- IM.lookup (coerce var) sol
-    case singRepr @t of
-      IntRepr   -> case someSol of
-                    SomeKnownSMTRepr (SMTVarSol _ (IntValue v))  -> Just v
+    case sortSing @t of
+      SIntSort   -> case someSol of
+                    SomeKnownSMTSort (SMTVarSol _ (IntValue v))  -> Just v
                     _                                            -> Nothing
-      RealRepr  -> case someSol of
-                    SomeKnownSMTRepr (SMTVarSol _ (RealValue v)) -> Just v
+      SRealSort  -> case someSol of
+                    SomeKnownSMTSort (SMTVarSol _ (RealValue v)) -> Just v
                     _                                            -> Nothing
-      BoolRepr  -> case someSol of
-                    SomeKnownSMTRepr (SMTVarSol _ (BoolValue v)) -> Just v
+      SBoolSort  -> case someSol of
+                    SomeKnownSMTSort (SMTVarSol _ (BoolValue v)) -> Just v
                     _                                            -> Nothing
-      BvRepr p  -> case someSol of
-                    SomeKnownSMTRepr (SMTVarSol _ (BvValue v))   -> goN p v
+      SBvSort p  -> case someSol of
+                    SomeKnownSMTSort (SMTVarSol _ (BvValue v))   -> goN p v
                     _                                            -> Nothing
         where
           goN :: forall n m. KnownNat n => Proxy n -> Bitvec m -> Maybe (Bitvec n)
           goN _ = coerce . V.toSized @n . V.fromSized . coerce
 
-  decode _ (Constant v) = Just $ extractValue v
+  decode _ (Constant v) = Just $ unwrapValue v
   decode sol (Plus x y) = liftA2 (+)   (decode sol x) (decode sol y)
   decode sol (Neg x)    = fmap negate  (decode sol x)
   decode sol (Mul x y)  = liftA2 (-)   (decode sol x) (decode sol y)
@@ -115,7 +117,7 @@ instance KnownSMTRepr t => Codec (Expr t) where
   decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
   decode _ (ForAll _ _)       = Nothing
   decode _ (Exists _ _)       = Nothing
-  encode = Constant . putValue
+  encode = Constant . wrapValue
 
 instance Codec () where
   type Decoded () = ()

@@ -1,12 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Language.Hasmtlib.Type.SMT
- ( SMT, lastVarId, vars, formulas, mlogic, options
- , SMTOption(Incremental)
- , renderSMT, renderSetLogic, renderAssert, renderVars, renderDeclareVar
- )
- where
+module Language.Hasmtlib.Type.SMT where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Render
@@ -21,13 +16,13 @@ import Data.ByteString.Builder
 import Control.Monad.State
 import Control.Lens hiding (List)
 
--- | SMT State
+-- | The state of the SMT-problem.
 data SMT = SMT
-  { _lastVarId :: {-# UNPACK #-} !Int             -- | Last Id assigned to a new var
-  , _vars     :: !(Seq (SomeKnownSMTRepr SMTVar)) -- | All constructed variables
-  , _formulas :: !(Seq (Expr BoolType))           -- | All asserted formulas
-  , _mlogic   :: Maybe String                     -- | Logic for the SMT-Solver
-  , _options  :: [SMTOption]                      -- | All manually configured SMT-Solver-Options
+  { _lastVarId :: {-# UNPACK #-} !Int                     -- ^ Last Id assigned to a new var
+  , _vars     :: !(Seq (SomeKnownSMTSort SMTVar))         -- ^ All constructed variables
+  , _formulas :: !(Seq (Expr BoolSort))                   -- ^ All asserted formulas
+  , _mlogic   :: Maybe String                             -- ^ Logic for the SMT-Solver
+  , _options  :: [SMTOption]                              -- ^ All manually configured SMT-Solver-Options
   }
 $(makeLenses ''SMT)
 
@@ -40,7 +35,7 @@ instance MonadState SMT m => MonadSMT SMT m where
 
   var' p = do
     newVar <- smtvar' p
-    vars %= (|> SomeKnownSMTRepr newVar)
+    vars %= (|> SomeKnownSMTSort newVar)
     return $ Var newVar
   {-# INLINEABLE var' #-}
 
@@ -59,9 +54,11 @@ instance MonadState SMT m => MonadSMT SMT m where
 
   setLogic l = mlogic ?= l
 
+-- | Render a 'SMT'-Problem to SMTLib2-Syntax.
+--   Each element of the returned Sequence is a line.
 renderSMT :: SMT -> Seq Builder
 renderSMT smt =
-     fromList (renderSMTLib2 <$> smt^.options)
+     fromList (render <$> smt^.options)
   >< maybe mempty (singleton . renderSetLogic . stringUtf8) (smt^.mlogic)
   >< renderVars (smt^.vars)
   >< fmap renderAssert (smt^.formulas)
@@ -69,14 +66,14 @@ renderSMT smt =
 renderSetLogic :: Builder -> Builder
 renderSetLogic = renderUnary "set-logic"
 
-renderDeclareVar :: forall t. KnownSMTRepr t => SMTVar t -> Builder
-renderDeclareVar v = renderTernary "declare-fun" v ("()" :: Builder) (singRepr @t)
+renderDeclareVar :: forall t. KnownSMTSort t => SMTVar t -> Builder
+renderDeclareVar v = renderTernary "declare-fun" v ("()" :: Builder) (sortSing @t)
 {-# INLINEABLE renderDeclareVar #-}
 
-renderAssert :: Expr BoolType -> Builder
+renderAssert :: Expr BoolSort -> Builder
 renderAssert = renderUnary "assert"
 {-# INLINEABLE renderAssert #-}
 
-renderVars :: Seq (SomeKnownSMTRepr SMTVar) -> Seq Builder
-renderVars = fmap (\(SomeKnownSMTRepr v) -> renderDeclareVar v)
+renderVars :: Seq (SomeKnownSMTSort SMTVar) -> Seq Builder
+renderVars = fmap (\(SomeKnownSMTSort v) -> renderDeclareVar v)
 {-# INLINEABLE renderVars #-}

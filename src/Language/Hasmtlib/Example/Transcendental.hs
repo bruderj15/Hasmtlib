@@ -4,10 +4,10 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith cvc5 $ do
+  res <- solveWith (solver cvc5) $ do
     setLogic "ALL"
 
-    x <- var @RealType
+    x <- var @RealSort
 
     assert $ x >? sin 3
   

@@ -15,145 +15,141 @@ import Data.ByteString.Builder
 import Control.Lens
 import GHC.TypeLits
 
--- | Types of variables in SMTLib - used as promoted Type
-data SMTType = IntType | RealType | BoolType | BvType Nat
+-- | Sorts in SMTLib2 - used as promoted type (data-kind).
+data SMTSort = IntSort | RealSort | BoolSort | BvSort Nat
 
--- | SMT variable
+-- | An internal SMT variable with a phantom-type which holds an 'Int' as it's identifier.
 type role SMTVar phantom
-newtype SMTVar (t :: SMTType) = SMTVar { _varId :: Int } deriving (Show, Eq, Ord)
+newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int } deriving (Show, Eq, Ord)
 $(makeLenses ''SMTVar)
 
--- | Computes the Haskell type of the SMTLib-Type
-type family ValueType (t :: SMTType) = (r :: Type) | r -> t where
-  ValueType IntType    = Integer
-  ValueType RealType   = Double
-  ValueType BoolType   = Bool
-  ValueType (BvType n) = Bitvec n
+-- | Injective type-family that computes the Haskell 'Type' of a 'SMTSort'.
+type family HaskellType (t :: SMTSort) = (r :: Type) | r -> t where
+  HaskellType IntSort    = Integer
+  HaskellType RealSort   = Double
+  HaskellType BoolSort   = Bool
+  HaskellType (BvSort n) = Bitvec n
 
--- | SMT value
-data Value (t :: SMTType) where
-  IntValue  :: ValueType IntType    -> Value IntType
-  RealValue :: ValueType RealType   -> Value RealType
-  BoolValue :: ValueType BoolType   -> Value BoolType
-  BvValue   :: ValueType (BvType n) -> Value (BvType n)
+-- | A wrapper for values of 'SMTSort's.
+data Value (t :: SMTSort) where
+  IntValue  :: HaskellType IntSort    -> Value IntSort
+  RealValue :: HaskellType RealSort   -> Value RealSort
+  BoolValue :: HaskellType BoolSort   -> Value BoolSort
+  BvValue   :: HaskellType (BvSort n) -> Value (BvSort n)
 
-extractValue :: Value t -> ValueType t
-extractValue (IntValue  v) = v
-extractValue (RealValue v) = v
-extractValue (BoolValue v) = v
-extractValue (BvValue   v) = v
-{-# INLINEABLE extractValue #-}
+-- | Unwrap a value.
+unwrapValue :: Value t -> HaskellType t
+unwrapValue (IntValue  v) = v
+unwrapValue (RealValue v) = v
+unwrapValue (BoolValue v) = v
+unwrapValue (BvValue   v) = v
+{-# INLINEABLE unwrapValue #-}
 
-putValue :: forall t. KnownSMTRepr t => ValueType t -> Value t
-putValue = case singRepr @t of
-  IntRepr  -> IntValue 
-  RealRepr -> RealValue
-  BoolRepr -> BoolValue
-  BvRepr _ -> BvValue
-{-# INLINEABLE putValue #-}
+-- | Wrap a value.
+wrapValue :: forall t. KnownSMTSort t => HaskellType t -> Value t
+wrapValue = case sortSing @t of
+  SIntSort  -> IntValue
+  SRealSort -> RealValue
+  SBoolSort -> BoolValue
+  SBvSort _ -> BvValue
+{-# INLINEABLE wrapValue #-}
 
 deriving instance Show (Value t)
 deriving instance Eq   (Value t)
 deriving instance Ord  (Value t)
 
--- | Singleton-Representation of the SMTLib-Type
-data Repr (t :: SMTType) where
-  IntRepr  :: Repr IntType
-  RealRepr :: Repr RealType
-  BoolRepr :: Repr BoolType
-  BvRepr :: KnownNat n => Proxy n -> Repr (BvType n)
+-- | Singleton for 'SMTSort'.
+data SSMTSort (t :: SMTSort) where
+  SIntSort  :: SSMTSort IntSort
+  SRealSort :: SSMTSort RealSort
+  SBoolSort :: SSMTSort BoolSort
+  SBvSort   :: KnownNat n => Proxy n -> SSMTSort (BvSort n)
 
-deriving instance Show (Repr t)
-deriving instance Eq   (Repr t)
-deriving instance Ord  (Repr t)
+deriving instance Show (SSMTSort t)
+deriving instance Eq   (SSMTSort t)
+deriving instance Ord  (SSMTSort t)
 
--- | Compute singletons @Repr t@ for @t :: SMTType@
-class    KnownSMTRepr (t :: SMTType)           where singRepr :: Repr t
-instance KnownSMTRepr IntType                  where singRepr = IntRepr
-instance KnownSMTRepr RealType                 where singRepr = RealRepr
-instance KnownSMTRepr BoolType                 where singRepr = BoolRepr
-instance KnownNat n => KnownSMTRepr (BvType n) where singRepr = BvRepr (Proxy @n)
+-- | Compute singleton 'SSMTSort' from it's promoted type 'SMTSort'.
+class    KnownSMTSort (t :: SMTSort)           where sortSing :: SSMTSort t
+instance KnownSMTSort IntSort                  where sortSing = SIntSort
+instance KnownSMTSort RealSort                 where sortSing = SRealSort
+instance KnownSMTSort BoolSort                 where sortSing = SBoolSort
+instance KnownNat n => KnownSMTSort (BvSort n) where sortSing = SBvSort (Proxy @n)
 
--- | Existential for KnownSMTRepr t
-data SomeKnownSMTRepr f where
-  SomeKnownSMTRepr :: forall (t :: SMTType) f. KnownSMTRepr t => f t -> SomeKnownSMTRepr f
+-- | An existential wrapper that hides some 'SMTSort'.
+data SomeKnownSMTSort f where
+  SomeKnownSMTSort :: forall (t :: SMTSort) f. KnownSMTSort t => f t -> SomeKnownSMTSort f
 
--- | SMT Expression
-data Expr (t :: SMTType) where
-  -- Terms
+-- | A SMT expression.
+--   For internal use only.
+--   For building expressions use the corresponding instances (Num, Boolean, ...).
+data Expr (t :: SMTSort) where
   Var       :: SMTVar t -> Expr t
   Constant  :: Value  t -> Expr t
-  Plus      :: Num (ValueType t) => Expr t -> Expr t -> Expr t
-  Neg       :: Num (ValueType t) => Expr t -> Expr t
-  Mul       :: Num (ValueType t) => Expr t -> Expr t -> Expr t
-  Abs       :: Num (ValueType t) => Expr t -> Expr t
-  Mod       :: Expr IntType  -> Expr IntType  -> Expr IntType
-  IDiv      :: Expr IntType  -> Expr IntType  -> Expr IntType
-  Div       :: Expr RealType -> Expr RealType -> Expr RealType
-  
-  -- Atoms
-  LTH       :: (Ord (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
-  LTHE      :: (Ord (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
-  EQU       :: (Eq  (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
-  Distinct  :: (Eq  (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
-  GTHE      :: (Ord (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
-  GTH       :: (Ord (ValueType t), KnownSMTRepr t) => Expr t -> Expr t -> Expr BoolType
 
-  -- Formulas
-  Not       :: Boolean (ValueType t) => Expr t -> Expr t
-  And       :: Boolean (ValueType t) => Expr t -> Expr t -> Expr t
-  Or        :: Boolean (ValueType t) => Expr t -> Expr t -> Expr t
-  Impl      :: Boolean (ValueType t) => Expr t -> Expr t -> Expr t
-  Xor       :: Boolean (ValueType t) => Expr t -> Expr t -> Expr t
+  Plus      :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
+  Neg       :: Num (HaskellType t) => Expr t -> Expr t
+  Mul       :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
+  Abs       :: Num (HaskellType t) => Expr t -> Expr t
+  Mod       :: Expr IntSort  -> Expr IntSort  -> Expr IntSort
+  IDiv      :: Expr IntSort  -> Expr IntSort  -> Expr IntSort
+  Div       :: Expr RealSort -> Expr RealSort -> Expr RealSort
 
-  -- Transcendentals
-  Pi       :: Expr RealType
-  Sqrt     :: Expr RealType -> Expr RealType
-  Exp      :: Expr RealType -> Expr RealType
-  Sin      :: Expr RealType -> Expr RealType
-  Cos      :: Expr RealType -> Expr RealType
-  Tan      :: Expr RealType -> Expr RealType
-  Asin     :: Expr RealType -> Expr RealType
-  Acos     :: Expr RealType -> Expr RealType
-  Atan     :: Expr RealType -> Expr RealType
+  LTH       :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
+  LTHE      :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
+  EQU       :: (Eq  (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
+  Distinct  :: (Eq  (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
+  GTHE      :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
+  GTH       :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
 
-  -- Conversion
-  ToReal   :: Expr IntType  -> Expr RealType
-  ToInt    :: Expr RealType -> Expr IntType
-  IsInt    :: Expr RealType -> Expr BoolType
+  Not       :: Boolean (HaskellType t) => Expr t -> Expr t
+  And       :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
+  Or        :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
+  Impl      :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
+  Xor       :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
 
-  -- Choosing
-  Ite      :: Expr BoolType -> Expr t -> Expr t -> Expr t
+  Pi       :: Expr RealSort
+  Sqrt     :: Expr RealSort -> Expr RealSort
+  Exp      :: Expr RealSort -> Expr RealSort
+  Sin      :: Expr RealSort -> Expr RealSort
+  Cos      :: Expr RealSort -> Expr RealSort
+  Tan      :: Expr RealSort -> Expr RealSort
+  Asin     :: Expr RealSort -> Expr RealSort
+  Acos     :: Expr RealSort -> Expr RealSort
+  Atan     :: Expr RealSort -> Expr RealSort
 
-  -- Bitvectors
-  BvNot    :: KnownNat n => Expr (BvType n) -> Expr (BvType n)
-  BvAnd    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvOr     :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvXor    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvNand   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvNor    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvNeg    :: KnownNat n => Expr (BvType n) -> Expr (BvType n)
-  BvAdd    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvSub    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvMul    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvuDiv   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvuRem   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  
-  BvShL    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvLShR   :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr (BvType n)
-  BvConcat :: (KnownNat n, KnownNat m) => Expr (BvType n) -> Expr (BvType m) -> Expr (BvType (n + m))
-  BvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
-  BvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvType n) -> Expr (BvType n)
+  ToReal   :: Expr IntSort  -> Expr RealSort
+  ToInt    :: Expr RealSort -> Expr IntSort
+  IsInt    :: Expr RealSort -> Expr BoolSort
 
-  BvuLT    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
-  BvuLTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
-  BvuGTHE  :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
-  BvuGT    :: KnownNat n => Expr (BvType n) -> Expr (BvType n) -> Expr BoolType
+  Ite      :: Expr BoolSort -> Expr t -> Expr t -> Expr t
 
-  ForAll   :: KnownSMTRepr t => Maybe (SMTVar t) -> (Expr t -> Expr BoolType) -> Expr BoolType
-  Exists   :: KnownSMTRepr t => Maybe (SMTVar t) -> (Expr t -> Expr BoolType) -> Expr BoolType
+  BvNot    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n)
+  BvAnd    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvOr     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvXor    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvNand   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvNor    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvNeg    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n)
+  BvAdd    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvSub    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvMul    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvuDiv   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvuRem   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvShL    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvLShR   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
+  BvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
+  BvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
+  BvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
+  BvuLT    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
+  BvuLTHE  :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
+  BvuGTHE  :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
+  BvuGT    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
 
-instance Boolean (Expr BoolType) where
+  ForAll   :: KnownSMTSort t => Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Expr BoolSort
+  Exists   :: KnownSMTSort t => Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Expr BoolSort
+
+instance Boolean (Expr BoolSort) where
   bool = Constant . BoolValue
   {-# INLINE bool #-}
   (&&) = And
@@ -165,7 +161,7 @@ instance Boolean (Expr BoolType) where
   xor  = Xor
   {-# INLINE xor #-}
   
-instance KnownNat n => Boolean (Expr (BvType n)) where
+instance KnownNat n => Boolean (Expr (BvSort n)) where
   bool = Constant . BvValue . bool
   {-# INLINE bool #-}
   (&&) = BvAnd
@@ -177,100 +173,100 @@ instance KnownNat n => Boolean (Expr (BvType n)) where
   xor  = BvXor
   {-# INLINE xor #-}
   
-instance Bounded (Expr BoolType) where
+instance Bounded (Expr BoolSort) where
   minBound = false
   maxBound = true
   
-instance KnownNat n => Bounded (Expr (BvType n)) where
+instance KnownNat n => Bounded (Expr (BvSort n)) where
   minBound = Constant $ BvValue minBound
   maxBound = Constant $ BvValue maxBound
 
-instance RenderSMTLib2 (Repr t) where
-  renderSMTLib2 IntRepr    = "Int"
-  renderSMTLib2 RealRepr   = "Real"
-  renderSMTLib2 BoolRepr   = "Bool"
-  renderSMTLib2 (BvRepr p) = renderBinary "_" ("BitVec" :: Builder) (natVal p)
-  {-# INLINEABLE renderSMTLib2 #-}
+instance Render (SSMTSort t) where
+  render SIntSort    = "Int"
+  render SRealSort   = "Real"
+  render SBoolSort   = "Bool"
+  render (SBvSort p) = renderBinary "_" ("BitVec" :: Builder) (natVal p)
+  {-# INLINEABLE render #-}
 
-instance RenderSMTLib2 (SMTVar t) where
-  renderSMTLib2 v = "var_" <> intDec (coerce @(SMTVar t) @Int v)
-  {-# INLINEABLE renderSMTLib2 #-}
+instance Render (SMTVar t) where
+  render v = "var_" <> intDec (coerce @(SMTVar t) @Int v)
+  {-# INLINEABLE render #-}
 
-instance KnownSMTRepr t => RenderSMTLib2 (Expr t) where
-  renderSMTLib2 (Var v)                  = renderSMTLib2 v
-  renderSMTLib2 (Constant (IntValue x))  = renderSMTLib2 x
-  renderSMTLib2 (Constant (RealValue x)) = renderSMTLib2 x
-  renderSMTLib2 (Constant (BoolValue x)) = renderSMTLib2 x
-  renderSMTLib2 (Constant (BvValue   v)) = "#b" <> renderSMTLib2 v
+instance KnownSMTSort t => Render (Expr t) where
+  render (Var v)                  = render v
+  render (Constant (IntValue x))  = render x
+  render (Constant (RealValue x)) = render x
+  render (Constant (BoolValue x)) = render x
+  render (Constant (BvValue   v)) = "#b" <> render v
 
-  renderSMTLib2 (Plus x y)   = renderBinary "+" x y
-  renderSMTLib2 (Neg x)      = renderUnary  "-" x
-  renderSMTLib2 (Mul x y)    = renderBinary "*" x y
-  renderSMTLib2 (Abs x)      = renderUnary  "abs" x
-  renderSMTLib2 (Mod x y)    = renderBinary "mod" x y
-  renderSMTLib2 (IDiv x y)   = renderBinary "div" x y
-  renderSMTLib2 (Div x y)    = renderBinary "/" x y
+  render (Plus x y)   = renderBinary "+" x y
+  render (Neg x)      = renderUnary  "-" x
+  render (Mul x y)    = renderBinary "*" x y
+  render (Abs x)      = renderUnary  "abs" x
+  render (Mod x y)    = renderBinary "mod" x y
+  render (IDiv x y)   = renderBinary "div" x y
+  render (Div x y)    = renderBinary "/" x y
 
-  renderSMTLib2 (LTH x y)    = renderBinary "<" x y
-  renderSMTLib2 (LTHE x y)   = renderBinary "<=" x y
-  renderSMTLib2 (EQU x y)    = renderBinary "=" x y
-  renderSMTLib2 (Distinct x y) = renderBinary "distinct" x y
-  renderSMTLib2 (GTHE x y)   = renderBinary ">=" x y
-  renderSMTLib2 (GTH x y)    = renderBinary ">" x y
+  render (LTH x y)    = renderBinary "<" x y
+  render (LTHE x y)   = renderBinary "<=" x y
+  render (EQU x y)    = renderBinary "=" x y
+  render (Distinct x y) = renderBinary "distinct" x y
+  render (GTHE x y)   = renderBinary ">=" x y
+  render (GTH x y)    = renderBinary ">" x y
 
-  renderSMTLib2 (Not x)      = renderUnary  "not" x
-  renderSMTLib2 (And x y)    = renderBinary "and" x y
-  renderSMTLib2 (Or x y)     = renderBinary "or" x y
-  renderSMTLib2 (Impl x y)   = renderBinary "=>" x y
-  renderSMTLib2 (Xor x y)    = renderBinary "xor" x y
+  render (Not x)      = renderUnary  "not" x
+  render (And x y)    = renderBinary "and" x y
+  render (Or x y)     = renderBinary "or" x y
+  render (Impl x y)   = renderBinary "=>" x y
+  render (Xor x y)    = renderBinary "xor" x y
 
-  renderSMTLib2 Pi           = "real.pi"
-  renderSMTLib2 (Sqrt x)     = renderUnary "sqrt" x
-  renderSMTLib2 (Exp x)      = renderUnary "exp" x
-  renderSMTLib2 (Sin x)      = renderUnary "sin" x
-  renderSMTLib2 (Cos x)      = renderUnary "cos" x
-  renderSMTLib2 (Tan x)      = renderUnary "tan" x
-  renderSMTLib2 (Asin x)     = renderUnary "arcsin" x
-  renderSMTLib2 (Acos x)     = renderUnary "arccos" x
-  renderSMTLib2 (Atan x)     = renderUnary "arctan" x
+  render Pi           = "real.pi"
+  render (Sqrt x)     = renderUnary "sqrt" x
+  render (Exp x)      = renderUnary "exp" x
+  render (Sin x)      = renderUnary "sin" x
+  render (Cos x)      = renderUnary "cos" x
+  render (Tan x)      = renderUnary "tan" x
+  render (Asin x)     = renderUnary "arcsin" x
+  render (Acos x)     = renderUnary "arccos" x
+  render (Atan x)     = renderUnary "arctan" x
 
-  renderSMTLib2 (ToReal x)   = renderUnary "to_real" x
-  renderSMTLib2 (ToInt x)    = renderUnary "to_int" x
-  renderSMTLib2 (IsInt x)    = renderUnary "is_int" x
+  render (ToReal x)   = renderUnary "to_real" x
+  render (ToInt x)    = renderUnary "to_int" x
+  render (IsInt x)    = renderUnary "is_int" x
 
-  renderSMTLib2 (Ite p t f)  = renderTernary "ite" p t f
+  render (Ite p t f)  = renderTernary "ite" p t f
 
-  renderSMTLib2 (BvNot x)          = renderUnary  "bvnot"  (renderSMTLib2 x)
-  renderSMTLib2 (BvAnd x y)        = renderBinary "bvand"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvOr x y)         = renderBinary "bvor"   (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvXor x y)        = renderBinary "bvxor"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvNand x y)       = renderBinary "bvnand" (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvNor x y)        = renderBinary "bvnor"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvNeg x)          = renderUnary  "bvneg"  (renderSMTLib2 x)
-  renderSMTLib2 (BvAdd x y)        = renderBinary "bvadd"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvSub x y)        = renderBinary "bvsub"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvMul x y)        = renderBinary "bvmul"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvuDiv x y)       = renderBinary "bvudiv" (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvuRem x y)       = renderBinary "bvurem" (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvShL x y)        = renderBinary "bvshl"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvLShR x y)       = renderBinary "bvlshr" (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvConcat x y)     = renderBinary "concat" (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left"  :: Builder) (renderSMTLib2 (natVal i))) (renderSMTLib2 x)
-  renderSMTLib2 (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (renderSMTLib2 (natVal i))) (renderSMTLib2 x)
-  renderSMTLib2 (BvuLT x y)        = renderBinary "bvult"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvuLTHE x y)      = renderBinary "bvule"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvuGTHE x y)      = renderBinary "bvuge"  (renderSMTLib2 x) (renderSMTLib2 y)
-  renderSMTLib2 (BvuGT x y)        = renderBinary "bvugt"  (renderSMTLib2 x) (renderSMTLib2 y)
+  render (BvNot x)          = renderUnary  "bvnot"  (render x)
+  render (BvAnd x y)        = renderBinary "bvand"  (render x) (render y)
+  render (BvOr x y)         = renderBinary "bvor"   (render x) (render y)
+  render (BvXor x y)        = renderBinary "bvxor"  (render x) (render y)
+  render (BvNand x y)       = renderBinary "bvnand" (render x) (render y)
+  render (BvNor x y)        = renderBinary "bvnor"  (render x) (render y)
+  render (BvNeg x)          = renderUnary  "bvneg"  (render x)
+  render (BvAdd x y)        = renderBinary "bvadd"  (render x) (render y)
+  render (BvSub x y)        = renderBinary "bvsub"  (render x) (render y)
+  render (BvMul x y)        = renderBinary "bvmul"  (render x) (render y)
+  render (BvuDiv x y)       = renderBinary "bvudiv" (render x) (render y)
+  render (BvuRem x y)       = renderBinary "bvurem" (render x) (render y)
+  render (BvShL x y)        = renderBinary "bvshl"  (render x) (render y)
+  render (BvLShR x y)       = renderBinary "bvlshr" (render x) (render y)
+  render (BvConcat x y)     = renderBinary "concat" (render x) (render y)
+  render (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left"  :: Builder) (render (natVal i))) (render x)
+  render (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (render (natVal i))) (render x)
+  render (BvuLT x y)        = renderBinary "bvult"  (render x) (render y)
+  render (BvuLTHE x y)      = renderBinary "bvule"  (render x) (render y)
+  render (BvuGTHE x y)      = renderBinary "bvuge"  (render x) (render y)
+  render (BvuGT x y)        = renderBinary "bvugt"  (render x) (render y)
 
-  renderSMTLib2 (ForAll mQvar f) = renderQuantifier "forall" mQvar f
-  renderSMTLib2 (Exists mQvar f) = renderQuantifier "exists" mQvar f
+  render (ForAll mQvar f) = renderQuantifier "forall" mQvar f
+  render (Exists mQvar f) = renderQuantifier "exists" mQvar f
 
-renderQuantifier :: forall t. KnownSMTRepr t => Builder -> Maybe (SMTVar t) -> (Expr t -> Expr BoolType) -> Builder
+renderQuantifier :: forall t. KnownSMTSort t => Builder -> Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Builder
 renderQuantifier qname (Just qvar) f =
   renderBinary
     qname
-    ("(" <> renderUnary (renderSMTLib2 qvar) (singRepr @t) <> ")")
+    ("(" <> renderUnary (render qvar) (sortSing @t) <> ")")
     expr
   where
-    expr = renderSMTLib2 $ f $ Var qvar
+    expr = render $ f $ Var qvar
 renderQuantifier _ Nothing _ = mempty

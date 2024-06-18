@@ -15,12 +15,12 @@ class Boolean b where
   -- | Lift a 'Bool'
   bool :: Bool -> b
 
-  -- |
+  -- | The true constant
   -- @'true' = 'bool' 'True'@
   true :: b
   true = bool True
 
-  -- |
+  -- | The false constant
   -- @'false' = 'bool' 'False'@
   false :: b
   false = bool False
@@ -55,13 +55,13 @@ or = foldl (||) false
 
 -- | The negated logical conjunction of several values.
 --
--- @'nand' = 'neg' . 'and'@
+-- @'nand' = 'not' . 'and'@
 nand :: (Foldable t, Boolean b) => t b -> b
 nand = not . and
 
 -- | The negated logical disjunction of several values.
 --
--- @'nor' = 'neg' . 'or'@
+-- @'nor' = 'not' . 'or'@
 nor :: (Foldable t, Boolean b) => t b -> b
 nor = not . or
 
@@ -89,7 +89,7 @@ instance Boolean Bit where
   not  = complement
   xor  = Bits.xor
 
--- | Bitwise operations
+-- | Defined bitwise
 instance KnownNat n => Boolean (V.Vector n Bit) where
   bool = V.replicate . coerce
   (&&) = V.zipWith (&&)

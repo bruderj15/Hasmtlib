@@ -5,11 +5,11 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith cvc5 $ do
+  res <- solveWith (solver cvc5) $ do
     setLogic "QF_LIA"
 
-    x <- var @IntType
-    y <- var @IntType
+    x <- var @IntSort
+    y <- var @IntSort
 
     assert $ y >? 0 && x /== y
     assert $ x `mod` 42 === y

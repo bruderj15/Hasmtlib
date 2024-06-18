@@ -7,7 +7,9 @@ import Numeric.Natural
 import Data.Word
 import Data.Functor.Identity
 import Data.Functor.Const
-    
+
+-- | 'P.Integral'-like class for clean API.
+--    In context hide the Preludes 'P.Integral'.  
 class Integraled a where
   quot :: a -> a -> a
   n `quot` d          =  q  where (q,_) = quotRem n d
