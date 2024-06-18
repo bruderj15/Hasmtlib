@@ -25,7 +25,7 @@ instance WithSolver Pipe where
 --    results ('Unknown').
 --
 -- 2. A 'Decoded' answer that was decoded using the solution to @prob@. Note
---    that this answer is only meaningful if the 'Result' is 'Satisfied or Unknown' and
+--    that this answer is only meaningful if the 'Result' is 'Sat' or 'Unknown' and
 --    the answer value is in a 'Just'.
 --
 -- Here is a small example of how to use 'solveWith':
