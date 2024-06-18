@@ -14,11 +14,13 @@ import Data.Word
 import Data.Void
 
 -- | Test two as on equality as SMT-Expression.
+-- 
 -- @
 --     x <- var @RealType
 --     y <- var 
 --     assert $ y === x && not (y /== x)
 -- @
+-- 
 class Equatable a where
   -- | Test whether two values are equal in the SMT-Problem.
   (===) :: a -> a -> Expr BoolSort

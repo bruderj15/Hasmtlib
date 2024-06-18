@@ -17,12 +17,14 @@ import GHC.Generics
 import GHC.TypeNats
 
 -- | Compare two as as SMT-Expression.
---  @
---    x <- var @RealSort
---    y <- var 
---    assert $ x >? y
---    assert $ x === min' 42 100
---  @
+-- 
+-- @
+-- x <- var @RealSort
+-- y <- var 
+-- assert $ x >? y
+-- assert $ x === min' 42 100
+-- @
+-- 
 class Equatable a => Orderable a where
   (<=?) :: a -> a -> Expr BoolSort
   default (<=?) :: (Generic a, GOrderable (Rep a)) => a -> a -> Expr BoolSort

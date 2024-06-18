@@ -52,11 +52,17 @@ instance Default Debugger where
 
 -- | A 'Solver' which holds an external process with a SMT-Solver.
 --   This will:
---      1. Encode the 'SMT'-problem,
---      2. Start a new external process for the SMT-Solver,
---      3. Send the problem to the SMT-Solver,
---      4. Wait for an answer and parse it and
---      5. close the process and clean up all resources.
+-- 
+-- 1. Encode the 'SMT'-problem,
+-- 
+-- 2. Start a new external process for the SMT-Solver,
+-- 
+-- 3. Send the problem to the SMT-Solver,
+-- 
+-- 4. Wait for an answer and parse it and
+-- 
+-- 5. close the process and clean up all resources.
+-- 
 processSolver :: MonadIO m => P.Config -> Maybe Debugger -> Solver SMT m
 processSolver cfg debugger smt = do
   liftIO $ P.with cfg $ \handle -> do

@@ -8,34 +8,44 @@ import Control.Monad.State
 
 class MonadState s m => MonadSMT s m where
   -- | Construct a variable.
+  -- 
   -- @
   -- x :: SMTVar RealType <- smtvar' (Proxy @RealType)
   -- @
+  -- 
   smtvar'    :: forall t. KnownSMTSort t => Proxy t -> m (SMTVar t)
   
   -- | Construct a variable as expression.
+  -- 
   -- @
   -- x :: Expr RealType <- var' (Proxy @RealType)
   -- @
+  -- 
   var'       :: forall t. KnownSMTSort t => Proxy t -> m (Expr t)
 
   -- | Assert a boolean expression.
+  -- 
   -- @
   -- x :: Expr IntType <- var @IntType
   -- assert $ x + 5 === 42
   -- @
+  -- 
   assert    :: Expr BoolSort -> m ()
 
   -- | Set an SMT-Solver-Option.
+  -- 
   -- @
   -- setOption $ Incremental True
   -- @
+  -- 
   setOption :: SMTOption -> m ()
 
   -- | Set the logic for the SMT-Solver to use.
+  -- 
   -- @
   -- setLogic "QF_LRA"
   -- @
+  -- 
   setLogic  :: String -> m ()
 
 -- | Wrapper for 'var'' which hides the 'Proxy'.
@@ -51,6 +61,7 @@ smtvar = smtvar' (Proxy @t)
 {-# INLINE smtvar #-}
 
 -- | Create a constant.
+-- 
 --   >>> constant True
 --       Constant (BoolValue True)
 --

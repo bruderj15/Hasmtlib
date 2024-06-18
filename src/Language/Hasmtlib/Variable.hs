@@ -7,6 +7,7 @@ import Language.Hasmtlib.Type.MonadSMT
 import Data.Proxy
 
 -- | Construct a variable datum of a data-type by creating variables for all its fields.
+-- 
 -- @
 --    data V3 a = V3 a a a
 --    instance Variable a => V3 a 
