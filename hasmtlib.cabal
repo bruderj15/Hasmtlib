@@ -3,39 +3,38 @@ cabal-version:         3.0
 name:                  hasmtlib
 version:               0.1.0.0
 synopsis:              A monad for interfacing with external SMT solvers
-description:
-    Hasmtlib is a library for generating SMTLib2-problems using a monad.
-    It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types.
-    It is highly inspired by ekmett/ersatz which does the same for QSAT.
-    Communication with external solvers is handled by tweag/smtlib-backends.
-    .
-    For example we can utilize existing instances for V3 to symbolically use Num and Metric operations.
-    .
-    > {-# LANGUAGE DataKinds #-}
-    .
-    > import Language.Hasmtlib
-    > import Linear
-    .
-    > -- instances with default impl
-    > instance Codec a => Codec (V3 a)
-    > instance Variable a => Variable (V3 a)
-    .
-    > main :: IO ()
-    > main = do
-    >   res <- solveWith (solver cvc5) $ do
-    >     setLogic "QF_NRA"
-    >
-    >     u :: V3 (Expr RealSort) <- variable
-    >     v <- variable
-    >
-    >     assert $ dot u v === 5
-    >
-    >     return (u,v)
-    >
-    >   print res
-    .
-    May print:
-    > (Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))
+description:           Hasmtlib is a library for generating SMTLib2-problems using a monad.
+  It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types.
+  It is highly inspired by ekmett/ersatz which does the same for QSAT.
+  Communication with external solvers is handled by tweag/smtlib-backends.
+  .
+  For example we can utilize existing instances for V3 to symbolically use Num and Metric operations.
+  .
+  > {-# LANGUAGE DataKinds #-}
+  .
+  > import Language.Hasmtlib
+  > import Linear
+  .
+  > -- instances with default impl
+  > instance Codec a => Codec (V3 a)
+  > instance Variable a => Variable (V3 a)
+  .
+  > main :: IO ()
+  > main = do
+  >   res <- solveWith (solver cvc5) $ do
+  >     setLogic "QF_NRA"
+  >
+  >     u :: V3 (Expr RealSort) <- variable
+  >     v <- variable
+  >
+  >     assert $ dot u v === 5
+  >
+  >     return (u,v)
+  >
+  >   print res
+  .
+  May print:
+  > (Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))
 homepage:              https://github.com/bruderj15/Hasmtlib
 license:               GPL-3.0-only
 license-file:          LICENSE
