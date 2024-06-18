@@ -18,41 +18,9 @@ packages:
       size: 461
   original:
     hackage: smtlib-backends-process-0.3@sha256:caf131d3d6f6825e3a3182713130a8e14d0bd6530eeda643e8a511b546ff1a26,1676
-- completed:
-    hackage: smtlib-backends-z3-0.3.1@sha256:b61b50e9335abc97abcc0cc2ee005c5a5f0c9a5966b2af7c5af40113abdb4191,1877
-    pantry-tree:
-      sha256: acd5810d206c79db6033a2b893021c162e00e8daeb7832c4e9acd2deba50bffe
-      size: 500
-  original:
-    hackage: smtlib-backends-z3-0.3.1@sha256:b61b50e9335abc97abcc0cc2ee005c5a5f0c9a5966b2af7c5af40113abdb4191,1877
-- completed:
-    name: atto-lisp
-    pantry-tree:
-      sha256: 0bad909bcb8649907887474ec31eaaca17c8d702bc6f7ae635c454e8437546bf
-      size: 647
-    sha256: 6dd18019ad9ecf6ece11df45da5401a34d8d31cfbd8c4d5f116409a0b3d10611
-    size: 13238
-    url: https://github.com/studJBccl/atto-lisp/archive/58f0d71c7cfc39ebe4810d6f174d08cd4e62ae0d.tar.gz
-    version: 0.2.2.3
-  original:
-    url: https://github.com/studJBccl/atto-lisp/archive/58f0d71c7cfc39ebe4810d6f174d08cd4e62ae0d.tar.gz
-- completed:
-    name: smtlib-backends-cvc5
-    pantry-tree:
-      sha256: 0b3f7505712dfead4460c1ef23751244ba85324584c2aab18ca7896c7277de69
-      size: 621
-    sha256: fa0209fb6ad4ebc013524741e22e2acd0cdc70efb8b0d416ef5e7ab58f6f0a9d
-    size: 23813
-    subdir: smtlib-backends-cvc5
-    url: https://github.com/tweag/smtlib-backends/archive/b084da6d4814c03fe898711b9950e7e1e2c5ee1e.tar.gz
-    version: '0.1'
-  original:
-    subdir: smtlib-backends-cvc5
-    url: https://github.com/tweag/smtlib-backends/archive/b084da6d4814c03fe898711b9950e7e1e2c5ee1e.tar.gz
 snapshots:
 - completed:
-    sha256: 4be1ca5d31689b524a7f0f17a439bbe9136465213edc498e9a395899a670f2aa
-    size: 718486
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/22.yaml
-  original:
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/22.yaml
+    sha256: 8e7996960d864443a66eb4105338bbdd6830377b9f6f99cd5527ef73c10c01e7
+    size: 719128
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/26.yaml
+  original: lts-22.26

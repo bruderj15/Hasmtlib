@@ -16,6 +16,8 @@ jobs:
         id: autotag
         with:
           prefix: null
+      - run: ghcup install ghc 9.6.5
+      - run: ghcup set ghc 9.6.5
       - run: cabal sdist
       - run: cabal update
       - run: cabal haddock --haddock-for-hackage --enable-documentation

@@ -17,8 +17,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2023-01-01.yaml
-resolver:
-  url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/22.yaml
+resolver: lts-22.26
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -43,13 +42,6 @@ packages:
 extra-deps:
   - smtlib-backends-0.3@sha256:a947aead99f6a314833bddca9b502d5faea8d3bd2fc76ffb53c34d5c5b7557bc,1211
   - smtlib-backends-process-0.3@sha256:caf131d3d6f6825e3a3182713130a8e14d0bd6530eeda643e8a511b546ff1a26,1676
-  - smtlib-backends-z3-0.3.1@sha256:b61b50e9335abc97abcc0cc2ee005c5a5f0c9a5966b2af7c5af40113abdb4191,1877
-  - github: studJBccl/atto-lisp
-    commit: '58f0d71c7cfc39ebe4810d6f174d08cd4e62ae0d'
-  - github: tweag/smtlib-backends
-    commit: 'b084da6d4814c03fe898711b9950e7e1e2c5ee1e'
-    subdirs:
-      - smtlib-backends-cvc5
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
