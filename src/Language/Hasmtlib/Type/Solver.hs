@@ -10,6 +10,13 @@ import qualified SMTLIB.Backends.Process as P
 import Data.Default
 import Control.Monad.State
 
+-- | Data that can have a 'B.Solver'
+class WithSolver a where
+  withSolver :: B.Solver -> a
+
+instance WithSolver Pipe where
+  withSolver = Pipe 0 Nothing
+
 -- | @'solveWith' solver prob@ solves a SMT problem @prob@ with the given
 -- @solver@. It returns a pair consisting of:
 --
@@ -84,7 +91,7 @@ solveWith solver m = do
 -- 
 --   return ()
 -- @
-interactiveWith :: MonadIO m => (B.Solver, P.Handle) -> StateT Pipe m () -> m ()
+interactiveWith :: (MonadIO m, WithSolver s) => (B.Solver, P.Handle) -> StateT s m () -> m ()
 interactiveWith (solver, handle) m = do
    liftIO $ B.command_ solver $ render (Incremental True)
    _ <- runStateT m $ withSolver solver

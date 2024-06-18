@@ -1,18 +1,22 @@
+{-# LANGUAGE FunctionalDependencies #-}
+
 module Language.Hasmtlib.Type.MonadSMT where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Option
+import Language.Hasmtlib.Type.Solution
+import Language.Hasmtlib.Codec
 import Data.Proxy
 import Control.Monad
 import Control.Monad.State
 
+-- | A 'MonadState' that holds an SMT-Problem.
 class MonadState s m => MonadSMT s m where
   -- | Construct a variable.
   -- 
   -- @
   -- x :: SMTVar RealType <- smtvar' (Proxy @RealType)
   -- @
-  -- 
   smtvar'    :: forall t. KnownSMTSort t => Proxy t -> m (SMTVar t)
   
   -- | Construct a variable as expression.
@@ -20,7 +24,6 @@ class MonadState s m => MonadSMT s m where
   -- @
   -- x :: Expr RealType <- var' (Proxy @RealType)
   -- @
-  -- 
   var'       :: forall t. KnownSMTSort t => Proxy t -> m (Expr t)
 
   -- | Assert a boolean expression.
@@ -29,7 +32,6 @@ class MonadState s m => MonadSMT s m where
   -- x :: Expr IntType <- var @IntType
   -- assert $ x + 5 === 42
   -- @
-  -- 
   assert    :: Expr BoolSort -> m ()
 
   -- | Set an SMT-Solver-Option.
@@ -37,7 +39,6 @@ class MonadState s m => MonadSMT s m where
   -- @
   -- setOption $ Incremental True
   -- @
-  -- 
   setOption :: SMTOption -> m ()
 
   -- | Set the logic for the SMT-Solver to use.
@@ -45,7 +46,6 @@ class MonadState s m => MonadSMT s m where
   -- @
   -- setLogic "QF_LRA"
   -- @
-  -- 
   setLogic  :: String -> m ()
 
 -- | Wrapper for 'var'' which hides the 'Proxy'.
@@ -99,3 +99,49 @@ quantify (Exists _ f) = do
   qBody <- quantify $ f $ Var qVar
   return $ Exists (Just qVar) (const qBody)
 quantify expr = return expr
+
+-- | A 'MonadSMT' that allows incremental solving.
+class MonadSMT s m => MonadIncrSMT s m | m -> s where
+  -- | Push a new context (one) to the solvers context-stack.
+  push :: m ()
+
+  -- | Pop the solvers context-stack by one.
+  pop :: m ()
+
+  -- | Run check-sat on the current problem.
+  checkSat :: m Result
+
+  -- | Run get-model on the current problem.
+  --   This can be used to decode temporary models within the SMT-Problem.
+  --
+  -- @
+  -- x <- var @RealSort
+  -- y <- var @RealSort
+  -- assert $ x >? y && y <? (-1)
+  -- res <- checkSat
+  -- case checkSat of
+  --   Unsat -> print "Unsat. Cannot get model."
+  --   r     -> do
+  --     model <- getModel
+  --     liftIO $ print $ decode model x
+  -- @
+  getModel :: m Solution
+
+  -- | Evaluate any expressions value in the solvers model.
+  --   Requires a 'Sat' or 'Unknown' check-sat response beforehand.
+  --
+  -- @
+  -- x <- var @RealSort
+  -- assert $ x >? 10
+  -- res <- checkSat
+  -- case checkSat of
+  --   Unsat -> print "Unsat. Cannot get value for 'x'."
+  --   r     -> do
+  --     x' <- getValue x
+  --     liftIO $ print $ show r ++ ": x = " ++ show x'
+  -- @
+  getValue :: KnownSMTSort t => Expr t -> m (Maybe (Decoded (Expr t)))
+
+-- | First run 'checkSat' and then 'getModel' on the current problem.
+solve :: (MonadIncrSMT s m, MonadIO m) => m (Result, Solution)
+solve = liftM2 (,) checkSat getModel
