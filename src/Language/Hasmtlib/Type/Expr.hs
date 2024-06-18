@@ -24,7 +24,7 @@ import Language.Hasmtlib.Internal.Expr.Num
 --   @
 --   assert $
 --      for_all @IntSort $ \x ->
---         x + 0 === x && 0 + x === 0 
+--         x + 0 === x && 0 + x === x 
 --   @   
 -- 
 --   The lambdas 'x' is all-quantified here.

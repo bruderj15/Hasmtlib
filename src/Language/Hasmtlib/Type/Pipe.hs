@@ -27,8 +27,9 @@ import Control.Monad.State
 import Control.Lens hiding (List)
 
 -- | A pipe to the solver.
---   If 'B.Solver' is 'B.Queuing' then all commands but do not expect an answer are sent to the queue.
+--   If 'B.Solver' is 'B.Queuing' then all commands that do not expect an answer are sent to the queue.
 --   All commands that expect an answer have the queue to be sent to the solver before sending the command itself.
+--   If 'B.Solver' is not 'B.Queuing', all commands are sent to the solver immediately.
 data Pipe = Pipe
   { _lastPipeVarId :: {-# UNPACK #-} !Int              -- ^ Last Id assigned to a new var
   , _mPipeLogic    :: Maybe String                     -- ^ Logic for the SMT-Solver
@@ -37,7 +38,7 @@ data Pipe = Pipe
 
 $(makeLenses ''Pipe)
 
--- | Initialize the 'Pipe'-State from a 'B.Solver'
+-- | Initialize the 'Pipe'-State with a 'B.Solver'.
 withSolver :: B.Solver -> Pipe
 withSolver = Pipe 0 Nothing
 

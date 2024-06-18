@@ -8,42 +8,42 @@ import Control.Monad.State
 
 class MonadState s m => MonadSMT s m where
   -- | Construct a variable.
-  --   @
-  --     x :: SMTVar RealType <- smtvar' (Proxy @RealType)
-  --   @
+  -- @
+  -- x :: SMTVar RealType <- smtvar' (Proxy @RealType)
+  -- @
   smtvar'    :: forall t. KnownSMTSort t => Proxy t -> m (SMTVar t)
   
   -- | Construct a variable as expression.
-  --   @
-  --      x :: Expr RealType <- var' (Proxy @RealType)
-  --   @
+  -- @
+  -- x :: Expr RealType <- var' (Proxy @RealType)
+  -- @
   var'       :: forall t. KnownSMTSort t => Proxy t -> m (Expr t)
 
   -- | Assert a boolean expression.
-  --   @
-  --      x :: Expr IntType <- var @IntType
-  --      assert $ x + 5 === 42
-  --   @
+  -- @
+  -- x :: Expr IntType <- var @IntType
+  -- assert $ x + 5 === 42
+  -- @
   assert    :: Expr BoolSort -> m ()
 
   -- | Set an SMT-Solver-Option.
-  --   @
-  --      setOption $ Incremental True
-  --   @
+  -- @
+  -- setOption $ Incremental True
+  -- @
   setOption :: SMTOption -> m ()
 
   -- | Set the logic for the SMT-Solver to use.
-  --   @
-  --      setLogic "QF_LRA"
-  --   @
+  -- @
+  -- setLogic "QF_LRA"
+  -- @
   setLogic  :: String -> m ()
 
--- | Wrapper for 'var'' which hides the 'Proxy'
+-- | Wrapper for 'var'' which hides the 'Proxy'.
 var :: forall t s m. (KnownSMTSort t, MonadSMT s m) => m (Expr t)
 var = var' (Proxy @t)
 {-# INLINE var #-}
 
--- | Wrapper for 'smtvar'' which hides the 'Proxy'
+-- | Wrapper for 'smtvar'' which hides the 'Proxy'.
 -- | This is mainly intended for internal use.
 -- | In the API use 'var' instead.
 smtvar :: forall t s m. (KnownSMTSort t, MonadSMT s m) => m (SMTVar t)
@@ -69,7 +69,7 @@ constant = Constant . wrapValue
 --   We need this separate so we get a pure API for quantifiers
 --   Ideally we would do that when rendering the expression
 --   However renderSMTLib2 is pure but we need a new quantified var which is stateful
--- | Assign quantified variables to all quantified subexpressions of an expression
+-- | Assign quantified variables to all quantified subexpressions of an expression.
 --   This shall only be used internally.
 --   Usually before rendering an assert.
 quantify :: MonadSMT s m => Expr t -> m (Expr t)

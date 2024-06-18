@@ -1,7 +1,7 @@
 module Language.Hasmtlib.Type.Solver where
 
-import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Pipe
+import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Codec
@@ -13,8 +13,8 @@ import Control.Monad.State
 -- | @'solveWith' solver prob@ solves a SMT problem @prob@ with the given
 -- @solver@. It returns a pair consisting of:
 --
--- 1. A 'Result' that indicates if @prob@ is satisfiable ('Satisfied'),
---    unsatisfiable ('Unsatisfied'), or if the solver could not determine any
+-- 1. A 'Result' that indicates if @prob@ is satisfiable ('Sat'),
+--    unsatisfiable ('Unsat'), or if the solver could not determine any
 --    results ('Unknown').
 --
 -- 2. A 'Decoded' answer that was decoded using the solution to @prob@. Note
@@ -48,7 +48,7 @@ solveWith solver m = do
 
 -- | Pipes an SMT-problem interactively to the solver.
 --   Enables incremental solving by default.
---   Here is a small example of how to use it for solving a problem utilizing thr solvers incremental stack:
+--   Here is a small example of how to use it for solving a problem utilizing the solvers incremental stack:
 -- 
 -- @
 -- import Language.Hasmtlib

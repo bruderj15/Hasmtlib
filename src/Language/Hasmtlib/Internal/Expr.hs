@@ -30,7 +30,7 @@ type family HaskellType (t :: SMTSort) = (r :: Type) | r -> t where
   HaskellType BoolSort   = Bool
   HaskellType (BvSort n) = Bitvec n
 
--- | A wrapper for values of 'SMTSort's
+-- | A wrapper for values of 'SMTSort's.
 data Value (t :: SMTSort) where
   IntValue  :: HaskellType IntSort    -> Value IntSort
   RealValue :: HaskellType RealSort   -> Value RealSort

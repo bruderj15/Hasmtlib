@@ -20,8 +20,8 @@ import qualified Data.Vector.Unboxed.Sized as V
 import Control.Monad
 import GHC.TypeNats
 
--- | Compute the default 'Decoded' 'Type' for every functor-wrapper
---   Useful for instances using default signatures
+-- | Compute the default 'Decoded' 'Type' for every functor-wrapper.
+--   Useful for instances using default signatures.
 type family DefaultDecoded a :: Type where
   DefaultDecoded (f a) = f (Decoded a)
 
@@ -30,12 +30,12 @@ class Codec a where
   type Decoded a :: Type
   type Decoded a = DefaultDecoded a
 
-  -- | Decode value using given solution
+  -- | Decode a value using given solution.
   decode :: Solution -> a -> Maybe (Decoded a)
   default decode :: (Traversable f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Solution -> a -> Maybe (Decoded a)
   decode sol = traverse (decode sol)
 
-  -- | Encode value as constant
+  -- | Encode a value as constant.
   encode :: Decoded a -> a
   default encode :: (Functor f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Decoded a -> a
   encode = fmap encode

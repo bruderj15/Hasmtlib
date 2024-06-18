@@ -1,12 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Language.Hasmtlib.Type.SMT
- ( SMT, lastVarId, vars, formulas, mlogic, options
- , SMTOption(Incremental)
- , renderSMT, renderSetLogic, renderAssert, renderVars, renderDeclareVar
- )
- where
+module Language.Hasmtlib.Type.SMT where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Render
@@ -23,11 +18,11 @@ import Control.Lens hiding (List)
 
 -- | The state of the SMT-problem.
 data SMT = SMT
-  { _lastVarId :: {-# UNPACK #-} !Int             -- ^ Last Id assigned to a new var
-  , _vars     :: !(Seq (SomeKnownSMTSort SMTVar)) -- ^ All constructed variables
-  , _formulas :: !(Seq (Expr BoolSort))           -- ^ All asserted formulas
-  , _mlogic   :: Maybe String                     -- ^ Logic for the SMT-Solver
-  , _options  :: [SMTOption]                      -- ^ All manually configured SMT-Solver-Options
+  { _lastVarId :: {-# UNPACK #-} !Int                     -- ^ Last Id assigned to a new var
+  , _vars     :: !(Seq (SomeKnownSMTSort SMTVar))         -- ^ All constructed variables
+  , _formulas :: !(Seq (Expr BoolSort))                   -- ^ All asserted formulas
+  , _mlogic   :: Maybe String                             -- ^ Logic for the SMT-Solver
+  , _options  :: [SMTOption]                              -- ^ All manually configured SMT-Solver-Options
   }
 $(makeLenses ''SMT)
 
