@@ -5,11 +5,11 @@ import Control.Monad.IO.Class
 
 main :: IO ()
 main = do
-  cvc5Living <- cvc5Alive
-  interactive cvc5Living $ do
+  cvc5Living <- interactiveSolver cvc5
+  interactiveWith cvc5Living $ do
     setLogic "QF_LIA"
 
-    x <- var @IntType
+    x <- var @IntSort
 
     assert $ x >? 0
 
@@ -18,7 +18,7 @@ main = do
     liftIO $ print $ decode sol x
 
     push
-    y <- var @IntType
+    y <- var @IntSort
 
     assert $ y <? 0
     assert $ x === y

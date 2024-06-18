@@ -17,37 +17,37 @@ import GHC.Generics
 import GHC.TypeNats
 
 -- | Compare two as as SMT-Expression.
---   Usage:
---     x <- var @RealType
---     y <- var @RealType
---     b <- var @BoolType
---     assert $ x >? y
---     assert $ x === min' 42 100
+-- @
+--   x <- var @RealSort
+--   y <- var 
+--   assert $ x >? y
+--   assert $ x === min' 42 100
+-- @
 class Equatable a => Orderable a where
-  (<=?) :: a -> a -> Expr BoolType
-  default (<=?) :: (Generic a, GOrderable (Rep a)) => a -> a -> Expr BoolType
+  (<=?) :: a -> a -> Expr BoolSort
+  default (<=?) :: (Generic a, GOrderable (Rep a)) => a -> a -> Expr BoolSort
   x <=? y = from x <=?# from y
 
-  (>=?) :: a -> a -> Expr BoolType
+  (>=?) :: a -> a -> Expr BoolSort
   x >=? y = y <=? x
   
-  (<?)  :: a -> a -> Expr BoolType
+  (<?)  :: a -> a -> Expr BoolSort
   x <? y = not $ y <=? x
 
-  (>?)  :: a -> a -> Expr BoolType
+  (>?)  :: a -> a -> Expr BoolSort
   x >? y = not $ x <=? y
 
 infix 4 <?, <=?, >=?, >?
 
 -- | Minimum of two as SMT-Expression.
-min' :: (Orderable a, Iteable (Expr BoolType) a) => a -> a -> a
+min' :: (Orderable a, Iteable (Expr BoolSort) a) => a -> a -> a
 min' x y = ite (x <=? y) x y
 
 -- | Maximum of two as SMT-Expression.
-max' :: (Orderable a, Iteable (Expr BoolType) a) => a -> a -> a
+max' :: (Orderable a, Iteable (Expr BoolSort) a) => a -> a -> a
 max' x y = ite (y <=? x) x y
 
-instance Orderable (Expr IntType) where
+instance Orderable (Expr IntSort) where
   (<?)     = LTH
   {-# INLINE (<?) #-}  
   (<=?)    = LTHE
@@ -57,7 +57,7 @@ instance Orderable (Expr IntType) where
   (>?)     = GTH
   {-# INLINE (>?) #-}
 
-instance Orderable (Expr RealType) where
+instance Orderable (Expr RealSort) where
   (<?)     = LTH
   {-# INLINE (<?) #-}  
   (<=?)    = LTHE
@@ -67,7 +67,7 @@ instance Orderable (Expr RealType) where
   (>?)     = GTH
   {-# INLINE (>?) #-}
 
-instance KnownNat n => Orderable (Expr (BvType n)) where
+instance KnownNat n => Orderable (Expr (BvSort n)) where
   (<?)     = BvuLT
   {-# INLINE (<?) #-}  
   (<=?)    = BvuLTHE
@@ -78,8 +78,8 @@ instance KnownNat n => Orderable (Expr (BvType n)) where
   {-# INLINE (>?) #-}
   
 class GEquatable f => GOrderable f where
-  (<?#)  :: f a -> f a -> Expr BoolType
-  (<=?#) :: f a -> f a -> Expr BoolType
+  (<?#)  :: f a -> f a -> Expr BoolSort
+  (<=?#) :: f a -> f a -> Expr BoolSort
 
 instance GOrderable U1 where
   U1 <?#  U1 = false

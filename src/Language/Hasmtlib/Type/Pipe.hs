@@ -26,16 +26,18 @@ import Control.Monad
 import Control.Monad.State
 import Control.Lens hiding (List)
 
--- | Pipe to the solver.
--- | If @B.Solver@ is @B.Queuing@ then all commands but those that expect an answer are sent to the queue.
+-- | A pipe to the solver.
+--   If 'B.Solver' is 'B.Queuing' then all commands but do not expect an answer are sent to the queue.
+--   All commands that expect an answer have the queue to be sent to the solver before sending the command itself.
 data Pipe = Pipe
-  { _lastPipeVarId :: {-# UNPACK #-} !Int              -- | Last Id assigned to a new var
-  , _mPipeLogic    :: Maybe String                     -- | Logic for the SMT-Solver
-  , _pipe          :: !B.Solver                        -- | Active pipe to the backend
+  { _lastPipeVarId :: {-# UNPACK #-} !Int              -- ^ Last Id assigned to a new var
+  , _mPipeLogic    :: Maybe String                     -- ^ Logic for the SMT-Solver
+  , _pipe          :: !B.Solver                        -- ^ Active pipe to the backend
   }
 
 $(makeLenses ''Pipe)
 
+-- | Initialize the 'Pipe'-State from a 'B.Solver'
 withSolver :: B.Solver -> Pipe
 withSolver = Pipe 0 Nothing
 
@@ -60,7 +62,7 @@ instance (MonadState Pipe m, MonadIO m) => MonadSMT Pipe m where
 
   setOption opt = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $ renderSMTLib2 opt
+    liftIO $ B.command_ (smt^.pipe) $ render opt
 
   setLogic l = do
     mPipeLogic ?= l
@@ -79,11 +81,11 @@ pop = do
   smt <- get
   liftIO $ B.command_ (smt^.pipe) "(pop 1)"
 
--- | Run check-sat and get-model on the current problem
+-- | Run check-sat and get-model on the current problem.
 solve :: (MonadSMT Pipe m, MonadIO m) => m (Result, Solution)
 solve = liftM2 (,) checkSat getModel
 
--- | Run check-sat on the current problem
+-- | Run check-sat on the current problem.
 checkSat :: forall m. (MonadSMT Pipe m, MonadIO m) => m Result
 checkSat = do
   smt <- get
@@ -94,7 +96,7 @@ checkSat = do
       error e
     Right res -> return res
 
--- | Run get-model on the current problem
+-- | Run get-model on the current problem.
 getModel :: (MonadSMT Pipe m, MonadIO m) => m Solution
 getModel = do
   smt   <- get
@@ -107,15 +109,15 @@ getModel = do
 
 -- | Evaluate any expressions value in the solvers model.
 --   Requires a SAT or UNKNOWN check-sat response beforehand.
-getValue ::  forall m t. (MonadSMT Pipe m, MonadIO m, KnownSMTRepr t) => Expr t -> m (Maybe (Decoded (Expr t)))
+getValue ::  forall m t. (MonadSMT Pipe m, MonadIO m, KnownSMTSort t) => Expr t -> m (Maybe (Decoded (Expr t)))
 getValue v@(Var x) = do
   smt   <- get
-  model <- liftIO $ B.command (smt^.pipe) $ renderUnary "get-value" $ "(" <> renderSMTLib2 x <> ")"
+  model <- liftIO $ B.command (smt^.pipe) $ renderUnary "get-value" $ "(" <> render x <> ")"
   case parseOnly (getValueParser @t x) (toStrict model) of
     Left e    -> liftIO $ do
       print model
       error e
-    Right sol -> return $ decode (singleton (sol^.solVar.varId) (SomeKnownSMTRepr sol)) v
+    Right sol -> return $ decode (singleton (sol^.solVar.varId) (SomeKnownSMTSort sol)) v
 getValue expr = do
   model <- getModel
   return $ decode model expr

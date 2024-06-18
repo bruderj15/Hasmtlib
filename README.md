@@ -12,9 +12,9 @@ Although Hasmtlib does not yet make use of _observable_ sharing [(StableNames)](
 
 Therefore, this allows you to use the much richer subset of Haskell than a purely monadic meta-language would, which the strong [hgoes/smtlib2](https://github.com/hgoes/smtlib2) is one of. This ultimately results in extremely compact code.
 
-For instance, to define the addition of two `V3` containing a Real-SMT-Expression:
+For instance, to define the addition of two `V3` containing Real-SMT-Expressions:
 ```haskell
-v3Add :: V3 (Expr RealType) -> V3 (Expr RealType) -> V3 (Expr RealType)
+v3Add :: V3 (Expr RealSort) -> V3 (Expr RealSort) -> V3 (Expr RealSort)
 v3Add = liftA2 (+)
 ```
 Even better, the [Expr-GADT](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Internal/Expr.hs) allows for a polymorph definition:
@@ -41,10 +41,10 @@ instance Variable a => Variable (V3 a)
 
 main :: IO ()
 main = do
-  res <- solveWith cvc5 $ do
+  res <- solveWith (solver cvc5) $ do
     setLogic "QF_NRA"
 
-    u :: V3 (Expr RealType) <- variable
+    u :: V3 (Expr RealSort) <- variable
     v <- variable
 
     assert $ dot u v === 5
@@ -58,24 +58,23 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 ## Features
 
 ### Supported
-- [x] SMTLib2 types in the haskell type
+- [x] SMTLib2-Sorts in the Haskell-Type
   ```haskell
-    -- | Sorts in SMTLib - used as data-kind
-    data SMTType = IntType | RealType | BoolType | BvType Nat
-    data Expr (t :: SMTType) where ...
+    data SMTSort = IntSort | RealSort | BoolSort | BvSort Nat
+    data Expr (t :: SMTSort) where ...
   
-    ite :: Expr BoolType -> Expr t -> Expr t -> Expr t
+    ite :: Expr BoolSort -> Expr t -> Expr t -> Expr t
   ```
-- [x] Full SMTLib 2.6 standard support for Int, Real, Bool and unsigned BitVec
+- [x] Full SMTLib 2.6 standard support for Sorts Int, Real, Bool and unsigned BitVec
 - [x] Type-level length-indexed Bitvectors for BitVec
   ```haskell
-    bvConcat :: (KnownNat n, KnownNat m) => Expr (BvType n) -> Expr (BvType m) -> Expr (BvType (n + m))
+    bvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
   ```
 - [x] Pure API with Expression-instances for Num, Floating, Bounded, ...
   ```haskell
-    solveWith yices $ do
+    solveWith (solver yices) $ do
       setLogic "QF_BV"
-      x <- var @(BvType 16)
+      x <- var @(BvSort 16)
       y <- var
       assert $ x - (maxBound `mod` 8) === y * y 
       return (x,y)
@@ -87,15 +86,15 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Solvers via external processes: CVC5, Z3, Yices2-SMT & MathSAT
   ```haskell
-    (result, solution) <- solveWith mathsat $ do
+    (result, solution) <- solveWith (solver mathsat) $ do
       setLogic "QF_LIA" 
       assert $ ...
   ```
 - [x] Incremental solving
   ```haskell
-      cvc5Living <- cvc5Alive
-      interactive cvc5Living $ do
-        x <- var @IntType
+      cvc5Living <- interactiveSolver cvc5
+      interactiveWith cvc5Living $ do
+        x <- var @IntSort
         assert $ x === 42
         result <- checkSat
         push
@@ -107,9 +106,9 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Pure quantifiers `for_all` and `exists`
   ```haskell
-    solveWith z3 $ do
+    solveWith (solver z3) $ do
       setLogic "LIA"
-      z <- var @IntType
+      z <- var @IntSort
       assert $ z === 0
       assert $
         for_all $ \x ->

@@ -16,7 +16,7 @@ import Data.Bifunctor
 import qualified Data.Vector.Unboxed.Sized as V
 import GHC.TypeNats
 
--- | Length-indexed bitvector with MSB first
+-- | Unsigned and length-indexed bitvector with MSB first
 newtype Bitvec (n :: Nat) = Bitvec { unBitvec :: V.Vector n Bit }
   deriving stock (Eq, Ord)
   deriving newtype (Boolean)
@@ -24,9 +24,9 @@ newtype Bitvec (n :: Nat) = Bitvec { unBitvec :: V.Vector n Bit }
 instance Show (Bitvec n) where
   show = V.toList . V.map (\b -> if coerce b then '1' else '0') . coerce @_ @(V.Vector n Bit)
 
-instance RenderSMTLib2 (Bitvec n) where
-  renderSMTLib2 = stringUtf8 . show
-  {-# INLINEABLE renderSMTLib2 #-}
+instance Render (Bitvec n) where
+  render = stringUtf8 . show
+  {-# INLINEABLE render #-}
 
 instance KnownNat n => Num (Bitvec n) where
    fromInteger x = coerce . V.reverse $ V.generate @n (coerce . testBit x . fromInteger . getFinite) 

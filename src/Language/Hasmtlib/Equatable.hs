@@ -14,28 +14,31 @@ import Data.Word
 import Data.Void
 
 -- | Test two as on equality as SMT-Expression.
---   Usage:
+-- @
 --     x <- var @RealType
---     y <- var @RealType
---     assert $ y === x
+--     y <- var 
+--     assert $ y === x && not (y /== x)
+-- @
 class Equatable a where
-  (===) :: a -> a -> Expr BoolType
-  default (===) :: (Generic a, GEquatable (Rep a)) => a -> a -> Expr BoolType
+  -- | Test whether two values are equal in the SMT-Problem.
+  (===) :: a -> a -> Expr BoolSort
+  default (===) :: (Generic a, GEquatable (Rep a)) => a -> a -> Expr BoolSort
   a === b = from a ===# from b
 
-  (/==) :: a -> a -> Expr BoolType
+  -- | Test whether two values are not equal in the SMT-Problem.
+  (/==) :: a -> a -> Expr BoolSort
   x /== y = not $ x === y
 
 infix 4 ===, /==
 
-instance (KnownSMTRepr t, Eq (ValueType t)) => Equatable (Expr t) where
+instance (KnownSMTSort t, Eq (HaskellType t)) => Equatable (Expr t) where
   (===) = EQU
   {-# INLINE (===) #-}  
   (/==) = Distinct
   {-# INLINE (/==) #-}
 
 class GEquatable f where
-  (===#) :: f a -> f a -> Expr BoolType
+  (===#) :: f a -> f a -> Expr BoolSort
 
 instance GEquatable U1 where
   U1 ===# U1 = true
