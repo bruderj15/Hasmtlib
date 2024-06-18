@@ -1,4 +1,4 @@
-![Static Badge](https://img.shields.io/badge/Lang-GHC2021-blue) [![Haskell-CI](https://github.com/bruderj15/Hasmtlib/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/bruderj15/Hasmtlib/actions/workflows/haskell-ci.yml) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Hackage](https://img.shields.io/hackage/v/hasmtlib.svg)](https://hackage.haskell.org/package/hasmtlib) ![Static Badge](https://img.shields.io/badge/Lang-GHC2021-blue) [![Haskell-CI](https://github.com/bruderj15/Hasmtlib/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/bruderj15/Hasmtlib/actions/workflows/haskell-ci.yml) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 # Hasmtlib
 
