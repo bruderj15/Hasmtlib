@@ -5,19 +5,19 @@
 
 packages:
 - completed:
-    hackage: smtlib-backends-0.3@sha256:a947aead99f6a314833bddca9b502d5faea8d3bd2fc76ffb53c34d5c5b7557bc,1211
+    hackage: smtlib-backends-0.4@sha256:6028af9a5f9120b5176a22f136132cb91d7cdfcde34c2e1cdaf270f2d374de47,1202
     pantry-tree:
-      sha256: 97b88a647ac996808a93b2eab62e9e8574d9b9a451ee37a9103e209b63be012d
+      sha256: f9eeb1a28d0d6d27bdd126e211119037feb261e53227cd41f588fe55927ab0ed
       size: 275
   original:
-    hackage: smtlib-backends-0.3@sha256:a947aead99f6a314833bddca9b502d5faea8d3bd2fc76ffb53c34d5c5b7557bc,1211
+    hackage: smtlib-backends-0.4@sha256:6028af9a5f9120b5176a22f136132cb91d7cdfcde34c2e1cdaf270f2d374de47,1202
 - completed:
-    hackage: smtlib-backends-process-0.3@sha256:caf131d3d6f6825e3a3182713130a8e14d0bd6530eeda643e8a511b546ff1a26,1676
+    hackage: smtlib-backends-process-0.3@sha256:26f6b0fbb1f1fc2a9b82f3ebaedaaaac4fc5c49aa4a86659f7e8df4c073189cd,1676
     pantry-tree:
-      sha256: 7147fef29b4270275168a285fc0c68784329d1276ab9e44e9a45f8d79b526220
+      sha256: 9137a4316bd14a4fb968c50f5d45a7d94385b3fc98b5e0310fa83e81fb112592
       size: 461
   original:
-    hackage: smtlib-backends-process-0.3@sha256:caf131d3d6f6825e3a3182713130a8e14d0bd6530eeda643e8a511b546ff1a26,1676
+    hackage: smtlib-backends-process-0.3@sha256:26f6b0fbb1f1fc2a9b82f3ebaedaaaac4fc5c49aa4a86659f7e8df4c073189cd,1676
 snapshots:
 - completed:
     sha256: 8e7996960d864443a66eb4105338bbdd6830377b9f6f99cd5527ef73c10c01e7

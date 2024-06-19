@@ -7,6 +7,7 @@ main :: IO ()
 main = do
   cvc5Living <- interactiveSolver cvc5
   interactiveWith cvc5Living $ do
+    setOption $ ProduceModels True
     setLogic "QF_LIA"
 
     x <- var @IntSort
