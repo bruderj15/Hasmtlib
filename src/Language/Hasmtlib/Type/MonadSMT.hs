@@ -13,18 +13,20 @@ import Control.Monad.State
 -- | A 'MonadState' that holds an SMT-Problem.
 class MonadState s m => MonadSMT s m where
   -- | Construct a variable.
-  -- 
+  --   This is mainly intended for internal use.
+  --   In the API use 'var'' instead.
+  --   
   -- @
   -- x :: SMTVar RealType <- smtvar' (Proxy @RealType)
   -- @
-  smtvar'    :: forall t. KnownSMTSort t => Proxy t -> m (SMTVar t)
+  smtvar' :: forall t. KnownSMTSort t => Proxy t -> m (SMTVar t)
   
   -- | Construct a variable as expression.
   -- 
   -- @
   -- x :: Expr RealType <- var' (Proxy @RealType)
   -- @
-  var'       :: forall t. KnownSMTSort t => Proxy t -> m (Expr t)
+  var' :: forall t. KnownSMTSort t => Proxy t -> m (Expr t)
 
   -- | Assert a boolean expression.
   -- 
@@ -32,7 +34,7 @@ class MonadState s m => MonadSMT s m where
   -- x :: Expr IntType <- var @IntType
   -- assert $ x + 5 === 42
   -- @
-  assert    :: Expr BoolSort -> m ()
+  assert :: Expr BoolSort -> m ()
 
   -- | Set an SMT-Solver-Option.
   -- 
@@ -44,9 +46,9 @@ class MonadState s m => MonadSMT s m where
   -- | Set the logic for the SMT-Solver to use.
   -- 
   -- @
-  -- setLogic "QF_LRA"
+  -- setLogic \"QF_LRA\"
   -- @
-  setLogic  :: String -> m ()
+  setLogic :: String -> m ()
 
 -- | Wrapper for 'var'' which hides the 'Proxy'.
 var :: forall t s m. (KnownSMTSort t, MonadSMT s m) => m (Expr t)
@@ -54,8 +56,8 @@ var = var' (Proxy @t)
 {-# INLINE var #-}
 
 -- | Wrapper for 'smtvar'' which hides the 'Proxy'.
--- | This is mainly intended for internal use.
--- | In the API use 'var' instead.
+--   This is mainly intended for internal use.
+--   In the API use 'var' instead.
 smtvar :: forall t s m. (KnownSMTSort t, MonadSMT s m) => m (SMTVar t)
 smtvar = smtvar' (Proxy @t)
 {-# INLINE smtvar #-}
@@ -116,10 +118,10 @@ class MonadSMT s m => MonadIncrSMT s m | m -> s where
   --
   -- @
   -- x <- var @RealSort
-  -- y <- var @RealSort
+  -- y <- var
   -- assert $ x >? y && y <? (-1)
   -- res <- checkSat
-  -- case checkSat of
+  -- case res of
   --   Unsat -> print "Unsat. Cannot get model."
   --   r     -> do
   --     model <- getModel
@@ -134,7 +136,7 @@ class MonadSMT s m => MonadIncrSMT s m | m -> s where
   -- x <- var @RealSort
   -- assert $ x >? 10
   -- res <- checkSat
-  -- case checkSat of
+  -- case res of
   --   Unsat -> print "Unsat. Cannot get value for 'x'."
   --   r     -> do
   --     x' <- getValue x
