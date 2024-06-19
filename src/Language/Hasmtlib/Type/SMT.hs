@@ -27,7 +27,7 @@ data SMT = SMT
 $(makeLenses ''SMT)
 
 instance Default SMT where
-  def = SMT 0 mempty mempty mempty mempty
+  def = SMT 0 mempty mempty mempty [ProduceModels True]
 
 instance MonadState SMT m => MonadSMT SMT m where
   smtvar' _ = fmap coerce $ lastVarId <+= 1
