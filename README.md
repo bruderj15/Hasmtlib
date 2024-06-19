@@ -94,6 +94,8 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```haskell
       cvc5Living <- interactiveSolver cvc5
       interactiveWith cvc5Living $ do
+        setLogic "QF_LIA"    
+        setOption $ ProduceModels True
         x <- var @IntSort
         assert $ x === 42
         result <- checkSat

@@ -10,7 +10,7 @@ import qualified SMTLIB.Backends.Process as P
 import Data.Default
 import Control.Monad.State
 
--- | Data that can have a 'B.Solver'
+-- | Data that can have a 'B.Solver'.
 class WithSolver a where
   withSolver :: B.Solver -> a
 
@@ -36,7 +36,7 @@ instance WithSolver Pipe where
 -- main :: IO ()
 -- main = do
 --   res <- solveWith (solver cvc5) $ do
---     setLogic "QF_LIA"
+--     setLogic \"QF_LIA\"
 -- 
 --     x <- var @IntSort
 -- 
@@ -59,14 +59,14 @@ solveWith solver m = do
 -- 
 -- @
 -- import Language.Hasmtlib
--- import Data.Proxy
 -- import Control.Monad.IO.Class
 -- 
 -- main :: IO ()
 -- main = do
 --   cvc5Living <- interactiveSolver cvc5
 --   interactiveWith cvc5Living $ do
---     setLogic "QF_LIA"
+--     setOption $ ProduceModels True
+--     setLogic \"QF_LIA\"
 -- 
 --     x <- var @IntSort
 -- 
