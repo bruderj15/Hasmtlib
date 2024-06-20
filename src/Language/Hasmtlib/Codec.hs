@@ -15,6 +15,7 @@ import Data.Proxy
 import Data.Map (Map)
 import Data.Sequence (Seq)
 import Data.IntMap as IM
+import Data.Dependent.Map as DMap
 import Data.Tree (Tree)
 import qualified Data.Vector.Unboxed.Sized as V
 import Control.Monad
@@ -43,25 +44,8 @@ class Codec a where
 -- | Decode and evaluate expressions
 instance KnownSMTSort t => Codec (Expr t) where
   type Decoded (Expr t) = HaskellType t
-  decode sol (Var var)    = do
-    someSol <- IM.lookup (coerce var) sol
-    case sortSing @t of
-      SIntSort   -> case someSol of
-                    SomeKnownSMTSort (SMTVarSol _ (IntValue v))  -> Just v
-                    _                                            -> Nothing
-      SRealSort  -> case someSol of
-                    SomeKnownSMTSort (SMTVarSol _ (RealValue v)) -> Just v
-                    _                                            -> Nothing
-      SBoolSort  -> case someSol of
-                    SomeKnownSMTSort (SMTVarSol _ (BoolValue v)) -> Just v
-                    _                                            -> Nothing
-      SBvSort p  -> case someSol of
-                    SomeKnownSMTSort (SMTVarSol _ (BvValue v))   -> goN p v
-                    _                                            -> Nothing
-        where
-          goN :: forall n m. KnownNat n => Proxy n -> Bitvec m -> Maybe (Bitvec n)
-          goN _ = coerce . V.toSized @n . V.fromSized . coerce
-
+  
+  decode sol (Var var)  = unwrapValue <$> DMap.lookup var sol 
   decode _ (Constant v) = Just $ unwrapValue v
   decode sol (Plus x y) = liftA2 (+)   (decode sol x) (decode sol y)
   decode sol (Neg x)    = fmap negate  (decode sol x)
@@ -117,6 +101,7 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
   decode _ (ForAll _ _)       = Nothing
   decode _ (Exists _ _)       = Nothing
+  
   encode = Constant . wrapValue
 
 instance Codec () where

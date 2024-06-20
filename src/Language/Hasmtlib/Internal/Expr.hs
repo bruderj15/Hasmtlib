@@ -8,6 +8,7 @@ module Language.Hasmtlib.Internal.Expr where
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Boolean
+import Data.GADT.Compare
 import Data.Kind
 import Data.Proxy
 import Data.Coerce
@@ -22,6 +23,21 @@ data SMTSort = IntSort | RealSort | BoolSort | BvSort Nat
 type role SMTVar phantom
 newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int } deriving (Show, Eq, Ord)
 $(makeLenses ''SMTVar)
+
+instance GEq SMTVar where
+  geq :: forall a b. (KnownSMTSort a, KnownSMTSort b) => SMTVar a -> SMTVar b -> Maybe (a :~: b)
+  geq x y = case geq (sortSing @a) (sortSing @b) of
+    Nothing -> Nothing
+    Just Refl -> if x == y then Just Refl else Nothing
+
+--instance GCompare SMTVar where
+--  gcompare :: forall a b. (KnownSMTSort a, KnownSMTSort b) => SMTVar a -> SMTVar b -> GOrdering a b
+--  gcompare x y = case sortSing @a of
+--    SIntSort  -> case sortSing @b of SIntSort -> GEQ ; _ -> GLT
+--    SRealSort -> _
+--    SBoolSort -> _
+--    SBvSort _ -> _
+
 
 -- | Injective type-family that computes the Haskell 'Type' of a 'SMTSort'.
 type family HaskellType (t :: SMTSort) = (r :: Type) | r -> t where
@@ -64,6 +80,15 @@ data SSMTSort (t :: SMTSort) where
   SRealSort :: SSMTSort RealSort
   SBoolSort :: SSMTSort BoolSort
   SBvSort   :: KnownNat n => Proxy n -> SSMTSort (BvSort n)
+
+instance GEq SSMTSort where
+  geq SIntSort SIntSort       = Just Refl
+  geq SRealSort SRealSort     = Just Refl
+  geq SBoolSort SBoolSort     = Just Refl
+  geq (SBvSort n) (SBvSort m) = case sameNat n m of
+    Just Refl -> Just Refl
+    Nothing   -> Nothing
+  geq _ _                     = Nothing
 
 deriving instance Show (SSMTSort t)
 deriving instance Eq   (SSMTSort t)
