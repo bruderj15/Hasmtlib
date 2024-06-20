@@ -2,10 +2,10 @@
 
 module Language.Hasmtlib.Type.Expr
  ( SMTSort(..)
- , SMTVar(..)
+ , SMTVar(..), varId
  , HaskellType
  , Value(..), unwrapValue, wrapValue
- , SSMTSort(..), KnownSMTSort(..), SomeKnownSMTSort(..)
+ , SSMTSort(..), KnownSMTSort(..), sortSing', SomeKnownSMTSort(..)
  , Expr
  , for_all , exists
  , module Language.Hasmtlib.Internal.Expr.Num

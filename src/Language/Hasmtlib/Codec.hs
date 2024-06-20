@@ -11,15 +11,12 @@ import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Boolean
 import Data.Kind
 import Data.Coerce
-import Data.Proxy
 import Data.Map (Map)
 import Data.Sequence (Seq)
 import Data.IntMap as IM
 import Data.Dependent.Map as DMap
 import Data.Tree (Tree)
-import qualified Data.Vector.Unboxed.Sized as V
 import Control.Monad
-import GHC.TypeNats
 
 -- | Compute the default 'Decoded' 'Type' for every functor-wrapper.
 --   Useful for instances using default signatures.
@@ -44,63 +41,65 @@ class Codec a where
 -- | Decode and evaluate expressions
 instance KnownSMTSort t => Codec (Expr t) where
   type Decoded (Expr t) = HaskellType t
-  
-  decode sol (Var var)  = unwrapValue <$> DMap.lookup var sol 
-  decode _ (Constant v) = Just $ unwrapValue v
-  decode sol (Plus x y) = liftA2 (+)   (decode sol x) (decode sol y)
-  decode sol (Neg x)    = fmap negate  (decode sol x)
-  decode sol (Mul x y)  = liftA2 (*)   (decode sol x) (decode sol y)
-  decode sol (Abs x)    = fmap abs     (decode sol x)
-  decode sol (Mod x y)  = liftA2 mod   (decode sol x) (decode sol y)
-  decode sol (IDiv x y) = liftA2 div   (decode sol x) (decode sol y)
-  decode sol (Div x y)  = liftA2 (/)   (decode sol x) (decode sol y)
-  decode sol (LTH x y)  = liftA2 (<)   (decode sol x) (decode sol y)
-  decode sol (LTHE x y) = liftA2 (<=)  (decode sol x) (decode sol y)
-  decode sol (EQU x y)  = liftA2 (==)  (decode sol x) (decode sol y)
-  decode sol (Distinct x y)  = liftA2 (/=)  (decode sol x) (decode sol y)
-  decode sol (GTHE x y) = liftA2 (>=)  (decode sol x) (decode sol y)
-  decode sol (GTH x y)  = liftA2 (>)   (decode sol x) (decode sol y)
-  decode sol (Not x)    = fmap   not  (decode sol x)
-  decode sol (And x y)  = liftA2 (&&) (decode sol x) (decode sol y)
-  decode sol (Or x y)   = liftA2 (||) (decode sol x) (decode sol y)
-  decode sol (Impl x y) = liftA2 (==>) (decode sol x) (decode sol y)
-  decode sol (Xor x y)  = liftA2 xor   (decode sol x) (decode sol y)
-  decode _ Pi           = Just pi
-  decode sol (Sqrt x)   = fmap sqrt  (decode sol x)
-  decode sol (Exp x)    = fmap exp   (decode sol x)
-  decode sol (Sin x)    = fmap sin   (decode sol x)
-  decode sol (Cos x)    = fmap cos   (decode sol x)
-  decode sol (Tan x)    = fmap tan   (decode sol x)
-  decode sol (Asin x)   = fmap asin  (decode sol x)
-  decode sol (Acos x)   = fmap acos  (decode sol x)
-  decode sol (Atan x)   = fmap atan  (decode sol x)
-  decode sol (ToReal x) = fmap realToFrac (decode sol x)
-  decode sol (ToInt x)  = fmap truncate   (decode sol x)
-  decode sol (IsInt x)  = fmap ((0 ==) . snd . properFraction) (decode sol x)
-  decode sol (Ite p t f) = liftM3 (\p' t' f' -> if p' then t' else f') (decode sol p) (decode sol t) (decode sol f) 
-  decode sol (BvNot x)          = fmap not (decode sol x)
-  decode sol (BvAnd x y)        = liftA2 (&&) (decode sol x) (decode sol y)
-  decode sol (BvOr x y)         = liftA2 (||) (decode sol x) (decode sol y)
-  decode sol (BvXor x y)        = liftA2 xor (decode sol x) (decode sol y)
-  decode sol (BvNand x y)       = nand <$> sequenceA [decode sol x, decode sol y]
-  decode sol (BvNor x y)        = nor  <$> sequenceA [decode sol x, decode sol y]
-  decode sol (BvNeg x)          = fmap negate (decode sol x)
-  decode sol (BvAdd x y)        = liftA2 (+) (decode sol x) (decode sol y)
-  decode sol (BvSub x y)        = liftA2 (-) (decode sol x) (decode sol y)
-  decode sol (BvMul x y)        = liftA2 (*) (decode sol x) (decode sol y)
-  decode sol (BvuDiv x y)       = liftA2 div (decode sol x) (decode sol y)
-  decode sol (BvuRem x y)       = liftA2 rem (decode sol x) (decode sol y)
-  decode sol (BvShL x y)        = join $ liftA2 bvShL (decode sol x) (decode sol y)
-  decode sol (BvLShR x y)       = join $ liftA2 bvLShR (decode sol x) (decode sol y)
-  decode sol (BvConcat x y)     = liftA2 bvConcat (decode sol x) (decode sol y)
-  decode sol (BvRotL i x)       = bvRotL i <$> decode sol x
-  decode sol (BvRotR i x)       = bvRotR i <$> decode sol x
-  decode sol (BvuLT x y)        = liftA2 (<) (decode sol x) (decode sol y)
-  decode sol (BvuLTHE x y)      = liftA2 (<=) (decode sol x) (decode sol y)
-  decode sol (BvuGTHE x y)      = liftA2 (>=) (decode sol x) (decode sol y)
-  decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
-  decode _ (ForAll _ _)       = Nothing
-  decode _ (Exists _ _)       = Nothing
+  decode sol (Var var)  = do
+    (IntValueMap m) <- DMap.lookup (sortSing @t) sol
+    val <- IM.lookup (coerce var) m
+    return $ unwrapValue val
+  decode _ (Constant v)     = Just $ unwrapValue v
+  decode sol (Plus x y)     = liftA2 (+)   (decode sol x) (decode sol y)
+  decode sol (Neg x)        = fmap negate  (decode sol x)
+  decode sol (Mul x y)      = liftA2 (*)   (decode sol x) (decode sol y)
+  decode sol (Abs x)        = fmap abs     (decode sol x)
+  decode sol (Mod x y)      = liftA2 mod   (decode sol x) (decode sol y)
+  decode sol (IDiv x y)     = liftA2 div   (decode sol x) (decode sol y)
+  decode sol (Div x y)      = liftA2 (/)   (decode sol x) (decode sol y)
+  decode sol (LTH x y)      = liftA2 (<)   (decode sol x) (decode sol y)
+  decode sol (LTHE x y)     = liftA2 (<=)  (decode sol x) (decode sol y)
+  decode sol (EQU x y)      = liftA2 (==)  (decode sol x) (decode sol y)
+  decode sol (Distinct x y) = liftA2 (/=)  (decode sol x) (decode sol y)
+  decode sol (GTHE x y)     = liftA2 (>=)  (decode sol x) (decode sol y)
+  decode sol (GTH x y)      = liftA2 (>)   (decode sol x) (decode sol y)
+  decode sol (Not x)        = fmap   not  (decode sol x)
+  decode sol (And x y)      = liftA2 (&&) (decode sol x) (decode sol y)
+  decode sol (Or x y)       = liftA2 (||) (decode sol x) (decode sol y)
+  decode sol (Impl x y)     = liftA2 (==>) (decode sol x) (decode sol y)
+  decode sol (Xor x y)      = liftA2 xor   (decode sol x) (decode sol y)
+  decode _ Pi               = Just pi
+  decode sol (Sqrt x)       = fmap sqrt  (decode sol x)
+  decode sol (Exp x)        = fmap exp   (decode sol x)
+  decode sol (Sin x)        = fmap sin   (decode sol x)
+  decode sol (Cos x)        = fmap cos   (decode sol x)
+  decode sol (Tan x)        = fmap tan   (decode sol x)
+  decode sol (Asin x)       = fmap asin  (decode sol x)
+  decode sol (Acos x)       = fmap acos  (decode sol x)
+  decode sol (Atan x)       = fmap atan  (decode sol x)
+  decode sol (ToReal x)     = fmap realToFrac (decode sol x)
+  decode sol (ToInt x)      = fmap truncate   (decode sol x)
+  decode sol (IsInt x)      = fmap ((0 ==) . snd . properFraction) (decode sol x)
+  decode sol (Ite p t f)    = liftM3 (\p' t' f' -> if p' then t' else f') (decode sol p) (decode sol t) (decode sol f) 
+  decode sol (BvNot x)      = fmap not (decode sol x)
+  decode sol (BvAnd x y)    = liftA2 (&&) (decode sol x) (decode sol y)
+  decode sol (BvOr x y)     = liftA2 (||) (decode sol x) (decode sol y)
+  decode sol (BvXor x y)    = liftA2 xor (decode sol x) (decode sol y)
+  decode sol (BvNand x y)   = nand <$> sequenceA [decode sol x, decode sol y]
+  decode sol (BvNor x y)    = nor  <$> sequenceA [decode sol x, decode sol y]
+  decode sol (BvNeg x)      = fmap negate (decode sol x)
+  decode sol (BvAdd x y)    = liftA2 (+) (decode sol x) (decode sol y)
+  decode sol (BvSub x y)    = liftA2 (-) (decode sol x) (decode sol y)
+  decode sol (BvMul x y)    = liftA2 (*) (decode sol x) (decode sol y)
+  decode sol (BvuDiv x y)   = liftA2 div (decode sol x) (decode sol y)
+  decode sol (BvuRem x y)   = liftA2 rem (decode sol x) (decode sol y)
+  decode sol (BvShL x y)    = join $ liftA2 bvShL (decode sol x) (decode sol y)
+  decode sol (BvLShR x y)   = join $ liftA2 bvLShR (decode sol x) (decode sol y)
+  decode sol (BvConcat x y) = liftA2 bvConcat (decode sol x) (decode sol y)
+  decode sol (BvRotL i x)   = bvRotL i <$> decode sol x
+  decode sol (BvRotR i x)   = bvRotR i <$> decode sol x
+  decode sol (BvuLT x y)    = liftA2 (<) (decode sol x) (decode sol y)
+  decode sol (BvuLTHE x y)  = liftA2 (<=) (decode sol x) (decode sol y)
+  decode sol (BvuGTHE x y)  = liftA2 (>=) (decode sol x) (decode sol y)
+  decode sol (BvuGT x y)    = liftA2 (>) (decode sol x) (decode sol y)
+  decode _ (ForAll _ _)     = Nothing
+  decode _ (Exists _ _)     = Nothing
   
   encode = Constant . wrapValue
 

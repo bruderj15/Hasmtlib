@@ -17,27 +17,12 @@ import Control.Lens
 import GHC.TypeLits
 
 -- | Sorts in SMTLib2 - used as promoted type (data-kind).
-data SMTSort = IntSort | RealSort | BoolSort | BvSort Nat
+data SMTSort = BoolSort | IntSort | RealSort | BvSort Nat
 
 -- | An internal SMT variable with a phantom-type which holds an 'Int' as it's identifier.
 type role SMTVar phantom
 newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int } deriving (Show, Eq, Ord)
 $(makeLenses ''SMTVar)
-
-instance GEq SMTVar where
-  geq :: forall a b. (KnownSMTSort a, KnownSMTSort b) => SMTVar a -> SMTVar b -> Maybe (a :~: b)
-  geq x y = case geq (sortSing @a) (sortSing @b) of
-    Nothing -> Nothing
-    Just Refl -> if x == y then Just Refl else Nothing
-
---instance GCompare SMTVar where
---  gcompare :: forall a b. (KnownSMTSort a, KnownSMTSort b) => SMTVar a -> SMTVar b -> GOrdering a b
---  gcompare x y = case sortSing @a of
---    SIntSort  -> case sortSing @b of SIntSort -> GEQ ; _ -> GLT
---    SRealSort -> _
---    SBoolSort -> _
---    SBvSort _ -> _
-
 
 -- | Injective type-family that computes the Haskell 'Type' of a 'SMTSort'.
 type family HaskellType (t :: SMTSort) = (r :: Type) | r -> t where
@@ -81,6 +66,10 @@ data SSMTSort (t :: SMTSort) where
   SBoolSort :: SSMTSort BoolSort
   SBvSort   :: KnownNat n => Proxy n -> SSMTSort (BvSort n)
 
+deriving instance Show (SSMTSort t)
+deriving instance Eq   (SSMTSort t)
+deriving instance Ord  (SSMTSort t)
+
 instance GEq SSMTSort where
   geq SIntSort SIntSort       = Just Refl
   geq SRealSort SRealSort     = Just Refl
@@ -90,9 +79,20 @@ instance GEq SSMTSort where
     Nothing   -> Nothing
   geq _ _                     = Nothing
 
-deriving instance Show (SSMTSort t)
-deriving instance Eq   (SSMTSort t)
-deriving instance Ord  (SSMTSort t)
+instance GCompare SSMTSort where
+  gcompare SBoolSort SBoolSort     = GEQ
+  gcompare SIntSort SIntSort       = GEQ
+  gcompare SRealSort SRealSort     = GEQ
+  gcompare (SBvSort n) (SBvSort m) = case cmpNat n m of
+    LTI -> GLT
+    EQI -> GEQ
+    GTI -> GGT
+  gcompare SBoolSort _ = GLT
+  gcompare _ SBoolSort = GGT
+  gcompare SIntSort _  = GLT
+  gcompare _ SIntSort  = GGT
+  gcompare SRealSort _ = GLT
+  gcompare _ SRealSort = GGT
 
 -- | Compute singleton 'SSMTSort' from it's promoted type 'SMTSort'.
 class    KnownSMTSort (t :: SMTSort)           where sortSing :: SSMTSort t
@@ -100,6 +100,10 @@ instance KnownSMTSort IntSort                  where sortSing = SIntSort
 instance KnownSMTSort RealSort                 where sortSing = SRealSort
 instance KnownSMTSort BoolSort                 where sortSing = SBoolSort
 instance KnownNat n => KnownSMTSort (BvSort n) where sortSing = SBvSort (Proxy @n)
+
+-- | Wrapper for 'sortSing' which takes a 'Proxy'
+sortSing' :: forall prxy t. KnownSMTSort t => prxy t -> SSMTSort t
+sortSing' _ = sortSing @t
 
 -- | An existential wrapper that hides some 'SMTSort'.
 data SomeKnownSMTSort f where
@@ -207,9 +211,9 @@ instance KnownNat n => Bounded (Expr (BvSort n)) where
   maxBound = Constant $ BvValue maxBound
 
 instance Render (SSMTSort t) where
+  render SBoolSort   = "Bool"
   render SIntSort    = "Int"
   render SRealSort   = "Real"
-  render SBoolSort   = "Bool"
   render (SBvSort p) = renderBinary "_" ("BitVec" :: Builder) (natVal p)
   {-# INLINEABLE render #-}
 
@@ -219,9 +223,9 @@ instance Render (SMTVar t) where
 
 instance KnownSMTSort t => Render (Expr t) where
   render (Var v)                  = render v
+  render (Constant (BoolValue x)) = render x
   render (Constant (IntValue x))  = render x
   render (Constant (RealValue x)) = render x
-  render (Constant (BoolValue x)) = render x
   render (Constant (BvValue   v)) = "#b" <> render v
 
   render (Plus x y)   = renderBinary "+" x y
@@ -298,9 +302,9 @@ renderQuantifier _ Nothing _ = mempty
 
 instance Show (Expr t) where
   show (Var v)                  = show v
+  show (Constant (BoolValue x)) = show x
   show (Constant (IntValue x))  = show x
   show (Constant (RealValue x)) = show x
-  show (Constant (BoolValue x)) = show x
   show (Constant (BvValue   x)) = show x
   show (Plus x y)               = "(" ++ show x ++ " + " ++ show y ++ ")"
   show (Neg x)                  = "(- " ++ show x ++ ")"
