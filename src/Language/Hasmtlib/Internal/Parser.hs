@@ -84,9 +84,11 @@ parseSomeSort = (string "Bool" *> pure (SomeKnownSMTSort SBoolSort))
       _ <- skipSpace >> char ')'
       case someNatVal $ fromInteger n of
         SomeNat pn -> return $ SomeKnownSMTSort $ SBvSort pn
+{-# INLINEABLE parseSomeSort #-}
 
 parseExpr' :: forall prxy t. KnownSMTSort t => prxy t -> Parser (Expr t)
 parseExpr' _ = parseExpr @t
+{-# INLINE parseExpr' #-}
 
 parseExpr :: forall t. KnownSMTSort t => Parser (Expr t)
 parseExpr = var <|> constant <|> smtIte
@@ -124,7 +126,7 @@ var = do
   vId <- decimal @Int
 
   return $ Var $ coerce vId
-{-# INLINEABLE var #-}
+{-# INLINE var #-}
 
 constant :: forall t. KnownSMTSort t => Parser (Expr t)
 constant = do
@@ -135,7 +137,7 @@ constant = do
     SBvSort p -> anyBitvector p
 
   return $ Constant $ wrapValue cval
-{-# INLINEABLE constant #-}
+{-# INLINE constant #-}
 
 anyBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
 anyBitvector p = binBitvector p <|> hexBitvector p <|> literalBitvector p
@@ -154,7 +156,7 @@ hexBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
 hexBitvector _ = do
   _ <- string "#x" >> skipSpace
   fromInteger <$> hexadecimal
-{-# INLINEABLE hexBitvector #-}
+{-# INLINE hexBitvector #-}
 
 literalBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
 literalBitvector _ = do
@@ -165,7 +167,7 @@ literalBitvector _ = do
   _ <- skipWhile (/= ')') >> char ')'
 
   return $ fromInteger x
-{-# INLINEABLE literalBitvector #-}
+{-# INLINE literalBitvector #-}
 
 unary :: forall t r. KnownSMTSort t => ByteString -> (Expr t -> Expr r) -> Parser (Expr r)
 unary opStr op = do
@@ -175,7 +177,7 @@ unary opStr op = do
   _ <- skipSpace >> char ')'
 
   return $ op val
-{-# INLINEABLE unary #-}
+{-# INLINE unary #-}
 
 binary :: forall t r. KnownSMTSort t => ByteString -> (Expr t -> Expr t -> Expr r) -> Parser (Expr r)
 binary opStr op = do
@@ -186,7 +188,7 @@ binary opStr op = do
   r <- parseExpr
   _ <- skipSpace >> char ')'
   return $ l `op` r
-{-# INLINEABLE binary #-}
+{-# INLINE binary #-}
 
 nary :: forall t r. KnownSMTSort t => ByteString -> ([Expr t] -> Expr r) -> Parser (Expr r)
 nary opStr op = do
@@ -195,11 +197,11 @@ nary opStr op = do
   args <- parseExpr `sepBy1` skipSpace
   _    <- skipSpace >> char ')'
   return $ op args
-{-# INLINEABLE nary #-}
+{-# INLINE nary #-}
 
 smtPi :: Parser (Expr RealSort)
 smtPi = string "real.pi" *> return pi
-{-# INLINEABLE smtPi #-}
+{-# INLINE smtPi #-}
 
 toRealFun :: Parser (Expr RealSort)
 toRealFun = do
@@ -256,7 +258,7 @@ negativeValue p = do
   _ <- skipSpace >> char ')'
 
   return $ negate val
-{-# INLINEABLE negativeValue #-}
+{-# INLINE negativeValue #-}
 
 parseRatioDouble :: Parser Double
 parseRatioDouble = do
