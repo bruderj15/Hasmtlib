@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Language.Hasmtlib.Internal.Parser where
 
 import Prelude hiding (not, (&&), (||), and , or)
@@ -20,7 +18,6 @@ import Data.ByteString
 import Data.ByteString.Builder
 import Data.Attoparsec.ByteString hiding (Result, skipWhile)
 import Data.Attoparsec.ByteString.Char8 hiding (Result)
-import qualified Data.IntMap as IM
 import Control.Applicative
 import Control.Lens hiding (op)
 import GHC.TypeNats
@@ -47,7 +44,7 @@ defaultModelParser = do
   varSols <- many $ parseSomeSol <* skipSpace
   _       <- (skipSpace >> char ')' >> skipSpace) <|> skipSpace
 
-  return $ fromSomeList varSols
+  return $ fromSomeVarSols varSols
 
 smt2ModelParser :: Parser Solution
 smt2ModelParser = do
@@ -55,43 +52,43 @@ smt2ModelParser = do
   varSols <- many $ parseSomeSol <* skipSpace
   _       <- (skipSpace >> char ')' >> skipSpace) <|> skipSpace
 
-  return $ fromSomeList varSols
-
-fromSomeList :: [SomeKnownSMTSort SMTVarSol] -> Solution
-fromSomeList = IM.fromList . fmap (\case someVarSol@(SomeKnownSMTSort varSol) -> (coerce (varSol^.solVar), someVarSol))
+  return $ fromSomeVarSols varSols
 
 parseSomeSol :: Parser (SomeKnownSMTSort SMTVarSol)
-parseSomeSol = SomeKnownSMTSort <$> (parseSol @IntSort)
-           <|> SomeKnownSMTSort <$> (parseSol @RealSort)
-           <|> SomeKnownSMTSort <$> (parseSol @BoolSort)
-           <|> parseAnyBvUpToLength 128
-
-parseAnyBvUpToLength :: Natural -> Parser (SomeKnownSMTSort SMTVarSol)
-parseAnyBvUpToLength hi = asum $ fmap ((\case SomeNat p -> goProxy p) . someNatVal) [0..hi]
-  where
-    goProxy :: forall n. KnownNat n => Proxy n -> Parser (SomeKnownSMTSort SMTVarSol)
-    goProxy _ = SomeKnownSMTSort <$> parseSol @(BvSort n)
-
-parseSol :: forall t. KnownSMTSort t => Parser (SMTVarSol t)
-parseSol = do
+parseSomeSol = do
   _     <- char '(' >> skipSpace
   _     <- string "define-fun" >> skipSpace
   _     <- string "var_"
   vId   <- decimal @Int
   _     <- skipSpace >> string "()" >> skipSpace
-  _     <- string $ toStrict $ toLazyByteString $ render (sortSing @t)
+  (SomeKnownSMTSort someSort) <- parseSomeSort
   _     <- skipSpace
-  expr  <- parseExpr @t
+  expr  <- parseExpr' someSort
   _     <- skipSpace >> char ')'
-
-  -- Try to evaluate expression given by solver as solution
-  -- Better: Take into scope already successfully parsed solutions for other vars.
-  -- Is this even required though? Do the solvers ever answer like-wise?
   case decode mempty expr of
     Nothing    -> fail $ "Solver reponded with solution for var_" ++ show vId ++ " but it contains "
                       ++ "another var. This cannot be parsed and evaluated currently."
-    Just value -> return $ SMTVarSol (coerce vId) (wrapValue value)
-{-# INLINEABLE parseSol #-}
+    Just value -> return $ SomeKnownSMTSort $ SMTVarSol (coerce vId) (wrapValue value)
+{-# INLINEABLE parseSomeSol #-}
+
+parseSomeSort :: Parser (SomeKnownSMTSort SSMTSort)
+parseSomeSort = (string "Bool" *> pure (SomeKnownSMTSort SBoolSort))
+        <|> (string "Int"  *> pure (SomeKnownSMTSort SIntSort))
+        <|> (string "Real" *> pure (SomeKnownSMTSort SRealSort))
+        <|> parseSomeBitVecSort
+  where
+    parseSomeBitVecSort = do
+      _ <- char '(' >> skipSpace >> char '_' >> skipSpace
+      _ <- string "BitVec" >> skipSpace
+      n <- decimal
+      _ <- skipSpace >> char ')'
+      case someNatVal $ fromInteger n of
+        SomeNat pn -> return $ SomeKnownSMTSort $ SBvSort pn
+{-# INLINEABLE parseSomeSort #-}
+
+parseExpr' :: forall prxy t. KnownSMTSort t => prxy t -> Parser (Expr t)
+parseExpr' _ = parseExpr @t
+{-# INLINE parseExpr' #-}
 
 parseExpr :: forall t. KnownSMTSort t => Parser (Expr t)
 parseExpr = var <|> constant <|> smtIte
@@ -115,9 +112,7 @@ parseExpr = var <|> constant <|> smtIte
                       <|> binary @IntSort ">=" (>=?) <|> binary @IntSort ">" (>?)
                       <|> binary @RealSort "<" (<?) <|> binary @RealSort "<=" (<=?)
                       <|> binary @RealSort ">=" (>=?) <|> binary @RealSort ">" (>?)
-                      -- TODO: All (?) bv lengths - also for '=' and 'distinct'
---                      <|> binary @(BvSort 10) "bvult" (<?) <|> binary @(BvSort 10) "bvule" (<=?)
---                      <|> binary @(BvSort 10) "bvuge" (>=?) <|> binary @(BvSort 10) "bvugt" (>?)
+                      -- TODO: Add compare ops for all (?) bv-sorts
               SBvSort _ -> unary "bvnot" not
                       <|> binary "bvand" (&&)  <|> binary "bvor" (||) <|> binary "bvxor" xor <|> binary "bvnand" BvNand <|> binary "bvnor" BvNor
                       <|> unary  "bvneg" negate
@@ -131,7 +126,7 @@ var = do
   vId <- decimal @Int
 
   return $ Var $ coerce vId
-{-# INLINEABLE var #-}
+{-# INLINE var #-}
 
 constant :: forall t. KnownSMTSort t => Parser (Expr t)
 constant = do
@@ -142,7 +137,7 @@ constant = do
     SBvSort p -> anyBitvector p
 
   return $ Constant $ wrapValue cval
-{-# INLINEABLE constant #-}
+{-# INLINE constant #-}
 
 anyBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
 anyBitvector p = binBitvector p <|> hexBitvector p <|> literalBitvector p
@@ -161,7 +156,7 @@ hexBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
 hexBitvector _ = do
   _ <- string "#x" >> skipSpace
   fromInteger <$> hexadecimal
-{-# INLINEABLE hexBitvector #-}
+{-# INLINE hexBitvector #-}
 
 literalBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
 literalBitvector _ = do
@@ -172,7 +167,7 @@ literalBitvector _ = do
   _ <- skipWhile (/= ')') >> char ')'
 
   return $ fromInteger x
-{-# INLINEABLE literalBitvector #-}
+{-# INLINE literalBitvector #-}
 
 unary :: forall t r. KnownSMTSort t => ByteString -> (Expr t -> Expr r) -> Parser (Expr r)
 unary opStr op = do
@@ -182,7 +177,7 @@ unary opStr op = do
   _ <- skipSpace >> char ')'
 
   return $ op val
-{-# INLINEABLE unary #-}
+{-# INLINE unary #-}
 
 binary :: forall t r. KnownSMTSort t => ByteString -> (Expr t -> Expr t -> Expr r) -> Parser (Expr r)
 binary opStr op = do
@@ -193,7 +188,7 @@ binary opStr op = do
   r <- parseExpr
   _ <- skipSpace >> char ')'
   return $ l `op` r
-{-# INLINEABLE binary #-}
+{-# INLINE binary #-}
 
 nary :: forall t r. KnownSMTSort t => ByteString -> ([Expr t] -> Expr r) -> Parser (Expr r)
 nary opStr op = do
@@ -202,11 +197,11 @@ nary opStr op = do
   args <- parseExpr `sepBy1` skipSpace
   _    <- skipSpace >> char ')'
   return $ op args
-{-# INLINEABLE nary #-}
+{-# INLINE nary #-}
 
 smtPi :: Parser (Expr RealSort)
 smtPi = string "real.pi" *> return pi
-{-# INLINEABLE smtPi #-}
+{-# INLINE smtPi #-}
 
 toRealFun :: Parser (Expr RealSort)
 toRealFun = do
@@ -263,7 +258,7 @@ negativeValue p = do
   _ <- skipSpace >> char ')'
 
   return $ negate val
-{-# INLINEABLE negativeValue #-}
+{-# INLINE negativeValue #-}
 
 parseRatioDouble :: Parser Double
 parseRatioDouble = do

@@ -12,7 +12,8 @@ import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Internal.Parser hiding (var, constant)
 import qualified SMTLIB.Backends as B
 import Data.List (isPrefixOf)
-import Data.IntMap (singleton)
+import Data.IntMap as IMap (singleton)
+import Data.Dependent.Map as DMap
 import Data.Coerce
 import Data.ByteString.Builder
 import Data.ByteString.Lazy hiding (filter, singleton, isPrefixOf)
@@ -97,7 +98,13 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
       Left e    -> liftIO $ do
         print model
         error e
-      Right sol -> return $ decode (singleton (sol^.solVar.varId) (SomeKnownSMTSort sol)) v
+      Right sol -> 
+        return $ 
+          decode 
+            (DMap.singleton 
+              (sortSing @t) 
+              (IntValueMap $ IMap.singleton (sol^.solVar.varId) (sol^.solVal))) 
+            v
   getValue expr = do
     model <- getModel
     return $ decode model expr
