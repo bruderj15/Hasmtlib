@@ -19,5 +19,5 @@ type Solution = IntMap (SomeKnownSMTSort SMTVarSol)
 data SMTVarSol (t :: SMTSort) = SMTVarSol 
   { _solVar :: SMTVar t                       -- ^ A variable in the SMT-Problem
   , _solVal :: Value t                        -- ^ An assignment for this variable in a solution
-  } deriving (Show, Eq, Ord)
+  } deriving Show
 $(makeLenses ''SMTVarSol)

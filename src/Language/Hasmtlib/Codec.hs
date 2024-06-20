@@ -5,6 +5,7 @@
 module Language.Hasmtlib.Codec where
 
 import Prelude hiding (not, (&&), (||))
+import Language.Hasmtlib.Internal.ArrayMap
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Solution
@@ -61,6 +62,9 @@ instance KnownSMTSort t => Codec (Expr t) where
         where
           goN :: forall n m. KnownNat n => Proxy n -> Bitvec m -> Maybe (Bitvec n)
           goN _ = coerce . V.toSized @n . V.fromSized . coerce
+      SArraySort k v -> case someSol of
+                    SomeKnownSMTSort (SMTVarSol _ (ArrayValue arr)) -> Just _
+                    _                                               -> Nothing
 
   decode _ (Constant v) = Just $ unwrapValue v
   decode sol (Plus x y) = liftA2 (+)   (decode sol x) (decode sol y)
@@ -115,8 +119,10 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (BvuLTHE x y)      = liftA2 (<=) (decode sol x) (decode sol y)
   decode sol (BvuGTHE x y)      = liftA2 (>=) (decode sol x) (decode sol y)
   decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
-  decode _ (ForAll _ _)       = Nothing
-  decode _ (Exists _ _)       = Nothing
+  decode sol (ArrSelect arr i)  = liftA2 select (decode sol arr) (decode sol i)
+  decode sol (ArrStore arr i x) = liftM3 store (decode sol arr) (decode sol i) (decode sol x)
+  decode _ (ForAll _ _)         = Nothing
+  decode _ (Exists _ _)         = Nothing
   encode = Constant . wrapValue
 
 instance Codec () where
