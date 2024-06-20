@@ -16,7 +16,7 @@ type Solver s m = s -> m (Result, Solution)
 -- | Results of check-sat commands.
 data Result = Unsat | Unknown | Sat deriving (Show, Eq, Ord)
 
--- | A Solution is a dependent map 'DMap' from 'SSMTSort's t to 'IntMap' t. 
+-- | A Solution is a dependent map 'DMap' from 'SSMTSort's t to 'IntMap' t.
 type Solution = DMap SSMTSort IntValueMap
 
 -- | Newtype for 'IntMap' 'Value' so we can use it as right-hand-side of 'DMap'.
@@ -35,7 +35,7 @@ $(makeLenses ''SMTVarSol)
 fromSomeVarSols :: [SomeKnownSMTSort SMTVarSol] -> Solution
 fromSomeVarSols = foldl
   (\dsol (SomeKnownSMTSort s) -> let sSort = sortSing' s in
-    dsol & dmat sSort %~   -- TODO: There has got to be lens or map operation for, but which? 
+    dsol & dmat sSort %~
       (\case
         Nothing -> Just $ IntValueMap $ IMap.singleton (s^.solVar.varId) (s^.solVal)
         Just (IntValueMap im) -> Just $ IntValueMap $ IMap.insert (s^.solVar.varId) (s^.solVal) im
