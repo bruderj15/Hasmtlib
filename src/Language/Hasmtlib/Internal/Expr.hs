@@ -125,9 +125,23 @@ instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => KnownSMTSort (
 sortSing' :: forall prxy t. KnownSMTSort t => prxy t -> SSMTSort t
 sortSing' _ = sortSing @t
 
--- | An existential wrapper that hides some 'SMTSort'.
-data SomeKnownSMTSort f where
-  SomeKnownSMTSort :: forall (t :: SMTSort) f. KnownSMTSort t => f t -> SomeKnownSMTSort f
+-- | AllC ensures that a list of constraints is applied to a poly-kinded 'Type' k
+-- 
+-- @
+-- AllC '[]       k = ()
+-- AllC (c ': cs) k = (c k, AllC cs k)
+-- @ 
+type AllC :: [k -> Constraint] -> k -> Constraint
+type family AllC cs k :: Constraint where
+  AllC '[]       k = ()
+  AllC (c ': cs) k = (c k, AllC cs k)
+
+-- | An existential wrapper that hides some 'SMTSort' and a list of 'Constraint's holding for it.
+data SomeSMTSort cs f where
+  SomeSMTSort :: forall cs f (t :: SMTSort). AllC cs t => f t -> SomeSMTSort cs f
+
+-- | An existential wrapper that hides some known 'SMTSort'.
+type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f 
 
 -- | A SMT expression.
 --   For internal use only.

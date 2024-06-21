@@ -65,20 +65,20 @@ parseSomeSol = do
   _     <- string "var_"
   vId   <- decimal @Int
   _     <- skipSpace >> string "()" >> skipSpace
-  (SomeKnownOrdSMTSort someSort) <- parseSomeSort
+  (SomeSMTSort someSort) <- parseSomeSort
   _     <- skipSpace
   expr  <- parseExpr' someSort
   _     <- skipSpace >> char ')'
   case decode mempty expr of
     Nothing    -> fail $ "Solver reponded with solution for var_" ++ show vId ++ " but it contains "
                       ++ "another var. This cannot be parsed and evaluated currently."
-    Just value -> return $ SomeKnownOrdSMTSort $ SMTVarSol (coerce vId) (wrapValue value)
+    Just value -> return $ SomeSMTSort $ SMTVarSol (coerce vId) (wrapValue value)
 {-# INLINEABLE parseSomeSol #-}
 
 parseSomeSort :: Parser (SomeKnownOrdSMTSort SSMTSort)
-parseSomeSort = (string "Bool" *> pure (SomeKnownOrdSMTSort SBoolSort))
-        <|> (string "Int"  *> pure (SomeKnownOrdSMTSort SIntSort))
-        <|> (string "Real" *> pure (SomeKnownOrdSMTSort SRealSort))
+parseSomeSort = (string "Bool" *> pure (SomeSMTSort SBoolSort))
+        <|> (string "Int"  *> pure (SomeSMTSort SIntSort))
+        <|> (string "Real" *> pure (SomeSMTSort SRealSort))
         <|> parseSomeBitVecSort
         <|> parseSomeArraySort
 {-# INLINEABLE parseSomeSort #-}
@@ -90,18 +90,18 @@ parseSomeBitVecSort = do
   n <- decimal
   _ <- skipSpace >> char ')'
   case someNatVal $ fromInteger n of
-    SomeNat pn -> return $ SomeKnownOrdSMTSort $ SBvSort pn
+    SomeNat pn -> return $ SomeSMTSort $ SBvSort pn
 {-# INLINEABLE parseSomeBitVecSort #-}
 
 parseSomeArraySort :: Parser (SomeKnownOrdSMTSort SSMTSort)
 parseSomeArraySort = do
   _ <- char '(' >> skipSpace
   _ <- string "Array" >> skipSpace
-  (SomeKnownOrdSMTSort keySort)   <- parseSomeSort
+  (SomeSMTSort keySort)   <- parseSomeSort
   _ <- skipSpace
-  (SomeKnownOrdSMTSort valueSort) <- parseSomeSort
+  (SomeSMTSort valueSort) <- parseSomeSort
   _ <- skipSpace >> char ')'
-  return $ SomeKnownOrdSMTSort $ SArraySort (goProxy keySort) (goProxy valueSort)
+  return $ SomeSMTSort $ SArraySort (goProxy keySort) (goProxy valueSort)
     where
       goProxy :: forall t. SSMTSort t -> Proxy t
       goProxy _ = Proxy @t
@@ -111,6 +111,7 @@ parseExpr' :: forall prxy t. KnownSMTSort t => prxy t -> Parser (Expr t)
 parseExpr' _ = parseExpr @t
 {-# INLINE parseExpr' #-}
 
+-- TODO: Add parseSelect
 parseExpr :: forall t. KnownSMTSort t => Parser (Expr t)
 parseExpr = var <|> constantExpr <|> smtIte
         <|> case sortSing @t of
@@ -166,6 +167,7 @@ constantExpr = Constant . wrapValue <$> constant @t
 
 anyBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
 anyBitvector p = binBitvector p <|> hexBitvector p <|> literalBitvector p
+{-# INLINE anyBitvector #-}
 
 binBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
 binBitvector p = do
@@ -204,6 +206,7 @@ constArray _ _ = do
   _ <- skipSpace >> char ')'
 
   return $ asConst constVal
+{-# INLINEABLE constArray #-}
 
 parseSelect :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Proxy k -> Parser (Expr v)
 parseSelect _ = do

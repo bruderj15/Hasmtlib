@@ -1,6 +1,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Language.Hasmtlib.Type.Solution where
 
@@ -31,19 +32,17 @@ data SMTVarSol (t :: SMTSort) = SMTVarSol
   } deriving Show
 $(makeLenses ''SMTVarSol)
 
--- This is very ugly with the SomeKnownSMTSort in ...Internal.Expr already
--- Surely theres abstraction possible, but not worth the bloat currently
-data SomeKnownOrdSMTSort f where
-  -- The Ord (HaskellType t) seems off here
-  -- It is - but we need to to parse ArraySorts existentially where Ord needs to hold for the HaskellType of Key-SMTSort
-  -- Composing constraints bloats the code too much
-  -- The Ord (HaskellType t) is not a problem though as long as all rhs of the type-family hold it, which is trivial
-  SomeKnownOrdSMTSort :: forall (t :: SMTSort) f. (KnownSMTSort t, Ord (HaskellType t)) => f t -> SomeKnownOrdSMTSort f
+-- | Alias class for constraint 'Ord' ('HaskellType' t)
+class Ord (HaskellType t) => OrdHaskellType t
+instance Ord (HaskellType t) => OrdHaskellType t
+
+-- | An existential wrapper that hides some known 'SMTSort' with an 'Ord' 'HaskellType' 
+type SomeKnownOrdSMTSort f = SomeSMTSort '[KnownSMTSort, OrdHaskellType] f
 
 -- | Create a 'Solution' from some 'SMTVarSol's.
 fromSomeVarSols :: [SomeKnownOrdSMTSort SMTVarSol] -> Solution
 fromSomeVarSols = foldl
-  (\dsol (SomeKnownOrdSMTSort s) -> let sSort = sortSing' s in
+  (\dsol (SomeSMTSort s) -> let sSort = sortSing' s in
     dsol & dmat sSort %~
       (\case
         Nothing -> Just $ IntValueMap $ IMap.singleton (s^.solVar.varId) (s^.solVal)
