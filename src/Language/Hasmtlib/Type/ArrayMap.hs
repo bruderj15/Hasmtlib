@@ -9,12 +9,20 @@ import Control.Lens
 
 -- | Class that allows access to a map-like array where specific values are is the default value or overwritten values.
 --   Every index has a value by default.
---   Values at indices can be overwritten manually.   
+--   Values at indices can be overwritten manually.
+-- 
+--   Based on McCarthy`s basic array theory.
+-- 
+--   Therefore the following axioms must hold:
+-- 
+-- 1. forall A i x: arrSelect (store A i x) == x
+-- 
+-- 2. forall A i j x: i /= j ==> (arrSelect (arrStore A i x) j === arrSelect A j)
 class ArrayMap f k v where
   asConst'   :: Proxy f -> Proxy k -> v -> f k v 
   viewConst  :: f k v -> v
-  arrSelect     :: f k v -> k -> v
-  arrStore      :: f k v -> k -> v -> f k v
+  arrSelect  :: f k v -> k -> v
+  arrStore   :: f k v -> k -> v -> f k v
 
 -- | Wrapper for 'asConst'' which hides the 'Proxy'
 asConst :: forall f k v. ArrayMap f k v => v -> f k v
