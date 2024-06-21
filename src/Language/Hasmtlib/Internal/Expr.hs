@@ -2,13 +2,16 @@
 {-# LANGUAGE NoStarIsType #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Language.Hasmtlib.Internal.Expr where
 
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Render
+import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Boolean
 import Data.GADT.Compare
+import Data.Map
 import Data.Kind
 import Data.Proxy
 import Data.Coerce
@@ -64,10 +67,6 @@ wrapValue = case sortSing @t of
   SArraySort _ _ -> ArrayValue
 {-# INLINEABLE wrapValue #-}
 
-deriving instance Show (Value t)
-deriving instance Eq   (Value t)
-deriving instance Ord  (Value t)
-
 -- | Singleton for 'SMTSort'.
 data SSMTSort (t :: SMTSort) where
   SIntSort   :: SSMTSort IntSort
@@ -97,12 +96,21 @@ instance GCompare SSMTSort where
     LTI -> GLT
     EQI -> GEQ
     GTI -> GGT
-  gcompare SBoolSort _ = GLT
-  gcompare _ SBoolSort = GGT
-  gcompare SIntSort _  = GLT
-  gcompare _ SIntSort  = GGT
-  gcompare SRealSort _ = GLT
-  gcompare _ SRealSort = GGT
+  gcompare (SArraySort k v) (SArraySort k' v') = case gcompare (sortSing' k) (sortSing' k') of
+    GLT -> GLT
+    GEQ -> case gcompare (sortSing' v) (sortSing' v') of
+      GLT -> GLT
+      GEQ -> GEQ
+      GGT -> GGT
+    GGT -> GGT
+  gcompare SBoolSort _        = GLT
+  gcompare _ SBoolSort        = GGT
+  gcompare SIntSort _         = GLT
+  gcompare _ SIntSort         = GGT
+  gcompare SRealSort _        = GLT
+  gcompare _ SRealSort        = GGT
+  gcompare (SArraySort _ _) _ = GLT
+  gcompare _ (SArraySort _ _) = GGT
 
 -- | Compute singleton 'SSMTSort' from it's promoted type 'SMTSort'.
 class    KnownSMTSort (t :: SMTSort)           where sortSing :: SSMTSort t
@@ -119,6 +127,13 @@ sortSing' _ = sortSing @t
 -- | An existential wrapper that hides some 'SMTSort'.
 data SomeKnownSMTSort f where
   SomeKnownSMTSort :: forall (t :: SMTSort) f. KnownSMTSort t => f t -> SomeKnownSMTSort f
+
+data SomeKnownOrdSMTSort f where
+  -- The Ord (HaskellType t) seems off here
+  -- It is - but we need to to parse ArraySorts existentially where Ord needs to hold for the HaskellType of Key-SMTSort
+  -- Composing constraints bloats the code too much
+  -- The Ord (HaskellType t) is not a problem though as long as all rhs of the type-family hold it, which is trivial
+  SomeKnownOrdSMTSort :: forall (t :: SMTSort) f. (KnownSMTSort t, Ord (HaskellType t)) => f t -> SomeKnownOrdSMTSort f
 
 -- | A SMT expression.
 --   For internal use only.
@@ -394,5 +409,7 @@ instance Show (Expr t) where
   show (BvuGT x y)          = "(" ++ show x ++ " bvugt " ++ show y ++ ")"
   show (ForAll (Just qv) f) = "(forall " ++ show qv ++ ": " ++ show (f (Var qv)) ++ ")"
   show (ForAll Nothing f)   = "(forall var_-1: " ++ show (f (Var (SMTVar (-1)))) ++ ")"
+  show (ArrSelect i arr)    = "(select " ++ show i ++ " " ++ show arr ++ ")"
+  show (ArrStore i x arr)   = "(select " ++ show i ++ " " ++ show x ++ " " ++ show arr ++ ")"
   show (Exists (Just qv) f) = "(exists " ++ show qv ++ ": " ++ show (f (Var qv)) ++ ")"
   show (Exists Nothing f)   = "(exists var_-1: " ++ show (f (Var (SMTVar (-1)))) ++ ")"

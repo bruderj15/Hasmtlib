@@ -5,9 +5,10 @@ module Language.Hasmtlib.Type.Expr
  , SMTVar(..), varId
  , HaskellType
  , Value(..), unwrapValue, wrapValue
- , SSMTSort(..), KnownSMTSort(..), sortSing', SomeKnownSMTSort(..)
+ , SSMTSort(..), KnownSMTSort(..), sortSing', SomeKnownSMTSort(..), SomeKnownOrdSMTSort(..)
  , Expr
  , for_all , exists
+ , arrSelect, arrStore
  , module Language.Hasmtlib.Internal.Expr.Num
  )
 where
@@ -49,3 +50,9 @@ for_all = ForAll Nothing
 --   It will only be scoped for the lambdas body.
 exists :: forall t. KnownSMTSort t => (Expr t -> Expr BoolSort) -> Expr BoolSort
 exists = Exists Nothing
+
+arrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v
+arrSelect = ArrSelect
+
+arrStore :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
+arrStore = ArrStore

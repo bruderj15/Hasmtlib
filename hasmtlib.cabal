@@ -35,6 +35,7 @@ library
                      , Language.Hasmtlib.Internal.Parser
                      , Language.Hasmtlib.Internal.Bitvec
                      , Language.Hasmtlib.Internal.Render
+                     , Language.Hasmtlib.Internal.ArrayMap
                      , Language.Hasmtlib.Solver.Common
                      , Language.Hasmtlib.Solver.CVC5
                      , Language.Hasmtlib.Solver.MathSAT

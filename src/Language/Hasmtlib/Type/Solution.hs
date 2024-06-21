@@ -22,7 +22,7 @@ type Solution = DMap SSMTSort IntValueMap
 -- | Newtype for 'IntMap' 'Value' so we can use it as right-hand-side of 'DMap'.
 newtype IntValueMap t = IntValueMap (IntMap (Value t))
   deriving stock Show
-  deriving newtype (Eq, Ord, Semigroup, Monoid)
+  deriving newtype (Semigroup, Monoid)
 
 -- | A solution for a single variable.
 data SMTVarSol (t :: SMTSort) = SMTVarSol
@@ -32,9 +32,9 @@ data SMTVarSol (t :: SMTSort) = SMTVarSol
 $(makeLenses ''SMTVarSol)
 
 -- | Create a 'Solution' from some 'SMTVarSol's.
-fromSomeVarSols :: [SomeKnownSMTSort SMTVarSol] -> Solution
+fromSomeVarSols :: [SomeKnownOrdSMTSort SMTVarSol] -> Solution
 fromSomeVarSols = foldl
-  (\dsol (SomeKnownSMTSort s) -> let sSort = sortSing' s in
+  (\dsol (SomeKnownOrdSMTSort s) -> let sSort = sortSing' s in
     dsol & dmat sSort %~
       (\case
         Nothing -> Just $ IntValueMap $ IMap.singleton (s^.solVar.varId) (s^.solVal)

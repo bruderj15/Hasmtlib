@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UndecidableInstances #-}
 
-module Language.Hasmtlib.Internal.ArrayMap where
+module Language.Hasmtlib.Type.ArrayMap where
 
 import Data.Proxy
 import qualified Data.Map as Map  
