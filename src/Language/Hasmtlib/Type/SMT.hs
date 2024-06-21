@@ -35,7 +35,7 @@ instance MonadState SMT m => MonadSMT SMT m where
 
   var' p = do
     newVar <- smtvar' p
-    vars %= (|> SomeKnownSMTSort newVar)
+    vars %= (|> SomeSMTSort newVar)
     return $ Var newVar
   {-# INLINEABLE var' #-}
 
@@ -75,5 +75,5 @@ renderAssert = renderUnary "assert"
 {-# INLINEABLE renderAssert #-}
 
 renderVars :: Seq (SomeKnownSMTSort SMTVar) -> Seq Builder
-renderVars = fmap (\(SomeKnownSMTSort v) -> renderDeclareVar v)
+renderVars = fmap (\(SomeSMTSort v) -> renderDeclareVar v)
 {-# INLINEABLE renderVars #-}
