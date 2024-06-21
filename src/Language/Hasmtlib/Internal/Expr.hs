@@ -129,13 +129,6 @@ sortSing' _ = sortSing @t
 data SomeKnownSMTSort f where
   SomeKnownSMTSort :: forall (t :: SMTSort) f. KnownSMTSort t => f t -> SomeKnownSMTSort f
 
-data SomeKnownOrdSMTSort f where
-  -- The Ord (HaskellType t) seems off here
-  -- It is - but we need to to parse ArraySorts existentially where Ord needs to hold for the HaskellType of Key-SMTSort
-  -- Composing constraints bloats the code too much
-  -- The Ord (HaskellType t) is not a problem though as long as all rhs of the type-family hold it, which is trivial
-  SomeKnownOrdSMTSort :: forall (t :: SMTSort) f. (KnownSMTSort t, Ord (HaskellType t)) => f t -> SomeKnownOrdSMTSort f
-
 -- | A SMT expression.
 --   For internal use only.
 --   For building expressions use the corresponding instances (Num, Boolean, ...).
