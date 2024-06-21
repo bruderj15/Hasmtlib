@@ -8,7 +8,7 @@ module Language.Hasmtlib.Type.Expr
  , SSMTSort(..), KnownSMTSort(..), sortSing', SomeKnownSMTSort(..), SomeKnownOrdSMTSort(..)
  , Expr
  , for_all , exists
- , arrSelect, arrStore
+ , select, store
  , module Language.Hasmtlib.Internal.Expr.Num
  )
 where
@@ -51,8 +51,10 @@ for_all = ForAll Nothing
 exists :: forall t. KnownSMTSort t => (Expr t -> Expr BoolSort) -> Expr BoolSort
 exists = Exists Nothing
 
-arrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v
-arrSelect = ArrSelect
+-- | Select a value from an array.
+select :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v
+select = ArrSelect
 
-arrStore :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
-arrStore = ArrStore
+-- | Store a value in an array.
+store :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
+store = ArrStore

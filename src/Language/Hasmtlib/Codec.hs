@@ -99,8 +99,8 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (BvuLTHE x y)      = liftA2 (<=) (decode sol x) (decode sol y)
   decode sol (BvuGTHE x y)      = liftA2 (>=) (decode sol x) (decode sol y)
   decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
-  decode sol (ArrSelect i arr)  = liftA2 select (decode sol i) (decode sol arr)
-  decode sol (ArrStore i x arr) = liftM3 store (decode sol i) (decode sol x) (decode sol arr)
+  decode sol (ArrSelect i arr)  = liftA2 arrSelect (decode sol i) (decode sol arr)
+  decode sol (ArrStore i x arr) = liftM3 arrStore (decode sol i) (decode sol x) (decode sol arr)
   decode _ (ForAll _ _)         = Nothing
   decode _ (Exists _ _)         = Nothing
   

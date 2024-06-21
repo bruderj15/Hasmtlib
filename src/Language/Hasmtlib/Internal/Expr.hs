@@ -21,11 +21,11 @@ import GHC.TypeLits
 
 -- | Sorts in SMTLib2 - used as promoted type (data-kind).
 data SMTSort =
-    BoolSort
-  | IntSort
-  | RealSort
-  | BvSort Nat
-  | ArraySort SMTSort SMTSort
+    BoolSort                      -- ^ Sort of Bool
+  | IntSort                       -- ^ Sort of Int
+  | RealSort                      -- ^ Sort of Real
+  | BvSort Nat                    -- ^ Sort of BitVec with length n
+  | ArraySort SMTSort SMTSort     -- ^ Sort of Array with indices k and values v
 
 -- | An internal SMT variable with a phantom-type which holds an 'Int' as it's identifier.
 type role SMTVar phantom
@@ -48,7 +48,7 @@ data Value (t :: SMTSort) where
   BvValue    :: HaskellType (BvSort n) -> Value (BvSort n)
   ArrayValue :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
 
--- | Unwrap a value.
+-- | Unwrap a value from 'Value'.
 unwrapValue :: Value t -> HaskellType t
 unwrapValue (IntValue  v) = v
 unwrapValue (RealValue v) = v
@@ -57,7 +57,7 @@ unwrapValue (BvValue   v) = v
 unwrapValue (ArrayValue v) = v
 {-# INLINEABLE unwrapValue #-}
 
--- | Wrap a value.
+-- | Wrap a value into 'Value'.
 wrapValue :: forall t. KnownSMTSort t => HaskellType t -> Value t
 wrapValue = case sortSing @t of
   SIntSort  -> IntValue
@@ -118,7 +118,8 @@ instance KnownSMTSort IntSort                  where sortSing = SIntSort
 instance KnownSMTSort RealSort                 where sortSing = SRealSort
 instance KnownSMTSort BoolSort                 where sortSing = SBoolSort
 instance KnownNat n => KnownSMTSort (BvSort n) where sortSing = SBvSort (Proxy @n)
-instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => KnownSMTSort (ArraySort k v) where sortSing = SArraySort (Proxy @k) (Proxy @v)
+instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => KnownSMTSort (ArraySort k v) where
+   sortSing = SArraySort (Proxy @k) (Proxy @v)
 
 -- | Wrapper for 'sortSing' which takes a 'Proxy'
 sortSing' :: forall prxy t. KnownSMTSort t => prxy t -> SSMTSort t
