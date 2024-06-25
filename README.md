@@ -60,12 +60,12 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 ### Supported
 - [x] SMTLib2-Sorts in the Haskell-Type
   ```haskell
-    data SMTSort = IntSort | RealSort | BoolSort | BvSort Nat
+    data SMTSort = BoolSort | IntSort | RealSort | BvSort Nat | ArraySort SMTSort SMTSort
     data Expr (t :: SMTSort) where ...
   
     ite :: Expr BoolSort -> Expr t -> Expr t -> Expr t
   ```
-- [x] Full SMTLib 2.6 standard support for Sorts Int, Real, Bool and unsigned BitVec
+- [x] Full SMTLib 2.6 standard support for Sorts Int, Real, Bool, unsigned BitVec & Array
 - [x] Type-level length-indexed Bitvectors for BitVec
   ```haskell
     bvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
