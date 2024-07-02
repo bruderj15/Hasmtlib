@@ -5,7 +5,7 @@ module Language.Hasmtlib.Type.Expr
  , SMTVar(..), varId
  , HaskellType
  , Value(..), unwrapValue, wrapValue
- , SSMTSort(..), KnownSMTSort(..), sortSing', SomeSMTSort(..), SomeKnownSMTSort
+ , SSMTSort(..), KnownSMTSort(..), sortSing', SomeSMTSort(..), SomeKnownSMTSort, AllC
  , Expr
  , for_all , exists
  , select, store
