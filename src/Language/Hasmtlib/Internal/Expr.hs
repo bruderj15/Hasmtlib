@@ -11,11 +11,14 @@ import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Boolean
 import Data.GADT.Compare
-import Data.Map
+import Data.Map hiding (toList)
+import Data.List (intercalate)
 import Data.Kind
 import Data.Proxy
 import Data.Coerce
+import Data.Foldable (toList)
 import Data.ByteString.Builder
+import qualified Data.Vector.Sized as V
 import Control.Lens
 import GHC.TypeLits
 
@@ -126,11 +129,11 @@ sortSing' :: forall prxy t. KnownSMTSort t => prxy t -> SSMTSort t
 sortSing' _ = sortSing @t
 
 -- | AllC ensures that a list of constraints is applied to a poly-kinded 'Type' k
--- 
+--
 -- @
 -- AllC '[]       k = ()
 -- AllC (c ': cs) k = (c k, AllC cs k)
--- @ 
+-- @
 type AllC :: [k -> Constraint] -> k -> Constraint
 type family AllC cs k :: Constraint where
   AllC '[]       k = ()
@@ -141,7 +144,7 @@ data SomeSMTSort cs f where
   SomeSMTSort :: forall cs f (t :: SMTSort). AllC cs t => f t -> SomeSMTSort cs f
 
 -- | An existential wrapper that hides some known 'SMTSort'.
-type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f 
+type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f
 
 -- | A SMT expression.
 --   For internal use only.
@@ -160,8 +163,8 @@ data Expr (t :: SMTSort) where
 
   LTH       :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
   LTHE      :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
-  EQU       :: (Eq  (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
-  Distinct  :: (Eq  (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
+  EQU       :: (Eq (HaskellType t), KnownSMTSort t, KnownNat n) => V.Vector (n + 2) (Expr t) -> Expr BoolSort
+  Distinct  :: (Eq (HaskellType t), KnownSMTSort t, KnownNat n) => V.Vector (n + 2) (Expr t) -> Expr BoolSort
   GTHE      :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
   GTH       :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
 
@@ -227,7 +230,7 @@ instance Boolean (Expr BoolSort) where
   {-# INLINE not #-}
   xor  = Xor
   {-# INLINE xor #-}
-  
+
 instance KnownNat n => Boolean (Expr (BvSort n)) where
   bool = Constant . BvValue . bool
   {-# INLINE bool #-}
@@ -239,11 +242,11 @@ instance KnownNat n => Boolean (Expr (BvSort n)) where
   {-# INLINE not #-}
   xor  = BvXor
   {-# INLINE xor #-}
-  
+
 instance Bounded (Expr BoolSort) where
   minBound = false
   maxBound = true
-  
+
 instance KnownNat n => Bounded (Expr (BvSort n)) where
   minBound = Constant $ BvValue minBound
   maxBound = Constant $ BvValue maxBound
@@ -289,8 +292,8 @@ instance KnownSMTSort t => Render (Expr t) where
 
   render (LTH x y)    = renderBinary "<" x y
   render (LTHE x y)   = renderBinary "<=" x y
-  render (EQU x y)    = renderBinary "=" x y
-  render (Distinct x y) = renderBinary "distinct" x y
+  render (EQU xs)     = renderNary "=" $ V.toList xs
+  render (Distinct xs)= renderNary "distinct" $ V.toList xs
   render (GTHE x y)   = renderBinary ">=" x y
   render (GTH x y)    = renderBinary ">" x y
 
@@ -373,8 +376,8 @@ instance Show (Expr t) where
   show (Div x y)            = "(" ++ show x ++ " / " ++ show y ++ ")"
   show (LTH x y)            = "(" ++ show x ++ " < " ++ show y ++ ")"
   show (LTHE x y)           = "(" ++ show x ++ " <= " ++ show y ++ ")"
-  show (EQU x y)            = "(" ++ show x ++ " == " ++ show y ++ ")"
-  show (Distinct x y)       = "(" ++ show x ++ " /= " ++ show y ++ ")"
+  show (EQU xs)             = "(= " ++ intercalate " " (show <$> toList xs) ++ ")"
+  show (Distinct xs)        = "(distinct " ++ intercalate " " (show <$> toList xs) ++ ")"
   show (GTHE x y)           = "(" ++ show x ++ " >= " ++ show y ++ ")"
   show (GTH x y)            = "(" ++ show x ++ " > " ++ show y ++ ")"
   show (Not x)              = "(not " ++ show x ++ ")"

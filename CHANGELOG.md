@@ -6,6 +6,14 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v1.2.0 _(2024-07-11)_
+
+### Added
+- Added n-ary comparisons `distinct` & `equal`
+
+### Changed
+- *(breaking change)* When using `interactiveWith` the `SMTOption` `Incremental` is no longer set by default anymore
+
 ## v1.1.2 _(2024-07-02)_
 
 ### Changed

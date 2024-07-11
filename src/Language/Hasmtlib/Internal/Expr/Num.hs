@@ -5,10 +5,9 @@ import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Integraled
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Equatable
-import Language.Hasmtlib.Orderable  
-import Data.Proxy
+import Language.Hasmtlib.Orderable
 import GHC.TypeNats
-  
+
 instance Num (Expr IntSort) where
    fromInteger = Constant . IntValue
    {-# INLINE fromInteger #-}
@@ -42,7 +41,7 @@ instance Num (Expr RealSort) where
    {-# INLINE signum #-}
 
 instance KnownNat n => Num (Expr (BvSort n)) where
-   fromInteger = Constant . BvValue . fromInteger 
+   fromInteger = Constant . BvValue . fromInteger
    {-# INLINE fromInteger #-}
    (+)         = BvAdd
    {-# INLINE (+) #-}
@@ -54,7 +53,7 @@ instance KnownNat n => Num (Expr (BvSort n)) where
    {-# INLINE abs #-}
    signum _    = 0
    {-# INLINE signum #-}
-   
+
 instance Fractional (Expr RealSort) where
   fromRational = Constant . RealValue . fromRational
   {-# INLINE fromRational #-}
@@ -90,15 +89,15 @@ instance Floating (Expr RealSort) where
 
 instance Integraled (Expr IntSort) where
   quot = IDiv
-  {-# INLINE quot #-}  
+  {-# INLINE quot #-}
   rem  = Mod
-  {-# INLINE rem #-}  
+  {-# INLINE rem #-}
   div  = IDiv
-  {-# INLINE div #-}  
+  {-# INLINE div #-}
   mod  = Mod
-  {-# INLINE mod #-}  
+  {-# INLINE mod #-}
   quotRem x y = (quot x y, rem x y)
-  {-# INLINE quotRem #-}  
+  {-# INLINE quotRem #-}
   divMod x y  = (div x y, mod x y)
   {-# INLINE divMod #-}
 
@@ -115,28 +114,3 @@ instance KnownNat n => Integraled (Expr (BvSort n)) where
   {-# INLINE quotRem #-}
   divMod x y  = (div x y, mod x y)
   {-# INLINE divMod #-}
-
--- | Bitvector shift left
-bvShL    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-bvShL    = BvShL
-{-# INLINE bvShL #-}
-
--- | Bitvector logical shift right
-bvLShR   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-bvLShR   = BvLShR
-{-# INLINE bvLShR #-}
-
--- | Concat two bitvectors
-bvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
-bvConcat = BvConcat
-{-# INLINE bvConcat #-}
-
--- | Rotate bitvector left
-bvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
-bvRotL   = BvRotL
-{-# INLINE bvRotL #-}
-
--- | Rotate bitvector right
-bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
-bvRotR   = BvRotR
-{-# INLINE bvRotR #-}

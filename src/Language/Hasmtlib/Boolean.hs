@@ -2,7 +2,7 @@
 
 module Language.Hasmtlib.Boolean where
 
-import Prelude (Bool(..), (.), id, Eq(..))  
+import Prelude (Bool(..), (.), id, Eq(..))
 import qualified Prelude as P
 import Data.Bit
 import Data.Coerce
@@ -10,7 +10,7 @@ import Data.Bits as Bits
 import Data.Foldable hiding (and, or)
 import qualified Data.Vector.Unboxed.Sized as V
 import GHC.TypeNats
-  
+
 class Boolean b where
   -- | Lift a 'Bool'
   bool :: Bool -> b
@@ -40,7 +40,7 @@ class Boolean b where
 
   -- | Exclusive-or
   xor :: b -> b -> b
- 
+
   infixr 3 &&
   infixr 2 ||
   infixr 0 ==>
@@ -81,11 +81,11 @@ instance Boolean Bool where
   (||)  = (P.||)
   not   = P.not
   xor   = (/=)
-  
+
 instance Boolean Bit where
   bool = Bit
-  (&&) = (.&.) 
-  (||) = (.|.) 
+  (&&) = (.&.)
+  (||) = (.|.)
   not  = complement
   xor  = Bits.xor
 

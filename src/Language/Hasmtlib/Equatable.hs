@@ -7,20 +7,21 @@ module Language.Hasmtlib.Equatable where
 import Prelude hiding (not, (&&))
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Boolean
-import GHC.Generics
-import Numeric.Natural
 import Data.Int
 import Data.Word
 import Data.Void
+import qualified Data.Vector.Sized as V
+import Numeric.Natural
+import GHC.Generics
 
 -- | Test two as on equality as SMT-Expression.
--- 
+--
 -- @
 --     x <- var @RealType
---     y <- var 
+--     y <- var
 --     assert $ y === x && not (y /== x)
 -- @
--- 
+--
 class Equatable a where
   -- | Test whether two values are equal in the SMT-Problem.
   (===) :: a -> a -> Expr BoolSort
@@ -34,9 +35,9 @@ class Equatable a where
 infix 4 ===, /==
 
 instance (KnownSMTSort t, Eq (HaskellType t)) => Equatable (Expr t) where
-  (===) = EQU
-  {-# INLINE (===) #-}  
-  (/==) = Distinct
+  x === y = EQU $ V.fromTuple (x,y)
+  {-# INLINE (===) #-}
+  x /== y = Distinct $ V.fromTuple (x,y)
   {-# INLINE (/==) #-}
 
 class GEquatable f where
