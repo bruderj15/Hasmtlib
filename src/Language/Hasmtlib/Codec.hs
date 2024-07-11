@@ -1,10 +1,11 @@
 {-# LANGUAGE DefaultSignatures #-}
 -- required for DefaultEncoded a
-{-# LANGUAGE UndecidableInstances #-}  
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Language.Hasmtlib.Codec where
 
-import Prelude hiding (not, (&&), (||))
+import Prelude hiding (not, (&&), (||), all, and)
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Solution
@@ -12,11 +13,13 @@ import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Boolean
 import Data.Kind
 import Data.Coerce
+import qualified Data.List as List
 import Data.Map (Map)
 import Data.Sequence (Seq)
-import Data.IntMap as IM
+import Data.IntMap as IM hiding (foldl)
 import Data.Dependent.Map as DMap
 import Data.Tree (Tree)
+import qualified Data.Vector.Sized as V
 import Control.Monad
 
 -- | Compute the default 'Decoded' 'Type' for every functor-wrapper.
@@ -56,8 +59,15 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (Div x y)          = liftA2 (/)   (decode sol x) (decode sol y)
   decode sol (LTH x y)          = liftA2 (<)   (decode sol x) (decode sol y)
   decode sol (LTHE x y)         = liftA2 (<=)  (decode sol x) (decode sol y)
-  decode sol (EQU x y)          = liftA2 (==)  (decode sol x) (decode sol y)
-  decode sol (Distinct x y)     = liftA2 (/=)  (decode sol x) (decode sol y)
+  decode sol (EQU xs)           = do
+    xs' <- decode sol (V.toList xs)
+    case xs' of
+      []   -> return true
+      (x:xs'') -> return $ all (x ==) xs''
+  decode sol (Distinct xs)      = do
+    xs' <- decode sol (V.toList xs)
+    let xss = List.filter ((==2) . length) $ List.permutations xs'
+    return $ all (\case (a:b:_) -> a /= b ; _ -> true) xss
   decode sol (GTHE x y)         = liftA2 (>=)  (decode sol x) (decode sol y)
   decode sol (GTH x y)          = liftA2 (>)   (decode sol x) (decode sol y)
   decode sol (Not x)            = fmap   not  (decode sol x)
@@ -77,7 +87,7 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (ToReal x)         = fmap realToFrac (decode sol x)
   decode sol (ToInt x)          = fmap truncate   (decode sol x)
   decode sol (IsInt x)          = fmap ((0 ==) . snd . properFraction) (decode sol x)
-  decode sol (Ite p t f)        = liftM3 (\p' t' f' -> if p' then t' else f') (decode sol p) (decode sol t) (decode sol f) 
+  decode sol (Ite p t f)        = liftM3 (\p' t' f' -> if p' then t' else f') (decode sol p) (decode sol t) (decode sol f)
   decode sol (BvNot x)          = fmap not (decode sol x)
   decode sol (BvAnd x y)        = liftA2 (&&) (decode sol x) (decode sol y)
   decode sol (BvOr x y)         = liftA2 (||) (decode sol x) (decode sol y)
@@ -103,7 +113,7 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (ArrStore i x arr) = liftM3 arrStore (decode sol i) (decode sol x) (decode sol arr)
   decode _ (ForAll _ _)         = Nothing
   decode _ (Exists _ _)         = Nothing
-  
+
   encode = Constant . wrapValue
 
 instance Codec () where
