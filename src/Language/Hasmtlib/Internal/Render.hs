@@ -1,12 +1,13 @@
 module Language.Hasmtlib.Internal.Render where
 
 import Data.ByteString.Builder
+import Data.Foldable (foldl')
 import GHC.TypeNats
 
 -- | Render values to their SMTLib2-Lisp form, represented as @Builder@.
 class Render a where
   render :: a -> Builder
-   
+
 instance Render Bool where
   render b = if b then "true" else "false"
   {-# INLINEABLE render #-}
@@ -42,3 +43,9 @@ renderBinary op x y = "(" <> op <> " " <> render x <> " " <> render y <> ")"
 renderTernary :: (Render a, Render b, Render c) => Builder -> a -> b -> c -> Builder
 renderTernary op x y z = "(" <> op <> " " <> render x <> " " <> render y <> " " <> render z <> ")"
 {-# INLINEABLE renderTernary #-}
+
+renderNary :: Render a => Builder -> [a] -> Builder
+renderNary op xs = "(" <> op <> renderedXs <> ")"
+  where
+    renderedXs = foldl' (\s x -> s <> " " <> render x) mempty xs
+{-# INLINEABLE renderNary #-}
