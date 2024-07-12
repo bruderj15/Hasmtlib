@@ -14,6 +14,8 @@ main = do
     assert $ atMost  (2 :: Expr IntSort) xs
     assert $ atLeast @IntSort 1 xs
 
+    assert $ count @IntSort xs === 1 -- eqivalent to: exactly 1
+
     return xs
 
   print res
