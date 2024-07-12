@@ -14,6 +14,7 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Equatable
   , module Language.Hasmtlib.Orderable
   , module Language.Hasmtlib.Codec
+  , module Language.Hasmtlib.Counting
   , module Language.Hasmtlib.Variable
   , module Language.Hasmtlib.Solver.Common
   , module Language.Hasmtlib.Solver.CVC5
@@ -37,6 +38,7 @@ import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Orderable
 import Language.Hasmtlib.Codec
+import Language.Hasmtlib.Counting
 import Language.Hasmtlib.Variable
 import Language.Hasmtlib.Solver.Common
 import Language.Hasmtlib.Solver.CVC5
