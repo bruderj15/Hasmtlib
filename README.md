@@ -62,7 +62,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```haskell
     data SMTSort = BoolSort | IntSort | RealSort | BvSort Nat | ArraySort SMTSort SMTSort
     data Expr (t :: SMTSort) where ...
-  
+
     ite :: Expr BoolSort -> Expr t -> Expr t -> Expr t
   ```
 - [x] Full SMTLib 2.6 standard support for Sorts Int, Real, Bool, unsigned BitVec & Array
@@ -76,7 +76,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
       setLogic "QF_BV"
       x <- var @(BvSort 16)
       y <- var
-      assert $ x - (maxBound `mod` 8) === y * y 
+      assert $ x - (maxBound `mod` 8) === y * y
       return (x,y)
   ```
 - [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solution.hs)
@@ -87,14 +87,15 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 - [x] Solvers via external processes: CVC5, Z3, Yices2-SMT & MathSAT
   ```haskell
     (result, solution) <- solveWith (solver mathsat) $ do
-      setLogic "QF_LIA" 
+      setLogic "QF_LIA"
       assert $ ...
   ```
 - [x] Incremental solving
   ```haskell
       cvc5Living <- interactiveSolver cvc5
       interactiveWith cvc5Living $ do
-        setLogic "QF_LIA"    
+        setLogic "QF_LIA"
+        setOption $ Incremental True
         setOption $ ProduceModels True
         x <- var @IntSort
         assert $ x === 42
