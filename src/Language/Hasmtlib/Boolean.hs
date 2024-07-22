@@ -53,6 +53,7 @@ class Boolean b where
   -- | Exclusive-or
   xor :: b -> b -> b
 
+  infix 4 `xor`
   infixr 3 &&
   infixr 2 ||
   infixr 0 ==>
