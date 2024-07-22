@@ -15,21 +15,21 @@ class MonadState s m => MonadSMT s m where
   -- | Construct a variable.
   --   This is mainly intended for internal use.
   --   In the API use 'var'' instead.
-  --   
+  --
   -- @
   -- x :: SMTVar RealType <- smtvar' (Proxy @RealType)
   -- @
   smtvar' :: forall t. KnownSMTSort t => Proxy t -> m (SMTVar t)
-  
+
   -- | Construct a variable as expression.
-  -- 
+  --
   -- @
   -- x :: Expr RealType <- var' (Proxy @RealType)
   -- @
   var' :: forall t. KnownSMTSort t => Proxy t -> m (Expr t)
 
   -- | Assert a boolean expression.
-  -- 
+  --
   -- @
   -- x :: Expr IntType <- var @IntType
   -- assert $ x + 5 === 42
@@ -37,14 +37,14 @@ class MonadState s m => MonadSMT s m where
   assert :: Expr BoolSort -> m ()
 
   -- | Set an SMT-Solver-Option.
-  -- 
+  --
   -- @
   -- setOption $ Incremental True
   -- @
   setOption :: SMTOption -> m ()
 
   -- | Set the logic for the SMT-Solver to use.
-  -- 
+  --
   -- @
   -- setLogic \"QF_LRA\"
   -- @
@@ -63,7 +63,7 @@ smtvar = smtvar' (Proxy @t)
 {-# INLINE smtvar #-}
 
 -- | Create a constant.
--- 
+--
 --   >>> constant True
 --       Constant (BoolValue True)
 --
@@ -78,6 +78,13 @@ smtvar = smtvar' (Proxy @t)
 constant :: KnownSMTSort t => HaskellType t -> Expr t
 constant = Constant . wrapValue
 {-# INLINE constant #-}
+
+-- | Maybe assert a boolean expression.
+--   Asserts given expression if 'Maybe' is a 'Just'.
+--   Does nothing otherwise.
+assertMaybe :: MonadSMT s m => Maybe (Expr BoolSort) -> m ()
+assertMaybe Nothing = return ()
+assertMaybe (Just expr) = assert expr
 
 --   We need this separate so we get a pure API for quantifiers
 --   Ideally we would do that when rendering the expression
