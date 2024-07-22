@@ -28,9 +28,17 @@ instance Render Double where
     | otherwise = formatDouble standardDefaultPrecision x
   {-# INLINEABLE render #-}
 
+instance Render Char where
+  render = char8
+  {-# INLINE render #-}
+
+instance Render String where
+  render = string8
+  {-# INLINE render #-}
+
 instance Render Builder where
   render = id
-  {-# INLINEABLE render #-}
+  {-# INLINE render #-}
 
 renderUnary :: Render a => Builder -> a -> Builder
 renderUnary op x = "(" <> op <> " " <> render x <> ")"
