@@ -35,6 +35,18 @@ class Boolean b where
   (==>) :: b -> b -> b
   x ==> y = not x || y
 
+  -- | Logical implication with arrow reversed.
+  --
+  -- @
+  -- forall x y. (x ==> y) === (y <== x)
+  -- @
+  (<==) :: b -> b -> b
+  y <== x = not x || y
+
+  -- | Logical equivalence.
+  (<==>) :: b -> b -> b
+  x <==> y = (x ==> y) && (y ==> x)
+
   -- | Logical negation
   not :: b -> b
 
