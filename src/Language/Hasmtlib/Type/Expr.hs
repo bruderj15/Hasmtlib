@@ -10,6 +10,7 @@ module Language.Hasmtlib.Type.Expr
  , Expr
  , equal, distinct
  , bvShL, bvLShR, bvConcat, bvRotL, bvRotR
+ , toInt, toReal, isInt
  , for_all , exists
  , select, store
  )
@@ -107,3 +108,12 @@ bvRotL   = BvRotL
 bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
 bvRotR   = BvRotR
 {-# INLINE bvRotR #-}
+
+toReal    :: Expr IntSort  -> Expr RealSort
+toReal = ToReal
+
+toInt     :: Expr RealSort -> Expr IntSort
+toInt = ToInt
+
+isInt     :: Expr RealSort -> Expr BoolSort
+isInt = IsInt
