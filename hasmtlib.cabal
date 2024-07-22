@@ -34,6 +34,7 @@ library
                      , Language.Hasmtlib.Equatable
                      , Language.Hasmtlib.Orderable
                      , Language.Hasmtlib.Integraled
+                     , Language.Hasmtlib.Optimization
                      , Language.Hasmtlib.Internal.Parser
                      , Language.Hasmtlib.Internal.Bitvec
                      , Language.Hasmtlib.Internal.Render

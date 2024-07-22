@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -98,12 +100,12 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
       Left e    -> liftIO $ do
         print model
         error e
-      Right sol -> 
-        return $ 
-          decode 
-            (DMap.singleton 
-              (sortSing @t) 
-              (IntValueMap $ IMap.singleton (sol^.solVar.varId) (sol^.solVal))) 
+      Right sol ->
+        return $
+          decode
+            (DMap.singleton
+              (sortSing @t)
+              (IntValueMap $ IMap.singleton (sol^.solVar.varId) (sol^.solVal)))
             v
   getValue expr = do
     model <- getModel

@@ -1,4 +1,4 @@
-module Language.Hasmtlib.Solver.CVC5 where
+module Language.Hasmtlib.Solver.OpenSMT where
 
 import Language.Hasmtlib.Solver.Common
 import qualified SMTLIB.Backends.Process as P
