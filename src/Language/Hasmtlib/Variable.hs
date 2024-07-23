@@ -4,13 +4,14 @@ module Language.Hasmtlib.Variable where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.MonadSMT
+import Language.Hasmtlib.Type.SMTSort
 import Data.Proxy
 
 -- | Construct a variable datum of a data-type by creating variables for all its fields.
--- 
+--
 -- @
 --    data V3 a = V3 a a a
---    instance Variable a => V3 a 
+--    instance Variable a => V3 a
 -- @
 --
 --    >>> varV3 <- variable @(V3 (Expr RealType)) ; varV3

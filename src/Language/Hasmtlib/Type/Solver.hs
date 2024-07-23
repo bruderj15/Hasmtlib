@@ -8,6 +8,7 @@ where
 
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.Pipe
 import Language.Hasmtlib.Orderable

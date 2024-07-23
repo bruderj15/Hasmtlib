@@ -7,6 +7,7 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Type.Expr
   , module Language.Hasmtlib.Type.Solver
   , module Language.Hasmtlib.Type.Option
+  , module Language.Hasmtlib.Type.SMTSort
   , module Language.Hasmtlib.Type.Solution
   , module Language.Hasmtlib.Type.ArrayMap
   , module Language.Hasmtlib.Integraled
@@ -33,6 +34,7 @@ import Language.Hasmtlib.Type.Pipe
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.Solver
 import Language.Hasmtlib.Type.Option
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Integraled

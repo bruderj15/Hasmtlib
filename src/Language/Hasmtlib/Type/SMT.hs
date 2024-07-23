@@ -6,6 +6,7 @@ module Language.Hasmtlib.Type.SMT where
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.MonadSMT
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Option
 import Data.List (isPrefixOf)
 import Data.Default

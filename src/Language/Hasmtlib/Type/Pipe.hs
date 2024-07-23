@@ -8,6 +8,7 @@ import Language.Hasmtlib.Type.OMT (SoftFormula(..), Minimize(..), Maximize(..))
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Render
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Internal.Parser hiding (var, constant)

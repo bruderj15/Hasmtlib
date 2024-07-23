@@ -3,6 +3,7 @@ module Language.Hasmtlib.Internal.Expr.Num where
 import Prelude hiding (div, mod, quotRem, rem, quot, divMod)
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Integraled
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Orderable

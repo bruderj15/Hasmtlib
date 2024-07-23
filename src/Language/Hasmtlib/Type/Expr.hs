@@ -2,11 +2,8 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Language.Hasmtlib.Type.Expr
- ( SMTSort(..)
- , SMTVar(..), varId
- , HaskellType
+ ( SMTVar(..), varId
  , Value(..), unwrapValue, wrapValue
- , SSMTSort(..), KnownSMTSort(..), sortSing', SomeSMTSort(..), SomeKnownSMTSort, AllC
  , Expr
  , equal, distinct
  , bvShL, bvLShR, bvConcat, bvRotL, bvRotR
@@ -18,6 +15,7 @@ where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Expr.Num ()
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Boolean
 import Data.Proxy
 import Data.List (genericLength)

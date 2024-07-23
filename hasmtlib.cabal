@@ -48,6 +48,7 @@ library
                      , Language.Hasmtlib.Type.SMT
                      , Language.Hasmtlib.Type.OMT
                      , Language.Hasmtlib.Type.Pipe
+                     , Language.Hasmtlib.Type.SMTSort
                      , Language.Hasmtlib.Type.Solution
                      , Language.Hasmtlib.Type.Solver
                      , Language.Hasmtlib.Type.Option

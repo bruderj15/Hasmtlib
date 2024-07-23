@@ -4,6 +4,7 @@ module Language.Hasmtlib.Type.MonadSMT where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Option
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Codec
 import Data.Proxy
