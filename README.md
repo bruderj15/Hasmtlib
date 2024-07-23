@@ -80,7 +80,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solution.hs)
   ```haskell
-    -- | Function that turns a state (SMT) into a result and a solution
+    -- | Function that turns a state (usually SMT or OMT) into a result and a solution
     type Solver s m = s -> m (Result, Solution)
   ```
 - [x] Solvers via external processes: CVC5, Z3, Yices2-SMT, MathSAT, OptiMathSAT & OpenSMT
