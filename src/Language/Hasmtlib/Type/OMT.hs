@@ -26,17 +26,17 @@ data SoftFormula = SoftFormula
 $(makeLenses ''SoftFormula)
 
 -- | A newtype for numerical expressions that are target of a minimization.
-newtype Minimize t = Minimize { _targetMin :: (KnownSMTSort t, Num (Expr t)) => Expr t }
+newtype Minimize t = Minimize { _targetMin :: Expr t }
 
 -- | A newtype for numerical expressions that are target of a maximization.
-newtype Maximize t = Maximize { _targetMax :: (KnownSMTSort t, Num (Expr t)) => Expr t }
+newtype Maximize t = Maximize { _targetMax :: Expr t }
 
--- | The state of the SMT-problem.
+-- | The state of the OMT-problem.
 data OMT = OMT
-  { _smt            :: SMT
-  , _targetMinimize :: !(Seq (SomeKnownSMTSort Minimize))
-  , _targetMaximize :: !(Seq (SomeKnownSMTSort Minimize))
-  , _softFormulas   :: !(Seq SoftFormula)
+  { _smt            :: SMT                                  -- ^ The underlying 'SMT'-Problem
+  , _targetMinimize :: !(Seq (SomeKnownSMTSort Minimize))   -- ^ All expressions to minimize
+  , _targetMaximize :: !(Seq (SomeKnownSMTSort Maximize))   -- ^ All expressions to maximize
+  , _softFormulas   :: !(Seq SoftFormula)                   -- ^ All soft assertions of boolean expressions
   }
 $(makeLenses ''OMT)
 
@@ -75,10 +75,10 @@ instance Render SoftFormula where
       renderGroupId (Just groupId) = " :id " <> render groupId
 
 instance KnownSMTSort t => Render (Minimize t) where
-  render expr = "(minimize " <> render expr <> ")"
+  render (Minimize expr) = "(minimize " <> render expr <> ")"
 
 instance KnownSMTSort t => Render (Maximize t) where
-  render expr = "(maximize " <> render expr <> ")"
+  render (Maximize expr) = "(maximize " <> render expr <> ")"
 
 instance RenderSeq OMT where
   renderSeq omt =
