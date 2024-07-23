@@ -109,3 +109,22 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
     model <- getModel
     return $ decode model expr
   {-# INLINEABLE getValue #-}
+
+instance (MonadSMT Pipe m, MonadIO m) => MonadOMT Pipe m where
+  minimize expr = do
+    smt <- get
+    liftIO $ B.command_ (smt^.pipe) $ "(minimize " <> render expr <> ")"
+  {-# INLINEABLE minimize #-}
+
+  maximize expr = do
+    smt <- get
+    liftIO $ B.command_ (smt^.pipe) $ "(maximize " <> render expr <> ")"
+  {-# INLINEABLE maximize #-}
+
+  assertSoft expr mWeight mGroupId = do
+    smt <- get
+    liftIO $ B.command_ (smt^.pipe) $
+      "(assert-soft " <> render expr <> " :weight " <> maybe "1" render mWeight <> renderGroupId mGroupId <> ")"
+    where
+      renderGroupId Nothing = mempty
+      renderGroupId (Just groupId) = " :id " <> render groupId

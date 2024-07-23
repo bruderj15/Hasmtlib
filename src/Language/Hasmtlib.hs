@@ -8,7 +8,6 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Type.Option
   , module Language.Hasmtlib.Type.Solution
   , module Language.Hasmtlib.Type.ArrayMap
-  , module Language.Hasmtlib.Optimization
   , module Language.Hasmtlib.Integraled
   , module Language.Hasmtlib.Iteable
   , module Language.Hasmtlib.Boolean
@@ -34,7 +33,6 @@ import Language.Hasmtlib.Type.Solver
 import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
-import Language.Hasmtlib.Optimization
 import Language.Hasmtlib.Integraled
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Boolean

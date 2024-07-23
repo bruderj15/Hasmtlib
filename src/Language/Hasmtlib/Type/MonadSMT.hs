@@ -154,3 +154,54 @@ class MonadSMT s m => MonadIncrSMT s m | m -> s where
 -- | First run 'checkSat' and then 'getModel' on the current problem.
 solve :: (MonadIncrSMT s m, MonadIO m) => m (Result, Solution)
 solve = liftM2 (,) checkSat getModel
+
+-- | A 'MonadState' that holds an OMT-Problem.
+class MonadSMT s m => MonadOMT s m where
+  -- | Minimizes a numerical expression within the OMT-Problem.
+  --
+  --   For example, below minimization:
+  --
+  -- @
+  -- x <- var @IntSort
+  -- assert $ x >? -2
+  -- minimize x
+  -- @
+  --
+  --   will give @x := -1@ as solution.
+  minimize :: (KnownSMTSort t, Num (Expr t)) => Expr t -> m ()
+
+  -- | Maximizes a numerical expression within the OMT-Problem.
+  --
+  --   For example, below maximization:
+  --
+  -- @
+  -- x <- var @(BvSort 8)
+  -- maximize x
+  -- @
+  --
+  --   will give @x := 11111111@ as solution.
+  maximize :: (KnownSMTSort t, Num (Expr t)) => Expr t -> m ()
+
+  -- | Asserts a soft boolean expression.
+  --   May take a weight and an identifier for grouping.
+  --
+  --   For example, below a soft constraint with weight 2.0 and identifier \"myId\" for grouping:
+  --
+  -- @
+  -- x <- var @BoolSort
+  -- assertSoft x (Just 2.0) (Just "myId")
+  -- @
+  --
+  --   Omitting the weight will default it to 1.0.
+  --
+  -- @
+  -- x <- var @BoolSort
+  -- y <- var @BoolSort
+  -- assertSoft x
+  -- assertSoft y (Just "myId")
+  -- @
+  assertSoft :: Expr BoolSort -> Maybe Double -> Maybe String -> m ()
+
+-- | Like 'assertSoft' but forces a weight and omits the group-id.
+assertSoftWeighted :: MonadOMT s m => Expr BoolSort -> Double -> m ()
+assertSoftWeighted expr w = assertSoft expr (Just w) Nothing

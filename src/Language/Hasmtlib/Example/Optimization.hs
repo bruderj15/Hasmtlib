@@ -5,15 +5,15 @@ import Control.Monad.IO.Class
 
 main :: IO ()
 main = do
-  iSolver <- interactiveSolver optimathsat
+  iSolver <- interactiveSolver z3
   interactiveWith iSolver $ do
-    setOption $ Custom "opt.priority" "lex"
     setOption $ ProduceModels True
     setLogic "QF_LIA"
 
     x <- var @IntSort
 
     assert $ x >? -2
+    assertSoftWeighted (x >? -1) 5.0
 
     minimize x
 
