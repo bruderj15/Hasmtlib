@@ -6,6 +6,15 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.0.1 _(2024-07-23)_
+
+### Added
+- Added more documentation
+
+### Changed
+- `(<==>)` now has `infixr 4`
+- `(<==)` now has `infixl 0`
+
 ## v2.0.0 _(2024-07-23)_
 
 ### Added
