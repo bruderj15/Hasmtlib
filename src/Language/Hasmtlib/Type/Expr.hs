@@ -2,14 +2,12 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Language.Hasmtlib.Type.Expr
- ( SMTSort(..)
- , SMTVar(..), varId
- , HaskellType
+ ( SMTVar(..), varId
  , Value(..), unwrapValue, wrapValue
- , SSMTSort(..), KnownSMTSort(..), sortSing', SomeSMTSort(..), SomeKnownSMTSort, AllC
  , Expr
  , equal, distinct
  , bvShL, bvLShR, bvConcat, bvRotL, bvRotR
+ , toIntSort, toRealSort, isIntSort
  , for_all , exists
  , select, store
  )
@@ -17,6 +15,7 @@ where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Expr.Num ()
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Boolean
 import Data.Proxy
 import Data.List (genericLength)
@@ -107,3 +106,15 @@ bvRotL   = BvRotL
 bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
 bvRotR   = BvRotR
 {-# INLINE bvRotR #-}
+
+-- | Converts an expression of type 'IntSort' to type 'RealSort'.
+toRealSort :: Expr IntSort  -> Expr RealSort
+toRealSort = ToReal
+
+-- | Converts an expression of type 'RealSort' to type 'IntSort'.
+toIntSort :: Expr RealSort -> Expr IntSort
+toIntSort = ToInt
+
+-- | Checks whether an expression of type 'RealSort' may be safely converted to type 'IntSort'.
+isIntSort :: Expr RealSort -> Expr BoolSort
+isIntSort = IsInt

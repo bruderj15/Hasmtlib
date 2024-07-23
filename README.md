@@ -41,7 +41,7 @@ instance Variable a => Variable (V3 a)
 
 main :: IO ()
 main = do
-  res <- solveWith (solver cvc5) $ do
+  res <- solveWith (solver @SMT cvc5) $ do
     setLogic "QF_NRA"
 
     u :: V3 (Expr RealSort) <- variable
@@ -57,7 +57,6 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 
 ## Features
 
-### Supported
 - [x] SMTLib2-Sorts in the Haskell-Type
   ```haskell
     data SMTSort = BoolSort | IntSort | RealSort | BvSort Nat | ArraySort SMTSort SMTSort
@@ -72,7 +71,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Pure API with Expression-instances for Num, Floating, Bounded, ...
   ```haskell
-    solveWith (solver yices) $ do
+    solveWith (solver @SMT yices) $ do
       setLogic "QF_BV"
       x <- var @(BvSort 16)
       y <- var
@@ -81,12 +80,12 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solution.hs)
   ```haskell
-    -- | Function that turns a state (SMT) into a result and a solution
+    -- | Function that turns a state (usually SMT or OMT) into a result and a solution
     type Solver s m = s -> m (Result, Solution)
   ```
-- [x] Solvers via external processes: CVC5, Z3, Yices2-SMT & MathSAT
+- [x] Solvers via external processes: CVC5, Z3, Yices2-SMT, MathSAT, OptiMathSAT & OpenSMT
   ```haskell
-    (result, solution) <- solveWith (solver mathsat) $ do
+    (result, solution) <- solveWith (solver @SMT mathsat) $ do
       setLogic "QF_LIA"
       assert $ ...
   ```
@@ -109,7 +108,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Pure quantifiers `for_all` and `exists`
   ```haskell
-    solveWith (solver z3) $ do
+    solveWith (solver @SMT z3) $ do
       setLogic "LIA"
       z <- var @IntSort
       assert $ z === 0
@@ -119,11 +118,18 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
               x + y === z
       return z
   ```
+- [x] Optimization Modulo Theories (OMT) / MaxSMT
+  ```haskell
+    res <- solveWith (solver @OMT z3) $ do
+      setLogic "QF_LIA"
+      x <- var @IntSort
 
-### Coming
-- [ ] Observable sharing & access to the expression-tree (useful for rewriting, ...)
-- [ ] (Maybe) signed BitVec with corresponding encoding on the type-level (unsigned, ones-complement, twos-complement)
-- [ ] ...
+      assert $ x >? -2
+      assertSoftWeighted (x >? -1) 5.0
+      minimize x
+
+      return x
+  ```
 
 ## Examples
 There are some examples in [here](https://github.com/bruderj15/Hasmtlib/tree/master/src/Language/Hasmtlib/Example).

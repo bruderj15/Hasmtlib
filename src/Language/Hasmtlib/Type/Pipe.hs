@@ -4,9 +4,11 @@
 module Language.Hasmtlib.Type.Pipe where
 
 import Language.Hasmtlib.Type.SMT
+import Language.Hasmtlib.Type.OMT (SoftFormula(..), Minimize(..), Maximize(..))
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Render
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Internal.Parser hiding (var, constant)
@@ -98,14 +100,29 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
       Left e    -> liftIO $ do
         print model
         error e
-      Right sol -> 
-        return $ 
-          decode 
-            (DMap.singleton 
-              (sortSing @t) 
-              (IntValueMap $ IMap.singleton (sol^.solVar.varId) (sol^.solVal))) 
+      Right sol ->
+        return $
+          decode
+            (DMap.singleton
+              (sortSing @t)
+              (IntValueMap $ IMap.singleton (sol^.solVar.varId) (sol^.solVal)))
             v
   getValue expr = do
     model <- getModel
     return $ decode model expr
   {-# INLINEABLE getValue #-}
+
+instance (MonadSMT Pipe m, MonadIO m) => MonadOMT Pipe m where
+  minimize expr = do
+    smt <- get
+    liftIO $ B.command_ (smt^.pipe) $ render $ Minimize expr
+  {-# INLINEABLE minimize #-}
+
+  maximize expr = do
+    smt <- get
+    liftIO $ B.command_ (smt^.pipe) $ render $ Maximize expr
+  {-# INLINEABLE maximize #-}
+
+  assertSoft expr w gid = do
+    smt <- get
+    liftIO $ B.command_ (smt^.pipe) $ render $ SoftFormula expr w gid

@@ -4,13 +4,13 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith (solver cvc5) $ do
+  res <- solveWith (solver @SMT cvc5) $ do
     setLogic "ALL"
 
     x <- var @RealSort
 
     assert $ x >? sin 3
-  
+
     return x
 
   print res

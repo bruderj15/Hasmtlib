@@ -6,6 +6,7 @@ module Language.Hasmtlib.Equatable where
 
 import Prelude hiding (not, (&&))
 import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Boolean
 import Data.Int
 import Data.Word

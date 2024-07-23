@@ -6,6 +6,7 @@ module Language.Hasmtlib.Orderable where
 
 import Prelude hiding (not, (&&), (||))
 import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Equatable
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Boolean
@@ -17,14 +18,14 @@ import GHC.Generics
 import GHC.TypeNats
 
 -- | Compare two as as SMT-Expression.
--- 
+--
 -- @
 -- x <- var @RealSort
--- y <- var 
+-- y <- var
 -- assert $ x >? y
 -- assert $ x === min' 42 100
 -- @
--- 
+--
 class Equatable a => Orderable a where
   (<=?) :: a -> a -> Expr BoolSort
   default (<=?) :: (Generic a, GOrderable (Rep a)) => a -> a -> Expr BoolSort
@@ -32,7 +33,7 @@ class Equatable a => Orderable a where
 
   (>=?) :: a -> a -> Expr BoolSort
   x >=? y = y <=? x
-  
+
   (<?)  :: a -> a -> Expr BoolSort
   x <? y = not $ y <=? x
 
@@ -51,34 +52,34 @@ max' x y = ite (y <=? x) x y
 
 instance Orderable (Expr IntSort) where
   (<?)     = LTH
-  {-# INLINE (<?) #-}  
+  {-# INLINE (<?) #-}
   (<=?)    = LTHE
-  {-# INLINE (<=?) #-}  
+  {-# INLINE (<=?) #-}
   (>=?)    = GTHE
-  {-# INLINE (>=?) #-}  
+  {-# INLINE (>=?) #-}
   (>?)     = GTH
   {-# INLINE (>?) #-}
 
 instance Orderable (Expr RealSort) where
   (<?)     = LTH
-  {-# INLINE (<?) #-}  
+  {-# INLINE (<?) #-}
   (<=?)    = LTHE
-  {-# INLINE (<=?) #-}  
+  {-# INLINE (<=?) #-}
   (>=?)    = GTHE
-  {-# INLINE (>=?) #-}  
+  {-# INLINE (>=?) #-}
   (>?)     = GTH
   {-# INLINE (>?) #-}
 
 instance KnownNat n => Orderable (Expr (BvSort n)) where
   (<?)     = BvuLT
-  {-# INLINE (<?) #-}  
+  {-# INLINE (<?) #-}
   (<=?)    = BvuLTHE
-  {-# INLINE (<=?) #-}  
+  {-# INLINE (<=?) #-}
   (>=?)    = BvuGTHE
-  {-# INLINE (>=?) #-}  
+  {-# INLINE (>=?) #-}
   (>?)     = BvuGT
   {-# INLINE (>?) #-}
-  
+
 class GEquatable f => GOrderable f where
   (<?#)  :: f a -> f a -> Expr BoolSort
   (<=?#) :: f a -> f a -> Expr BoolSort

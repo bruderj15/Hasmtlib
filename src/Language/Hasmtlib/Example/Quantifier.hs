@@ -5,7 +5,7 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith (debug cvc5) $ do
+  res <- solveWith (debug @SMT cvc5) $ do
     setLogic "BV"
 
     z <- var @(BvSort 8)
