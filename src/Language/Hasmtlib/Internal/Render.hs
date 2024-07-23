@@ -2,9 +2,10 @@ module Language.Hasmtlib.Internal.Render where
 
 import Data.ByteString.Builder
 import Data.Foldable (foldl')
+import Data.Sequence
 import GHC.TypeNats
 
--- | Render values to their SMTLib2-Lisp form, represented as @Builder@.
+-- | Render values to their SMTLib2-Lisp form, represented as 'Builder'.
 class Render a where
   render :: a -> Builder
 
@@ -57,3 +58,7 @@ renderNary op xs = "(" <> op <> renderedXs <> ")"
   where
     renderedXs = foldl' (\s x -> s <> " " <> render x) mempty xs
 {-# INLINEABLE renderNary #-}
+
+-- | Render values to their sequential SMTLib2-Lisp form, represented as a 'Seq' 'Builder'.
+class RenderSeq a where
+  renderSeq :: a -> Seq Builder

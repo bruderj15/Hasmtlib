@@ -54,14 +54,12 @@ instance MonadState SMT m => MonadSMT SMT m where
 
   setLogic l = mlogic ?= l
 
--- | Render a 'SMT'-Problem to SMTLib2-Syntax.
---   Each element of the returned Sequence is a line.
-renderSMT :: SMT -> Seq Builder
-renderSMT smt =
-     fromList (render <$> smt^.options)
-  >< maybe mempty (singleton . renderSetLogic . stringUtf8) (smt^.mlogic)
-  >< renderVars (smt^.vars)
-  >< fmap renderAssert (smt^.formulas)
+instance RenderSeq SMT where
+  renderSeq smt =
+       fromList (render <$> smt^.options)
+       >< maybe mempty (singleton . renderSetLogic . stringUtf8) (smt^.mlogic)
+       >< renderVars (smt^.vars)
+       >< fmap renderAssert (smt^.formulas)
 
 renderSetLogic :: Builder -> Builder
 renderSetLogic = renderUnary "set-logic"

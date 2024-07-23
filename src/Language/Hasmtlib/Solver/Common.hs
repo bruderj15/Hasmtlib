@@ -2,6 +2,7 @@ module Language.Hasmtlib.Solver.Common where
 
 import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.Solution
+import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Internal.Parser
 import Data.Default
 import Data.Sequence as Seq hiding ((|>), filter)
@@ -52,24 +53,24 @@ instance Default Debugger where
 
 -- | A 'Solver' which holds an external process with a SMT-Solver.
 --   This will:
--- 
+--
 -- 1. Encode the 'SMT'-problem,
--- 
+--
 -- 2. Start a new external process for the SMT-Solver,
--- 
+--
 -- 3. Send the problem to the SMT-Solver,
--- 
+--
 -- 4. Wait for an answer and parse it and
--- 
+--
 -- 5. close the process and clean up all resources.
--- 
+--
 processSolver :: MonadIO m => P.Config -> Maybe Debugger -> Solver SMT m
 processSolver cfg debugger smt = do
   liftIO $ P.with cfg $ \handle -> do
     maybe mempty (`debugSMT` smt) debugger
     pSolver <- B.initSolver B.Queuing $ P.toBackend handle
 
-    let problem = renderSMT smt
+    let problem = renderSeq smt
     maybe mempty (`debugProblem` problem) debugger
 
     forM_ problem (B.command_ pSolver)

@@ -2,6 +2,7 @@ module Language.Hasmtlib
   (
     module Language.Hasmtlib.Type.MonadSMT
   , module Language.Hasmtlib.Type.SMT
+  , module Language.Hasmtlib.Type.OMT
   , module Language.Hasmtlib.Type.Pipe
   , module Language.Hasmtlib.Type.Expr
   , module Language.Hasmtlib.Type.Solver
@@ -27,6 +28,7 @@ module Language.Hasmtlib
 
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMT
+import Language.Hasmtlib.Type.OMT
 import Language.Hasmtlib.Type.Pipe
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.Solver

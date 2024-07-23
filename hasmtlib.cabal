@@ -46,6 +46,7 @@ library
                      , Language.Hasmtlib.Type.Expr
                      , Language.Hasmtlib.Type.MonadSMT
                      , Language.Hasmtlib.Type.SMT
+                     , Language.Hasmtlib.Type.OMT
                      , Language.Hasmtlib.Type.Pipe
                      , Language.Hasmtlib.Type.Solution
                      , Language.Hasmtlib.Type.Solver

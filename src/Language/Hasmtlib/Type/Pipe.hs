@@ -4,6 +4,7 @@
 module Language.Hasmtlib.Type.Pipe where
 
 import Language.Hasmtlib.Type.SMT
+import Language.Hasmtlib.Type.OMT (SoftFormula(..), Minimize(..), Maximize(..))
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Render
@@ -113,18 +114,14 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
 instance (MonadSMT Pipe m, MonadIO m) => MonadOMT Pipe m where
   minimize expr = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $ "(minimize " <> render expr <> ")"
+    liftIO $ B.command_ (smt^.pipe) $ render $ Minimize expr
   {-# INLINEABLE minimize #-}
 
   maximize expr = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $ "(maximize " <> render expr <> ")"
+    liftIO $ B.command_ (smt^.pipe) $ render $ Maximize expr
   {-# INLINEABLE maximize #-}
 
-  assertSoft expr mWeight mGroupId = do
+  assertSoft expr w gid = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $
-      "(assert-soft " <> render expr <> " :weight " <> maybe "1" render mWeight <> renderGroupId mGroupId <> ")"
-    where
-      renderGroupId Nothing = mempty
-      renderGroupId (Just groupId) = " :id " <> render groupId
+    liftIO $ B.command_ (smt^.pipe) $ render $ SoftFormula expr w gid
