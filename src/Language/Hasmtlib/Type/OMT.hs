@@ -20,9 +20,9 @@ import Control.Lens hiding (List)
 
 -- | An assertion of a booolean expression in OMT that may be weighted.
 data SoftFormula = SoftFormula
-  { _formula  :: Expr BoolSort
-  , _mWeight  :: Maybe Double
-  , _mGroupId :: Maybe String
+  { _formula  :: Expr BoolSort    -- ^ The underlying soft formula
+  , _mWeight  :: Maybe Double     -- ^ Weight of the soft formula
+  , _mGroupId :: Maybe String     -- ^ Group-Id of the soft formula
   } deriving Show
 $(makeLenses ''SoftFormula)
 

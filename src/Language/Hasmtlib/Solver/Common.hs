@@ -20,11 +20,11 @@ import qualified SMTLIB.Backends as B
 -- | A newtype-wrapper for 'P.Config' which configures a solver via external process.
 newtype ProcessSolver = ProcessSolver { conf :: P.Config }
 
--- | Creates a 'Solver' from a 'ProcessSolver'
+-- | Creates a 'Solver' from a 'ProcessSolver'.
 solver :: (RenderSeq s, MonadIO m) => ProcessSolver -> Solver s m
 solver (ProcessSolver cfg) = processSolver cfg Nothing
 
--- | Creates a debugging 'Solver' from a 'ProcessSolver'
+-- | Creates a debugging 'Solver' from a 'ProcessSolver'.
 debug :: (RenderSeq s, Default (Debugger s), MonadIO m) => ProcessSolver -> Solver s m
 debug (ProcessSolver cfg) = processSolver cfg $ Just def
 
@@ -36,10 +36,10 @@ interactiveSolver (ProcessSolver cfg) = liftIO $ do
 
 -- | A type holding actions for debugging states.
 data Debugger s = Debugger
-  { debugState          :: s -> IO ()
-  , debugProblem        :: Seq Builder -> IO ()
-  , debugResultResponse :: ByteString -> IO ()
-  , debugModelResponse  :: ByteString -> IO ()
+  { debugState          :: s -> IO ()               -- ^ Debug the entire state
+  , debugProblem        :: Seq Builder -> IO ()     -- ^ Debug the linewise-rendered problem
+  , debugResultResponse :: ByteString -> IO ()      -- ^ Debug the solvers raw response for @(check-sat)@
+  , debugModelResponse  :: ByteString -> IO ()      -- ^ Debug the solvers raw response for @(get-model)@
   }
 
 instance Default (Debugger SMT) where
