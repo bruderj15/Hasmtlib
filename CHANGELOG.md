@@ -11,7 +11,7 @@ and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 ### Added
 - Arithmetic functions: `isIntSort`, `toIntSort` & `toRealSort`
 - Asserting maybe-formulas: `assertMaybe :: MonadSMT s m => Maybe (Expr BoolSort) -> m ()`
-- Logical equivalence `(<==>)` & reverse logical implication
+- Logical equivalence `(<==>)` & reverse logical implication `(<==)`
 - Solvers: OpenSMT, OptiMathSAT
 - Iterative refinement optimizations utilizing incremental stack
 - Custom solver options via `Custom String String :: SMTOption`
