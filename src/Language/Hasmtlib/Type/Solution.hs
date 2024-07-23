@@ -5,7 +5,8 @@
 
 module Language.Hasmtlib.Type.Solution where
 
-import Language.Hasmtlib.Type.Expr
+import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.SMTSort
 import Data.IntMap as IMap hiding (foldl)
 import Data.Dependent.Map as DMap
 import Data.Dependent.Map.Lens
@@ -36,7 +37,7 @@ $(makeLenses ''SMTVarSol)
 class Ord (HaskellType t) => OrdHaskellType t
 instance Ord (HaskellType t) => OrdHaskellType t
 
--- | An existential wrapper that hides some known 'SMTSort' with an 'Ord' 'HaskellType' 
+-- | An existential wrapper that hides some known 'SMTSort' with an 'Ord' 'HaskellType'
 type SomeKnownOrdSMTSort f = SomeSMTSort '[KnownSMTSort, OrdHaskellType] f
 
 -- | Create a 'Solution' from some 'SMTVarSol's.

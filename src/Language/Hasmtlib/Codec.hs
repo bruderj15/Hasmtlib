@@ -10,6 +10,7 @@ import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Boolean
 import Data.Kind
 import Data.Coerce

@@ -4,6 +4,7 @@ module Language.Hasmtlib.Type.MonadSMT where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Option
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Codec
 import Data.Proxy
@@ -15,21 +16,21 @@ class MonadState s m => MonadSMT s m where
   -- | Construct a variable.
   --   This is mainly intended for internal use.
   --   In the API use 'var'' instead.
-  --   
+  --
   -- @
   -- x :: SMTVar RealType <- smtvar' (Proxy @RealType)
   -- @
   smtvar' :: forall t. KnownSMTSort t => Proxy t -> m (SMTVar t)
-  
+
   -- | Construct a variable as expression.
-  -- 
+  --
   -- @
   -- x :: Expr RealType <- var' (Proxy @RealType)
   -- @
   var' :: forall t. KnownSMTSort t => Proxy t -> m (Expr t)
 
   -- | Assert a boolean expression.
-  -- 
+  --
   -- @
   -- x :: Expr IntType <- var @IntType
   -- assert $ x + 5 === 42
@@ -37,14 +38,14 @@ class MonadState s m => MonadSMT s m where
   assert :: Expr BoolSort -> m ()
 
   -- | Set an SMT-Solver-Option.
-  -- 
+  --
   -- @
   -- setOption $ Incremental True
   -- @
   setOption :: SMTOption -> m ()
 
   -- | Set the logic for the SMT-Solver to use.
-  -- 
+  --
   -- @
   -- setLogic \"QF_LRA\"
   -- @
@@ -63,7 +64,7 @@ smtvar = smtvar' (Proxy @t)
 {-# INLINE smtvar #-}
 
 -- | Create a constant.
--- 
+--
 --   >>> constant True
 --       Constant (BoolValue True)
 --
@@ -78,6 +79,13 @@ smtvar = smtvar' (Proxy @t)
 constant :: KnownSMTSort t => HaskellType t -> Expr t
 constant = Constant . wrapValue
 {-# INLINE constant #-}
+
+-- | Maybe assert a boolean expression.
+--   Asserts given expression if 'Maybe' is a 'Just'.
+--   Does nothing otherwise.
+assertMaybe :: MonadSMT s m => Maybe (Expr BoolSort) -> m ()
+assertMaybe Nothing = return ()
+assertMaybe (Just expr) = assert expr
 
 --   We need this separate so we get a pure API for quantifiers
 --   Ideally we would do that when rendering the expression
@@ -147,3 +155,55 @@ class MonadSMT s m => MonadIncrSMT s m | m -> s where
 -- | First run 'checkSat' and then 'getModel' on the current problem.
 solve :: (MonadIncrSMT s m, MonadIO m) => m (Result, Solution)
 solve = liftM2 (,) checkSat getModel
+
+-- | A 'MonadState' that holds an OMT-Problem.
+--   An OMT-Problem is a 'SMT-Problem' with additional optimization targets.
+class MonadSMT s m => MonadOMT s m where
+  -- | Minimizes a numerical expression within the OMT-Problem.
+  --
+  --   For example, below minimization:
+  --
+  -- @
+  -- x <- var @IntSort
+  -- assert $ x >? -2
+  -- minimize x
+  -- @
+  --
+  --   will give @x := -1@ as solution.
+  minimize :: (KnownSMTSort t, Num (Expr t)) => Expr t -> m ()
+
+  -- | Maximizes a numerical expression within the OMT-Problem.
+  --
+  --   For example, below maximization:
+  --
+  -- @
+  -- x <- var @(BvSort 8)
+  -- maximize x
+  -- @
+  --
+  --   will give @x := 11111111@ as solution.
+  maximize :: (KnownSMTSort t, Num (Expr t)) => Expr t -> m ()
+
+  -- | Asserts a soft boolean expression.
+  --   May take a weight and an identifier for grouping.
+  --
+  --   For example, below a soft constraint with weight 2.0 and identifier \"myId\" for grouping:
+  --
+  -- @
+  -- x <- var @BoolSort
+  -- assertSoft x (Just 2.0) (Just "myId")
+  -- @
+  --
+  --   Omitting the weight will default it to 1.0.
+  --
+  -- @
+  -- x <- var @BoolSort
+  -- y <- var @BoolSort
+  -- assertSoft x
+  -- assertSoft y (Just "myId")
+  -- @
+  assertSoft :: Expr BoolSort -> Maybe Double -> Maybe String -> m ()
+
+-- | Like 'assertSoft' but forces a weight and omits the group-id.
+assertSoftWeighted :: MonadOMT s m => Expr BoolSort -> Double -> m ()
+assertSoftWeighted expr w = assertSoft expr (Just w) Nothing

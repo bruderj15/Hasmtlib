@@ -1,7 +1,17 @@
-module Language.Hasmtlib.Type.Solver where
+module Language.Hasmtlib.Type.Solver
+  ( WithSolver(..)
+  , solveWith, interactiveWith
+  , solveMinimized, solveMinimizedDebug
+  , solveMaximized, solveMaximizedDebug
+  )
+where
 
-import Language.Hasmtlib.Type.Pipe
+import Language.Hasmtlib.Type.MonadSMT
+import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
+import Language.Hasmtlib.Type.Pipe
+import Language.Hasmtlib.Orderable
 import Language.Hasmtlib.Codec
 import qualified SMTLIB.Backends as B
 import qualified SMTLIB.Backends.Process as P
@@ -94,3 +104,61 @@ interactiveWith :: (MonadIO m, WithSolver s) => (B.Solver, P.Handle) -> StateT s
 interactiveWith (solver, handle) m = do
    _ <- runStateT m $ withSolver solver
    liftIO $ P.close handle
+
+-- | Solves the current problem with respect to a minimal solution for a given numerical expression.
+--
+--   Does not rely on MaxSMT/OMT.
+--   Instead uses iterative refinement.
+--
+--   If you want access to intermediate results, use 'solveMinimizedDebug' instead.
+solveMinimized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))
+  => Expr t
+  -> m (Result, Solution)
+solveMinimized = solveOptimized Nothing (<?)
+
+-- | Like 'solveMinimized' but with access to intermediate results.
+solveMinimizedDebug :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))
+  => (Solution -> IO ())
+  -> Expr t
+  -> m (Result, Solution)
+solveMinimizedDebug debug = solveOptimized (Just debug) (<?)
+
+-- | Solves the current problem with respect to a maximal solution for a given numerical expression.
+--
+--   Does not rely on MaxSMT/OMT.
+--   Instead uses iterative refinement.
+--
+--   If you want access to intermediate results, use 'solveMaximizedDebug' instead.
+solveMaximized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))
+  => Expr t
+  -> m (Result, Solution)
+solveMaximized = solveOptimized Nothing (>?)
+
+-- | Like 'solveMaximized' but with access to intermediate results.
+solveMaximizedDebug :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))
+  => (Solution -> IO ())
+  -> Expr t
+  -> m (Result, Solution)
+solveMaximizedDebug debug = solveOptimized (Just debug) (<?)
+
+solveOptimized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t)
+  => Maybe (Solution -> IO ())
+  -> (Expr t -> Expr t -> Expr BoolSort)
+  -> Expr t
+  -> m (Result, Solution)
+solveOptimized mDebug op = go Unknown mempty
+  where
+    go oldRes oldSol target = do
+      push
+      (res, sol) <- solve
+      case res of
+        Sat   -> do
+          case decode sol target of
+            Nothing        -> return (Sat, mempty)
+            Just targetSol -> do
+              case mDebug of
+                Nothing    -> pure ()
+                Just debug -> liftIO $ debug sol
+              assert $ target `op` encode targetSol
+              go res sol target
+        _ -> pop >> return (oldRes, oldSol)
