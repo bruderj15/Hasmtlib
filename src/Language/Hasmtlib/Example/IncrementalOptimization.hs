@@ -1,4 +1,4 @@
-module Language.Hasmtlib.Example.Bitvector where
+module Language.Hasmtlib.Example.IncrementalOptimization where
 
 import Language.Hasmtlib
 import Control.Monad.IO.Class

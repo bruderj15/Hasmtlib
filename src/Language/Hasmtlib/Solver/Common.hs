@@ -1,6 +1,7 @@
 module Language.Hasmtlib.Solver.Common where
 
 import Language.Hasmtlib.Type.SMT
+import Language.Hasmtlib.Type.OMT
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Internal.Parser
@@ -20,11 +21,11 @@ import qualified SMTLIB.Backends as B
 newtype ProcessSolver = ProcessSolver { conf :: P.Config }
 
 -- | Creates a 'Solver' from a 'ProcessSolver'
-solver :: MonadIO m => ProcessSolver -> Solver SMT m
+solver :: (RenderSeq s, MonadIO m) => ProcessSolver -> Solver s m
 solver (ProcessSolver cfg) = processSolver cfg Nothing
 
 -- | Creates a debugging 'Solver' from a 'ProcessSolver'
-debug :: MonadIO m => ProcessSolver -> Solver SMT m
+debug :: (RenderSeq s, Default (Debugger s), MonadIO m) => ProcessSolver -> Solver s m
 debug (ProcessSolver cfg) = processSolver cfg $ Just def
 
 -- | Creates an interactive session with a solver by creating and returning an alive process-handle 'P.Handle'.
@@ -33,19 +34,31 @@ interactiveSolver (ProcessSolver cfg) = liftIO $ do
   handle  <- P.new cfg
   liftM2 (,) (B.initSolver B.Queuing $ P.toBackend handle) (return handle)
 
--- | A type holding actions to execute for debugging 'SMT' solving.
-data Debugger = Debugger
-  { debugSMT            :: SMT -> IO ()
+-- | A type holding actions for debugging states.
+data Debugger s = Debugger
+  { debugState          :: s -> IO ()
   , debugProblem        :: Seq Builder -> IO ()
   , debugResultResponse :: ByteString -> IO ()
   , debugModelResponse  :: ByteString -> IO ()
   }
 
-instance Default Debugger where
+instance Default (Debugger SMT) where
   def = Debugger
-    { debugSMT            = \smt -> liftIO $ do
-        putStrLn $ "Vars: "       ++ show (Seq.length (smt^.vars))
-        putStrLn $ "Assertions: " ++ show (Seq.length (smt^.formulas))
+    { debugState            = \s -> liftIO $ do
+        putStrLn $ "Vars: "       ++ show (Seq.length (s^.vars))
+        putStrLn $ "Assertions: " ++ show (Seq.length (s^.formulas))
+    , debugProblem        = liftIO . mapM_ (putStrLn . toString . toLazyByteString)
+    , debugResultResponse = liftIO . putStrLn . (\s -> "\n" ++ s ++ "\n") . toString
+    , debugModelResponse  = liftIO . mapM_ (putStrLn . toString) . split 13
+    }
+
+instance Default (Debugger OMT) where
+  def = Debugger
+    { debugState          = \omt -> liftIO $ do
+        putStrLn $ "Vars: "                 ++ show (Seq.length (omt^.smt.vars))
+        putStrLn $ "Hard assertions: "      ++ show (Seq.length (omt^.smt.formulas))
+        putStrLn $ "Soft assertions: "      ++ show (Seq.length (omt^.softFormulas))
+        putStrLn $ "Optimization targets: " ++ show (Seq.length (omt^.targetMinimize) + Seq.length (omt^.targetMaximize))
     , debugProblem        = liftIO . mapM_ (putStrLn . toString . toLazyByteString)
     , debugResultResponse = liftIO . putStrLn . (\s -> "\n" ++ s ++ "\n") . toString
     , debugModelResponse  = liftIO . mapM_ (putStrLn . toString) . split 13
@@ -64,13 +77,13 @@ instance Default Debugger where
 --
 -- 5. close the process and clean up all resources.
 --
-processSolver :: MonadIO m => P.Config -> Maybe Debugger -> Solver SMT m
-processSolver cfg debugger smt = do
+processSolver :: (RenderSeq s, MonadIO m) => P.Config -> Maybe (Debugger s) -> Solver s m
+processSolver cfg debugger s = do
   liftIO $ P.with cfg $ \handle -> do
-    maybe mempty (`debugSMT` smt) debugger
+    maybe mempty (`debugState` s) debugger
     pSolver <- B.initSolver B.Queuing $ P.toBackend handle
 
-    let problem = renderSeq smt
+    let problem = renderSeq s
     maybe mempty (`debugProblem` problem) debugger
 
     forM_ problem (B.command_ pSolver)

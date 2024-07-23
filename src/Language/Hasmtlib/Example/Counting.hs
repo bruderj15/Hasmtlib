@@ -5,7 +5,7 @@ import Control.Monad
 
 main :: IO ()
 main = do
-  res <- solveWith (solver cvc5) $ do
+  res <- solveWith (solver @SMT cvc5) $ do
     setLogic "QF_LIA"
 
     xs <- replicateM 10 $ var @BoolSort

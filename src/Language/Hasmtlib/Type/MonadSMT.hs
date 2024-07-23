@@ -156,6 +156,7 @@ solve :: (MonadIncrSMT s m, MonadIO m) => m (Result, Solution)
 solve = liftM2 (,) checkSat getModel
 
 -- | A 'MonadState' that holds an OMT-Problem.
+--   An OMT-Problem is a 'SMT-Problem' with additional optimization targets.
 class MonadSMT s m => MonadOMT s m where
   -- | Minimizes a numerical expression within the OMT-Problem.
   --

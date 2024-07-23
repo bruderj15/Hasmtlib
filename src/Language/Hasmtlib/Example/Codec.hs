@@ -9,17 +9,17 @@ instance Applicative Foo where
   pure x = Foo x x
   (Foo f g) <*> (Foo x y) = Foo (f x) (g y)
 
-instance Equatable a => Equatable (Foo a) 
+instance Equatable a => Equatable (Foo a)
 -- Leverage Functor, Foldable, Traversable and Applicative and get default instances
 instance Codec a => Codec (Foo a)
 instance Variable a => Variable (Foo a)
 
 main :: IO ()
 main = do
-  res <- solveWith (solver z3) $ do
+  res <- solveWith (solver @SMT z3) $ do
     setLogic "ALL"
 
--- These do all the same:    
+-- These do all the same:
     let (c1,c2) :: (Expr IntSort, Expr RealSort) = (5, 10)
 --  let (c1,c2) :: (Expr IntSort, Expr RealSort) = encode (5, 10)
 --  let (c1,c2) :: (Expr IntSort, Expr RealSort) = (constant 5, constant 10)

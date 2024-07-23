@@ -68,6 +68,11 @@ instance MonadState OMT m => MonadSMT OMT m where
 
   setLogic l = smt.mlogic ?= l
 
+instance MonadSMT OMT m => MonadOMT OMT m where
+  minimize expr = targetMinimize %= (|> SomeSMTSort (Minimize expr))
+  maximize expr = targetMaximize %= (|> SomeSMTSort (Maximize expr))
+  assertSoft expr w gid = softFormulas %= (|> SoftFormula expr w gid)
+
 instance Render SoftFormula where
   render sf = "(assert-soft " <> render (sf^.formula) <> " :weight " <> maybe "1" render (sf^.mWeight) <> renderGroupId (sf^.mGroupId) <> ")"
     where
