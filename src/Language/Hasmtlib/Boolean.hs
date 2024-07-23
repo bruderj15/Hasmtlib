@@ -12,15 +12,15 @@ import qualified Data.Vector.Unboxed.Sized as V
 import GHC.TypeNats
 
 class Boolean b where
-  -- | Lift a 'Bool'
+  -- | Lift a 'Bool'.
   bool :: Bool -> b
 
-  -- | The true constant
+  -- | The true constant.
   -- @'true' = 'bool' 'True'@
   true :: b
   true = bool True
 
-  -- | The false constant
+  -- | The false constant.
   -- @'false' = 'bool' 'False'@
   false :: b
   false = bool False
@@ -47,16 +47,18 @@ class Boolean b where
   (<==>) :: b -> b -> b
   x <==> y = (x ==> y) && (y ==> x)
 
-  -- | Logical negation
+  -- | Logical negation.
   not :: b -> b
 
-  -- | Exclusive-or
+  -- | Exclusive-or.
   xor :: b -> b -> b
 
   infix 4 `xor`
+  infixr 4 <==>
   infixr 3 &&
   infixr 2 ||
   infixr 0 ==>
+  infixl 0 <==
 
 -- | The logical conjunction of several values.
 and :: (Foldable t, Boolean b) => t b -> b
