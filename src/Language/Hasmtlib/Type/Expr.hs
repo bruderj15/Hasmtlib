@@ -7,7 +7,7 @@ module Language.Hasmtlib.Type.Expr
  , Expr
  , equal, distinct
  , bvShL, bvLShR, bvConcat, bvRotL, bvRotR
- , toInt, toReal, isInt
+ , toIntSort, toRealSort, isIntSort
  , for_all , exists
  , select, store
  )
@@ -107,11 +107,14 @@ bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvS
 bvRotR   = BvRotR
 {-# INLINE bvRotR #-}
 
-toReal    :: Expr IntSort  -> Expr RealSort
-toReal = ToReal
+-- | Converts an expression of type 'IntSort' to type 'RealSort'.
+toRealSort :: Expr IntSort  -> Expr RealSort
+toRealSort = ToReal
 
-toInt     :: Expr RealSort -> Expr IntSort
-toInt = ToInt
+-- | Converts an expression of type 'RealSort' to type 'IntSort'.
+toIntSort :: Expr RealSort -> Expr IntSort
+toIntSort = ToInt
 
-isInt     :: Expr RealSort -> Expr BoolSort
-isInt = IsInt
+-- | Checks whether an expression of type 'RealSort' may be safely converted to type 'IntSort'.
+isIntSort :: Expr RealSort -> Expr BoolSort
+isIntSort = IsInt

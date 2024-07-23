@@ -12,7 +12,7 @@ main = do
     xs <- replicateM 10 $ var @RealSort
 
     forM_ xs $ \x -> assert $ x >=? 0 && x <? fromIntegral (length xs)
-    forM_ xs $ assert . isInt
+    forM_ xs $ assert . isIntSort
     assert $ distinct xs
 
     return xs
