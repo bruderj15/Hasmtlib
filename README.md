@@ -41,7 +41,7 @@ instance Variable a => Variable (V3 a)
 
 main :: IO ()
 main = do
-  res <- solveWith (solver @SMT cvc5) $ do
+  res <- solveWith @SMT (solver cvc5) $ do
     setLogic "QF_NRA"
 
     u :: V3 (Expr RealSort) <- variable
@@ -71,7 +71,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Pure API with Expression-instances for Num, Floating, Bounded, ...
   ```haskell
-    solveWith (solver @SMT yices) $ do
+    solveWith @SMT (solver yices) $ do
       setLogic "QF_BV"
       x <- var @(BvSort 16)
       y <- var
@@ -83,16 +83,16 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
     -- | Function that turns a state (usually SMT or OMT) into a result and a solution
     type Solver s m = s -> m (Result, Solution)
   ```
-- [x] Solvers via external processes: CVC5, Z3, Yices2-SMT, MathSAT, OptiMathSAT & OpenSMT
+- [x] Solvers via external processes: CVC5, Z3, Yices2-SMT, MathSAT, OptiMathSAT, OpenSMT & Bitwuzla
   ```haskell
-    (result, solution) <- solveWith (solver @SMT mathsat) $ do
+    (result, solution) <- solveWith @SMT (solver mathsat) $ do
       setLogic "QF_LIA"
       assert $ ...
   ```
 - [x] Incremental solving
   ```haskell
       cvc5Living <- interactiveSolver cvc5
-      interactiveWith cvc5Living $ do
+      interactiveWith @Pipe cvc5Living $ do
         setLogic "QF_LIA"
         setOption $ Incremental True
         setOption $ ProduceModels True
@@ -108,7 +108,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Pure quantifiers `for_all` and `exists`
   ```haskell
-    solveWith (solver @SMT z3) $ do
+    solveWith @SMT (solver z3) $ do
       setLogic "LIA"
       z <- var @IntSort
       assert $ z === 0
@@ -120,7 +120,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Optimization Modulo Theories (OMT) / MaxSMT
   ```haskell
-    res <- solveWith (solver @OMT z3) $ do
+    res <- solveWith @OMT (solver z3) $ do
       setLogic "QF_LIA"
       x <- var @IntSort
 

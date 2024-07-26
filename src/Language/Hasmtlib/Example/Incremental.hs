@@ -6,7 +6,7 @@ import Control.Monad.IO.Class
 main :: IO ()
 main = do
   cvc5Living <- interactiveSolver cvc5
-  interactiveWith cvc5Living $ do
+  interactiveWith @Pipe cvc5Living $ do
     setOption $ Incremental True
     setOption $ ProduceModels True
     setLogic "QF_LIA"

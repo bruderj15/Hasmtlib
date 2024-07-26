@@ -6,7 +6,7 @@ import Control.Monad.IO.Class
 main :: IO ()
 main = do
   iSolver <- interactiveSolver z3
-  interactiveWith iSolver $ do
+  interactiveWith @Pipe iSolver $ do
     setOption $ ProduceModels True
     setLogic "QF_LIA"
 
