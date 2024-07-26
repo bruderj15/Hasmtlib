@@ -38,6 +38,7 @@ library
                      , Language.Hasmtlib.Internal.Bitvec
                      , Language.Hasmtlib.Internal.Render
                      , Language.Hasmtlib.Solver.Common
+                     , Language.Hasmtlib.Solver.Bitwuzla
                      , Language.Hasmtlib.Solver.CVC5
                      , Language.Hasmtlib.Solver.MathSAT
                      , Language.Hasmtlib.Solver.OpenSMT

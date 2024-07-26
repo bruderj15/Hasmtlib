@@ -19,6 +19,7 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Counting
   , module Language.Hasmtlib.Variable
   , module Language.Hasmtlib.Solver.Common
+  , module Language.Hasmtlib.Solver.Bitwuzla
   , module Language.Hasmtlib.Solver.CVC5
   , module Language.Hasmtlib.Solver.Z3
   , module Language.Hasmtlib.Solver.Yices
@@ -46,6 +47,7 @@ import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Counting
 import Language.Hasmtlib.Variable
 import Language.Hasmtlib.Solver.Common
+import Language.Hasmtlib.Solver.Bitwuzla
 import Language.Hasmtlib.Solver.CVC5
 import Language.Hasmtlib.Solver.Z3
 import Language.Hasmtlib.Solver.Yices

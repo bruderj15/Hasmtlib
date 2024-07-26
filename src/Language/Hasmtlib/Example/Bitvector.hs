@@ -4,7 +4,7 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith (debug @SMT yices) $ do
+  res <- solveWith (debug @SMT bitwuzla) $ do
     setLogic "QF_BV"
 
     xbv8 <- variable
