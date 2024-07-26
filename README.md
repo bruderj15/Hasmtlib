@@ -2,6 +2,8 @@
 
 # Hasmtlib
 
+## Haskell SMTLib MTL Library
+
 Hasmtlib is a library for generating SMTLib2-problems using a monad.
 It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types.
 It is highly inspired by [ekmett/ersatz](https://github.com/ekmett/ersatz) which does the same for QSAT. Communication with external solvers is handled by [tweag/smtlib-backends](https://github.com/tweag/smtlib-backends).
