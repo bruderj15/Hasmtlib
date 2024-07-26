@@ -54,7 +54,7 @@ instance WithSolver Pipe where
 --
 --   print res
 -- @
-solveWith :: (Monad m, Default s, Codec a) => Solver s m -> StateT s m a -> m (Result, Maybe (Decoded a))
+solveWith :: (Default s, Monad m, Codec a) => Solver s m -> StateT s m a -> m (Result, Maybe (Decoded a))
 solveWith solver m = do
   (a, problem) <- runStateT m def
   (result, solution) <- solver problem
@@ -100,7 +100,7 @@ solveWith solver m = do
 --
 --   return ()
 -- @
-interactiveWith :: (MonadIO m, WithSolver s) => (B.Solver, P.Handle) -> StateT s m () -> m ()
+interactiveWith :: (WithSolver s, MonadIO m) => (B.Solver, P.Handle) -> StateT s m () -> m ()
 interactiveWith (solver, handle) m = do
    _ <- runStateT m $ withSolver solver
    liftIO $ P.close handle
