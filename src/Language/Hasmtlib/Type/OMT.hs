@@ -34,7 +34,7 @@ newtype Maximize t = Maximize { _targetMax :: Expr t }
 
 -- | The state of the OMT-problem.
 data OMT = OMT
-  { _smt            :: SMT                                  -- ^ The underlying 'SMT'-Problem
+  { _smt            :: !SMT                                 -- ^ The underlying 'SMT'-Problem
   , _targetMinimize :: !(Seq (SomeKnownSMTSort Minimize))   -- ^ All expressions to minimize
   , _targetMaximize :: !(Seq (SomeKnownSMTSort Maximize))   -- ^ All expressions to maximize
   , _softFormulas   :: !(Seq SoftFormula)                   -- ^ All soft assertions of boolean expressions
