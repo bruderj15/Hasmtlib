@@ -1,10 +1,11 @@
 module Language.Hasmtlib.Example.Bitvector where
 
 import Language.Hasmtlib
+import Data.Default
 
 main :: IO ()
 main = do
-  res <- solveWith @SMT (debug bitwuzla) $ do
+  res <- solveWith @SMT (debug bitwuzla def) $ do
     setLogic "QF_BV"
 
     xbv8 <- variable

@@ -1,14 +1,13 @@
 module Language.Hasmtlib.Solver.MathSAT where
 
-import Language.Hasmtlib.Solver.Common
-import qualified SMTLIB.Backends.Process as P
+import SMTLIB.Backends.Process
 
--- | A 'ProcessSolver' for MathSAT.
+-- | A 'Config' for MathSAT.
 --   Requires binary @mathsat@ to be in path.
-mathsat :: ProcessSolver
-mathsat = ProcessSolver $ P.defaultConfig { P.exe = "mathsat", P.args = [] }
+mathsat :: Config
+mathsat = defaultConfig { exe = "mathsat", args = [] }
 
--- | A 'ProcessSolver' for OptiMathSAT.
+-- | A 'Config' for OptiMathSAT.
 --   Requires binary @optimathsat@ to be in path.
-optimathsat :: ProcessSolver
-optimathsat = ProcessSolver $ P.defaultConfig { P.exe = "optimathsat", P.args = ["-optimization=true"] }
+optimathsat :: Config
+optimathsat = defaultConfig { exe = "optimathsat", args = ["-optimization=true"] }

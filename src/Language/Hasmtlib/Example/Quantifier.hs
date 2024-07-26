@@ -2,10 +2,11 @@ module Language.Hasmtlib.Example.Quantifier where
 
 import Prelude hiding (mod, (&&), (||))
 import Language.Hasmtlib
+import Data.Default
 
 main :: IO ()
 main = do
-  res <- solveWith @SMT (debug cvc5) $ do
+  res <- solveWith @SMT (debug cvc5 def) $ do
     setLogic "BV"
 
     z <- var @(BvSort 8)
