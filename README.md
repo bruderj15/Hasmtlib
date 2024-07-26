@@ -1,8 +1,6 @@
 [![Hackage](https://img.shields.io/hackage/v/hasmtlib.svg)](https://hackage.haskell.org/package/hasmtlib) ![Static Badge](https://img.shields.io/badge/Lang-GHC2021-blue) [![Haskell-CI](https://github.com/bruderj15/Hasmtlib/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/bruderj15/Hasmtlib/actions/workflows/haskell-ci.yml) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-# Hasmtlib
-
-## Haskell SMTLib MTL Library
+# Hasmtlib - Haskell SMTLib MTL Library
 
 Hasmtlib is a library for generating SMTLib2-problems using a monad.
 It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types.
