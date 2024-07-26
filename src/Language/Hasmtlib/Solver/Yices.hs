@@ -1,9 +1,8 @@
 module Language.Hasmtlib.Solver.Yices where
 
-import Language.Hasmtlib.Solver.Common
-import qualified SMTLIB.Backends.Process as P
+import SMTLIB.Backends.Process
 
--- | A 'ProcessSolver' for Yices.
+-- | A 'Config' for Yices.
 --   Requires binary @yices-smt2@ to be in path.
-yices :: ProcessSolver
-yices = ProcessSolver $ P.defaultConfig { P.exe = "yices-smt2", P.args = ["--smt2-model-format"] }
+yices :: Config
+yices = defaultConfig { exe = "yices-smt2", args = ["--smt2-model-format", "--incremental"] }

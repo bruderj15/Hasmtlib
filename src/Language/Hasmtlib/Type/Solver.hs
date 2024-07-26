@@ -1,6 +1,7 @@
 module Language.Hasmtlib.Type.Solver
   ( WithSolver(..)
-  , solveWith, interactiveWith
+  , solveWith
+  , interactiveWith, debugInteractiveWith
   , solveMinimized, solveMinimizedDebug
   , solveMaximized, solveMaximizedDebug
   )
@@ -13,14 +14,15 @@ import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.Pipe
 import Language.Hasmtlib.Orderable
 import Language.Hasmtlib.Codec
-import qualified SMTLIB.Backends as B
-import qualified SMTLIB.Backends.Process as P
+import qualified SMTLIB.Backends as Backend
+import qualified SMTLIB.Backends.Process as Process
 import Data.Default
 import Control.Monad.State
 
--- | Data that can have a 'B.Solver'.
+-- | Data that can have a 'Backend.Solver' which may be debugged.
 class WithSolver a where
-  withSolver :: B.Solver -> a
+  -- | Create a datum with a 'Backend.Solver' and a 'Bool for whether to debug the 'Backend.Solver'.
+  withSolver :: Backend.Solver -> Bool -> a
 
 instance WithSolver Pipe where
   withSolver = Pipe 0 Nothing
@@ -43,7 +45,7 @@ instance WithSolver Pipe where
 --
 -- main :: IO ()
 -- main = do
---   res <- solveWith (solver cvc5) $ do
+--   res <- solveWith @SMT (solver cvc5) $ do
 --     setLogic \"QF_LIA\"
 --
 --     x <- var @IntSort
@@ -54,7 +56,7 @@ instance WithSolver Pipe where
 --
 --   print res
 -- @
-solveWith :: (Monad m, Default s, Codec a) => Solver s m -> StateT s m a -> m (Result, Maybe (Decoded a))
+solveWith :: (Default s, Monad m, Codec a) => Solver s m -> StateT s m a -> m (Result, Maybe (Decoded a))
 solveWith solver m = do
   (a, problem) <- runStateT m def
   (result, solution) <- solver problem
@@ -72,7 +74,7 @@ solveWith solver m = do
 -- main :: IO ()
 -- main = do
 --   cvc5Living <- interactiveSolver cvc5
---   interactiveWith cvc5Living $ do
+--   interactiveWith @Pipe cvc5Living $ do
 --     setOption $ Incremental True
 --     setOption $ ProduceModels True
 --     setLogic \"QF_LIA\"
@@ -100,10 +102,16 @@ solveWith solver m = do
 --
 --   return ()
 -- @
-interactiveWith :: (MonadIO m, WithSolver s) => (B.Solver, P.Handle) -> StateT s m () -> m ()
+interactiveWith :: (WithSolver s, MonadIO m) => (Backend.Solver, Process.Handle) -> StateT s m () -> m ()
 interactiveWith (solver, handle) m = do
-   _ <- runStateT m $ withSolver solver
-   liftIO $ P.close handle
+  _ <- runStateT m $ withSolver solver False
+  liftIO $ Process.close handle
+
+-- | Like 'interactiveWith' but it prints all communication with the solver to console.
+debugInteractiveWith :: (WithSolver s, MonadIO m) => (Backend.Solver, Process.Handle) -> StateT s m () -> m ()
+debugInteractiveWith (solver, handle) m = do
+  _ <- runStateT m $ withSolver solver True
+  liftIO $ Process.close handle
 
 -- | Solves the current problem with respect to a minimal solution for a given numerical expression.
 --
