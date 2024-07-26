@@ -126,3 +126,4 @@ instance (MonadSMT Pipe m, MonadIO m) => MonadOMT Pipe m where
   assertSoft expr w gid = do
     smt <- get
     liftIO $ B.command_ (smt^.pipe) $ render $ SoftFormula expr w gid
+  {-# INLINEABLE assertSoft #-}
