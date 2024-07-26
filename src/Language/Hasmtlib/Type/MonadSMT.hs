@@ -1,5 +1,3 @@
-{-# LANGUAGE FunctionalDependencies #-}
-
 module Language.Hasmtlib.Type.MonadSMT where
 
 import Language.Hasmtlib.Internal.Expr
@@ -111,7 +109,7 @@ quantify (Exists _ f) = do
 quantify expr = return expr
 
 -- | A 'MonadSMT' that allows incremental solving.
-class MonadSMT s m => MonadIncrSMT s m | m -> s where
+class MonadSMT s m => MonadIncrSMT s m where
   -- | Push a new context (one) to the solvers context-stack.
   push :: m ()
 
