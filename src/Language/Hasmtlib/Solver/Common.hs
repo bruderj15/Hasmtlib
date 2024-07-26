@@ -26,6 +26,7 @@ debug :: (RenderSeq s, MonadIO m) => Process.Config -> Debugger s -> Solver s m
 debug cfg = processSolver cfg . Just
 
 -- | Creates an interactive session with a solver by creating and returning an alive process-handle 'Process.Handle'.
+--   Queues commands by default, see 'Backend.Queuing'.
 interactiveSolver :: MonadIO m => Process.Config -> m (Backend.Solver, Process.Handle)
 interactiveSolver cfg = liftIO $ do
   handle  <- Process.new cfg
