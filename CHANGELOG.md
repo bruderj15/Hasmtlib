@@ -6,6 +6,17 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.1.0 _(2024-07-26)_
+
+### Added
+- Added solver Bitwuzla
+- Added debugging capabilities for `Pipe` by introducing `debugInteractiveWith`
+
+### Changed
+- Yices now uses flag `--incremental` by default
+- *(breaking change)* Removed functional dependency `m -> s` from `MonadIncrSMT s m`. This forces you to specify the underlying state when using `interactiveWith`. Therefore `interactiveWith cvc5Living $ do ...` now becomes `interactiveWith @Pipe cvc5Living $ do ...`.
+- *(breaking change)* Removed `newtype ProcessSolver` and replaced it with underlying `SMTLIB.Backends.Process.Config`. This may only affect you if you instantiated custom solvers.
+
 ## v2.0.1 _(2024-07-23)_
 
 ### Added
