@@ -4,7 +4,7 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith (solver @OMT z3) $ do
+  res <- solveWith @OMT (solver z3) $ do
     setLogic "QF_LIA"
 
     x <- var @IntSort

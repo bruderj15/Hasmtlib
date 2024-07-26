@@ -4,7 +4,7 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith (solver @SMT cvc5) $ do
+  res <- solveWith @SMT (solver cvc5) $ do
     setLogic "ALL"
 
     x <- var @RealSort

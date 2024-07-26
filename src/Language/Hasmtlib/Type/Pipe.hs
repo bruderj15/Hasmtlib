@@ -17,10 +17,12 @@ import Data.List (isPrefixOf)
 import Data.IntMap as IMap (singleton)
 import Data.Dependent.Map as DMap
 import Data.Coerce
+import qualified Data.ByteString.Lazy.Char8 as ByteString.Char8
 import Data.ByteString.Builder
 import Data.ByteString.Lazy hiding (filter, singleton, isPrefixOf)
 import Data.Attoparsec.ByteString hiding (Result)
 import Control.Monad.State
+import Control.Monad
 import Control.Lens hiding (List)
 
 -- | A pipe to the solver.
@@ -31,6 +33,7 @@ data Pipe = Pipe
   { _lastPipeVarId :: {-# UNPACK #-} !Int              -- ^ Last Id assigned to a new var
   , _mPipeLogic    :: Maybe String                     -- ^ Logic for the SMT-Solver
   , _pipe          :: !B.Solver                        -- ^ Active pipe to the backend
+  , _isDebugging   :: Bool                             -- ^ Flag if pipe shall debug
   }
 
 $(makeLenses ''Pipe)
@@ -42,7 +45,9 @@ instance (MonadState Pipe m, MonadIO m) => MonadSMT Pipe m where
   var' p = do
     smt <- get
     newVar <- smtvar' p
-    liftIO $ B.command_ (smt^.pipe) $ renderDeclareVar newVar
+    let cmd = renderDeclareVar newVar
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ B.command_ (smt^.pipe) cmd
     return $ Var newVar
   {-# INLINEABLE var' #-}
 
@@ -51,32 +56,45 @@ instance (MonadState Pipe m, MonadIO m) => MonadSMT Pipe m where
     qExpr <- case smt^.mPipeLogic of
       Nothing    -> return expr
       Just logic -> if "QF" `isPrefixOf` logic then return expr else quantify expr
-    liftIO $ B.command_ (smt^.pipe) $ renderAssert qExpr
+    let cmd = renderAssert qExpr
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ B.command_ (smt^.pipe) cmd
   {-# INLINEABLE assert #-}
 
   setOption opt = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $ render opt
+    let cmd = render opt
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ B.command_ (smt^.pipe) cmd
 
   setLogic l = do
     mPipeLogic ?= l
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $ renderSetLogic (stringUtf8 l)
+    let cmd = renderSetLogic (stringUtf8 l)
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ B.command_ (smt^.pipe) cmd
 
 instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
   push = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) "(push 1)"
+    let cmd = "(push 1)"
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ B.command_ (smt^.pipe) cmd
   {-# INLINE push #-}
 
   pop = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) "(pop 1)"
+    let cmd = "(pop 1)"
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ B.command_ (smt^.pipe) cmd
   {-# INLINE pop #-}
 
   checkSat = do
     smt <- get
-    result <- liftIO $ B.command (smt^.pipe) "(check-sat)"
+    let cmd = "(check-sat)"
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    result <- liftIO $ B.command (smt^.pipe) cmd
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn result
     case parseOnly resultParser (toStrict result) of
       Left e    -> liftIO $ do
         print result
@@ -85,7 +103,10 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
 
   getModel = do
     smt   <- get
-    model <- liftIO $ B.command (smt^.pipe) "(get-model)"
+    let cmd = "(get-model)"
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    model <- liftIO $ B.command (smt^.pipe) cmd
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn model
     case parseOnly anyModelParser (toStrict model) of
       Left e    -> liftIO $ do
         print model
@@ -95,7 +116,10 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
   getValue :: forall t. KnownSMTSort t => Expr t -> m (Maybe (Decoded (Expr t)))
   getValue v@(Var x) = do
     smt   <- get
-    model <- liftIO $ B.command (smt^.pipe) $ renderUnary "get-value" $ "(" <> render x <> ")"
+    let cmd = renderUnary "get-value" $ "(" <> render x <> ")"
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    model <- liftIO $ B.command (smt^.pipe) cmd
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn model
     case parseOnly (getValueParser @t x) (toStrict model) of
       Left e    -> liftIO $ do
         print model
@@ -115,14 +139,21 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
 instance (MonadSMT Pipe m, MonadIO m) => MonadOMT Pipe m where
   minimize expr = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $ render $ Minimize expr
+    let cmd = render $ Minimize expr
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ B.command_ (smt^.pipe) cmd
   {-# INLINEABLE minimize #-}
 
   maximize expr = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $ render $ Maximize expr
+    let cmd = render $ Maximize expr
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ B.command_ (smt^.pipe) cmd
   {-# INLINEABLE maximize #-}
 
   assertSoft expr w gid = do
     smt <- get
-    liftIO $ B.command_ (smt^.pipe) $ render $ SoftFormula expr w gid
+    let cmd = render $ SoftFormula expr w gid
+    when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ B.command_ (smt^.pipe) cmd
+  {-# INLINEABLE assertSoft #-}

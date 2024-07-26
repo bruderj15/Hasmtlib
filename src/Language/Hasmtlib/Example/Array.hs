@@ -4,7 +4,7 @@ import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith (solver @SMT cvc5) $ do
+  res <- solveWith @SMT (solver cvc5) $ do
     setLogic "QF_AUFLIA"
 
     x <- var @(ArraySort IntSort BoolSort)

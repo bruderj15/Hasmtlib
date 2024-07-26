@@ -14,25 +14,23 @@ import Data.Attoparsec.ByteString
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import qualified SMTLIB.Backends.Process as P
-import qualified SMTLIB.Backends as B
+import qualified SMTLIB.Backends.Process as Process
+import qualified SMTLIB.Backends as Backend
 
--- | A newtype-wrapper for 'P.Config' which configures a solver via external process.
-newtype ProcessSolver = ProcessSolver { conf :: P.Config }
+-- | Creates a 'Solver' from a 'Process.Config'.
+solver :: (RenderSeq s, MonadIO m) => Process.Config -> Solver s m
+solver cfg = processSolver cfg Nothing
 
--- | Creates a 'Solver' from a 'ProcessSolver'.
-solver :: (RenderSeq s, MonadIO m) => ProcessSolver -> Solver s m
-solver (ProcessSolver cfg) = processSolver cfg Nothing
+-- | Creates a debugging 'Solver' from a 'Process.Config'.
+debug :: (RenderSeq s, MonadIO m) => Process.Config -> Debugger s -> Solver s m
+debug cfg = processSolver cfg . Just
 
--- | Creates a debugging 'Solver' from a 'ProcessSolver'.
-debug :: (RenderSeq s, Default (Debugger s), MonadIO m) => ProcessSolver -> Solver s m
-debug (ProcessSolver cfg) = processSolver cfg $ Just def
-
--- | Creates an interactive session with a solver by creating and returning an alive process-handle 'P.Handle'.
-interactiveSolver :: MonadIO m => ProcessSolver -> m (B.Solver, P.Handle)
-interactiveSolver (ProcessSolver cfg) = liftIO $ do
-  handle  <- P.new cfg
-  liftM2 (,) (B.initSolver B.Queuing $ P.toBackend handle) (return handle)
+-- | Creates an interactive session with a solver by creating and returning an alive process-handle 'Process.Handle'.
+--   Queues commands by default, see 'Backend.Queuing'.
+interactiveSolver :: MonadIO m => Process.Config -> m (Backend.Solver, Process.Handle)
+interactiveSolver cfg = liftIO $ do
+  handle  <- Process.new cfg
+  liftM2 (,) (Backend.initSolver Backend.Queuing $ Process.toBackend handle) (return handle)
 
 -- | A type holding actions for debugging states.
 data Debugger s = Debugger
@@ -77,20 +75,20 @@ instance Default (Debugger OMT) where
 --
 -- 5. close the process and clean up all resources.
 --
-processSolver :: (RenderSeq s, MonadIO m) => P.Config -> Maybe (Debugger s) -> Solver s m
+processSolver :: (RenderSeq s, MonadIO m) => Process.Config -> Maybe (Debugger s) -> Solver s m
 processSolver cfg debugger s = do
-  liftIO $ P.with cfg $ \handle -> do
+  liftIO $ Process.with cfg $ \handle -> do
     maybe mempty (`debugState` s) debugger
-    pSolver <- B.initSolver B.Queuing $ P.toBackend handle
+    pSolver <- Backend.initSolver Backend.Queuing $ Process.toBackend handle
 
     let problem = renderSeq s
     maybe mempty (`debugProblem` problem) debugger
 
-    forM_ problem (B.command_ pSolver)
-    resultResponse <- B.command pSolver "(check-sat)"
+    forM_ problem (Backend.command_ pSolver)
+    resultResponse <- Backend.command pSolver "(check-sat)"
     maybe mempty (`debugResultResponse` resultResponse) debugger
 
-    modelResponse  <- B.command pSolver "(get-model)"
+    modelResponse  <- Backend.command pSolver "(get-model)"
     maybe mempty (`debugModelResponse` modelResponse) debugger
 
     case parseOnly resultParser (toStrict resultResponse) of

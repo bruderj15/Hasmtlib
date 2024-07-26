@@ -16,7 +16,7 @@ instance Variable a => Variable (Foo a)
 
 main :: IO ()
 main = do
-  res <- solveWith (solver @SMT z3) $ do
+  res <- solveWith @SMT (solver z3) $ do
     setLogic "ALL"
 
 -- These do all the same:
