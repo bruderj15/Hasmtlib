@@ -18,6 +18,21 @@ type Solver s m = s -> m (Result, Solution)
 -- | Results of check-sat commands.
 data Result = Unsat | Unknown | Sat deriving (Show, Eq, Ord)
 
+instance Semigroup Result where
+  Unsat <> Unsat     = Unsat
+  Unsat <> Unknown   = Unsat
+  Unsat <> Sat       = Unsat
+  Unknown <> Unsat   = Unsat
+  Unknown <> Unknown = Unknown
+  Unknown <> Sat     = Unknown
+  Sat <> Unsat       = Unsat
+  Sat <> Unknown     = Unknown
+  Sat <> Sat         = Sat
+
+instance Monoid Result where
+  mempty = Sat
+  mappend = (<>)
+
 -- | A Solution is a dependent map 'DMap' from 'SSMTSort's t to 'IntMap' t.
 type Solution = DMap SSMTSort IntValueMap
 
