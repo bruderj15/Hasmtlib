@@ -36,7 +36,7 @@ disjoin smt =
                               (\i (fss'', merged) fs ->
                                 if i `elem` is then (fss'', merged >< fs) else (fss'' |> fs, merged)
                               )
-                              (mempty :: Seq (Seq (Expr BoolSort)), mempty :: Seq (Expr BoolSort))
+                              (mempty :: Seq (Seq (Expr BoolSort)), pure f)
                               fss
                       f_index      = Seq.length fss'
                       v_fssIndex'  = IntSet.foldr' (\v -> at v ?~ f_index) v_fssIndex $ allVarIds mergedFs
