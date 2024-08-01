@@ -1,5 +1,6 @@
 module Language.Hasmtlib.Internal.Disjoin where
 
+import Language.Hasmtlib.Internal.Expr.Analyze
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.SMTSort
