@@ -37,6 +37,7 @@ library
                      , Language.Hasmtlib.Internal.Parser
                      , Language.Hasmtlib.Internal.Bitvec
                      , Language.Hasmtlib.Internal.Render
+                     , Language.Hasmtlib.Internal.Disjoin
                      , Language.Hasmtlib.Solver.Common
                      , Language.Hasmtlib.Solver.Bitwuzla
                      , Language.Hasmtlib.Solver.CVC5
@@ -57,6 +58,7 @@ library
 
   other-modules:       Language.Hasmtlib.Internal.Expr
                      , Language.Hasmtlib.Internal.Expr.Num
+                     , Language.Hasmtlib.Internal.Expr.Analyze
 
   build-depends:       attoparsec                   >= 0.14.4 && < 1
                      , base                         >= 4.17.2 && < 5
@@ -85,3 +87,12 @@ library
                      -Wredundant-constraints
                      -Wno-type-defaults
                      -Wno-orphans
+
+test-suite hasmtlib-tests
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Test.hs
+  build-depends:       base         >= 4.17.2 && < 5,
+                       hasmtlib,
+                       hspec        >=2.7,
+  default-language:    GHC2021
