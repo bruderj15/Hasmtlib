@@ -1,77 +1,23 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Language.Hasmtlib.Internal.Expr.Analyze where
 
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.SMTSort
 import Data.Coerce
+import Data.Maybe
 import qualified Data.IntSet as IntSet
 import qualified Data.Set as Set
 import qualified Data.Vector.Sized as Vector
 
 -- | For many expressions, returns an 'IntSet.IntSet' containing all underlying identifiers of 'SMTVar's occuring in any of the given formulas.
-varIdsAll :: (Functor f, Foldable f) => f (Expr t) -> IntSet.IntSet
+varIdsAll :: (Functor f, Foldable f, KnownSMTSort t) => f (Expr t) -> IntSet.IntSet
 varIdsAll = IntSet.unions . fmap varIds1
 {-# INLINEABLE varIdsAll #-}
 
 -- | Given an expression returns an 'IntSet.IntSet' containing all underlying identifiers of 'SMTVar's occuring in that formula.
-varIds1 :: Expr t -> IntSet.IntSet
-varIds1 (Var v)            = IntSet.singleton $ coerce v
-varIds1 (Constant _)       = mempty
-varIds1 (Plus x y)         = varIds1 x `IntSet.union` varIds1 y
-varIds1 (Neg x)            = varIds1 x
-varIds1 (Mul x y)          = varIds1 x `IntSet.union` varIds1 y
-varIds1 (Abs x)            = varIds1 x
-varIds1 (Mod x y)          = varIds1 x `IntSet.union` varIds1 y
-varIds1 (IDiv x y)         = varIds1 x `IntSet.union` varIds1 y
-varIds1 (Div x y)          = varIds1 x `IntSet.union` varIds1 y
-varIds1 (LTH x y)          = varIds1 x `IntSet.union` varIds1 y
-varIds1 (LTHE x y)         = varIds1 x `IntSet.union` varIds1 y
-varIds1 (EQU xs)           = Vector.foldl' (\vs x -> vs `IntSet.union` varIds1 x) mempty xs
-varIds1 (Distinct xs)      = Vector.foldl' (\vs x -> vs `IntSet.union` varIds1 x) mempty xs
-varIds1 (GTHE x y)         = varIds1 x `IntSet.union` varIds1 y
-varIds1 (GTH x y)          = varIds1 x `IntSet.union` varIds1 y
-varIds1 (Not x)            = varIds1 x
-varIds1 (And x y)          = varIds1 x `IntSet.union` varIds1 y
-varIds1 (Or x y)           = varIds1 x `IntSet.union` varIds1 y
-varIds1 (Impl x y)         = varIds1 x `IntSet.union` varIds1 y
-varIds1 (Xor x y)          = varIds1 x `IntSet.union` varIds1 y
-varIds1 Pi                 = mempty
-varIds1 (Sqrt x)           = varIds1 x
-varIds1 (Exp x)            = varIds1 x
-varIds1 (Sin x)            = varIds1 x
-varIds1 (Cos x)            = varIds1 x
-varIds1 (Tan x)            = varIds1 x
-varIds1 (Asin x)           = varIds1 x
-varIds1 (Acos x)           = varIds1 x
-varIds1 (Atan x)           = varIds1 x
-varIds1 (ToReal x)         = varIds1 x
-varIds1 (ToInt x)          = varIds1 x
-varIds1 (IsInt x)          = varIds1 x
-varIds1 (Ite p t f)        = varIds1 p `IntSet.union` varIds1 t `IntSet.union` varIds1 f
-varIds1 (BvNot x)          = varIds1 x
-varIds1 (BvAnd x y)        = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvOr x y)         = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvXor x y)        = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvNand x y)       = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvNor x y)        = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvNeg x)          = varIds1 x
-varIds1 (BvAdd x y)        = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvSub x y)        = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvMul x y)        = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvuDiv x y)       = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvuRem x y)       = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvShL x y)        = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvLShR x y)       = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvConcat x y)     = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvRotL _ x)       = varIds1 x
-varIds1 (BvRotR _ x)       = varIds1 x
-varIds1 (BvuLT x y)        = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvuLTHE x y)      = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvuGTHE x y)      = varIds1 x `IntSet.union` varIds1 y
-varIds1 (BvuGT x y)        = varIds1 x `IntSet.union` varIds1 y
-varIds1 (ArrSelect i arr)  = varIds1 i `IntSet.union` varIds1 arr
-varIds1 (ArrStore i x arr) = varIds1 i `IntSet.union` varIds1 x `IntSet.union` varIds1 arr
-varIds1 (ForAll _ _)       = mempty
-varIds1 (Exists _ _)       = mempty
+varIds1 :: KnownSMTSort t => Expr t -> IntSet.IntSet
+varIds1 = foldr (\(SomeSMTSort v) -> IntSet.insert (coerce v)) mempty . vars1
 
 -- | For many expressions, returns a 'Set.Set' containing all 'SMTVar's occuring in any of the given formulas.
 varsAll :: (Foldable f, KnownSMTSort t) => f (Expr t) -> Set.Set (SomeKnownSMTSort SMTVar)
@@ -136,5 +82,10 @@ vars1 (BvuGTHE x y)      = vars1 x <> vars1 y
 vars1 (BvuGT x y)        = vars1 x <> vars1 y
 vars1 (ArrSelect i arr)  = vars1 i <> vars1 arr
 vars1 (ArrStore i x arr) = vars1 i <> vars1 x <> vars1 arr
-vars1 (ForAll _ _)       = mempty
-vars1 (Exists _ _)       = mempty
+vars1 (ForAll mQv expr)  = vars1Q mQv expr
+vars1 (Exists mQv expr)  = vars1Q mQv expr
+
+vars1Q :: KnownSMTSort t => Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Set.Set (SomeKnownSMTSort SMTVar)
+vars1Q mQv expr = Set.delete (SomeSMTSort qv) $ vars1 $ expr (Var qv)
+  where
+    qv = fromMaybe (coerce (-1 :: Int)) mQv
