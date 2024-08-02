@@ -15,3 +15,5 @@ main = hspec $ do
   describe "disjoin" $ do
       prop "does not alter the amount of asserted formulas" $
         \(s :: SMT) -> Seq.length (s^.formulas) == sum (Seq.length . view formulas <$> disjoin s)
+      prop "does not alter the amount of variables" $
+        \(s :: SMT) -> Seq.length (s^.vars) == sum (Seq.length . view vars <$> disjoin s)
