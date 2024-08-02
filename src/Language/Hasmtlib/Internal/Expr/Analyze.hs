@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Language.Hasmtlib.Internal.Expr.Analyze where
 
 import Language.Hasmtlib.Internal.Expr
