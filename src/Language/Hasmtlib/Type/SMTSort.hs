@@ -103,6 +103,8 @@ type family AllC cs k :: Constraint where
 data SomeSMTSort cs f where
   SomeSMTSort :: forall cs f (t :: SMTSort). AllC cs t => f t -> SomeSMTSort cs f
 
+deriving instance (forall t. Show (f t)) => Show (SomeSMTSort cs f)
+
 instance (forall t. Eq (f t)) => Eq (SomeSMTSort (KnownSMTSort ': cs) f) where
   (SomeSMTSort x) == (SomeSMTSort y) = case geq (sortSing' x) (sortSing' y) of
     Nothing   -> False

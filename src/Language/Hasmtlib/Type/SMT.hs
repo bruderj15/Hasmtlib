@@ -24,7 +24,7 @@ data SMT = SMT
   , _formulas :: !(Seq (Expr BoolSort))                   -- ^ All asserted formulas
   , _mlogic   :: Maybe String                             -- ^ Logic for the SMT-Solver
   , _options  :: [SMTOption]                              -- ^ All manually configured SMT-Solver-Options
-  }
+  } deriving Show
 $(makeLenses ''SMT)
 
 instance Default SMT where
