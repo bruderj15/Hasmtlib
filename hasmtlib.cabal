@@ -99,6 +99,7 @@ test-suite hasmtlib-tests
   build-depends:         base                         >= 4.17.2 && < 5
                        , hasmtlib
                        , containers                   >= 0.6.7  && < 1
+                       , lens                         >= 5      && < 6
                        , hspec                        >= 2.7
                        , QuickCheck                   >= 2.12
 
