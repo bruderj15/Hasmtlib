@@ -6,11 +6,14 @@
 module Language.Hasmtlib.Internal.Expr.Arbitrary where
 
 import Prelude hiding (not, and, or, (&&), (||), Integral(..))
-import Language.Hasmtlib
+import Language.Hasmtlib.Internal.Expr.Analyze
 import Language.Hasmtlib.Internal.Bitvec
+import Language.Hasmtlib
 import Test.QuickCheck hiding ((===), (==>))
 import Data.Proxy
 import Data.Coerce
+import Data.Maybe
+import Data.IntSet as IntSet
 import Control.Monad
 import GHC.TypeLits
 
@@ -98,3 +101,10 @@ numExprGens n =
   , liftM2 select (sizedArbitraryExpr @(ArraySort RealSort _)   $ n `div` 2) (sizedArbitraryExpr $ n `div` 2)
   , liftM2 select (sizedArbitraryExpr @(ArraySort (BvSort 8) _) $ n `div` 2) (sizedArbitraryExpr $ n `div` 2)
   ]
+
+instance Arbitrary SMT where
+  arbitrary = do
+    fs <- arbitrary
+    let vs      = varsAll fs
+        lastVar = fromMaybe 0 (maxView (varIdsAll fs) >>= return . fst)
+    return $ SMT lastVar vs fs Nothing mempty
