@@ -8,13 +8,14 @@ import qualified Data.IntSet as IntSet
 import qualified Data.Sequence as Seq
 import qualified Data.Vector.Sized as Vector
 
--- | For many expressions, returns an 'IntSet.IntSet' containing all underlying identifiers 'SMTVar' occuring in any of the given formulas.
+-- | For many expressions, returns an 'IntSet.IntSet' containing all underlying identifiers of 'SMTVar's occuring in any of the given formulas.
 varIdsAll :: (Functor f, Foldable f) => f (Expr t) -> IntSet.IntSet
 varIdsAll = IntSet.unions . fmap varIds1
+{-# INLINEABLE varIdsAll #-}
 
 -- | Given an expression returns an 'IntSet.IntSet' containing all underlying identifiers of 'SMTVar's occuring in that formula.
 varIds1 :: Expr t -> IntSet.IntSet
-varIds1 (Var v)          = IntSet.singleton $ coerce v
+varIds1 (Var v)            = IntSet.singleton $ coerce v
 varIds1 (Constant _)       = mempty
 varIds1 (Plus x y)         = varIds1 x `IntSet.union` varIds1 y
 varIds1 (Neg x)            = varIds1 x
@@ -73,9 +74,12 @@ varIds1 (ArrStore i x arr) = varIds1 i `IntSet.union` varIds1 x `IntSet.union` v
 varIds1 (ForAll _ _)       = mempty
 varIds1 (Exists _ _)       = mempty
 
-varsAll :: (Functor f, Foldable f, KnownSMTSort t) => f (Expr t) -> Seq.Seq (SomeKnownSMTSort SMTVar)
-varsAll = foldr nubAppend mempty . fmap vars1
+-- | For many expressions, returns a 'Seq.Seq' containing all 'SMTVar's occuring in any of the given formulas.
+varsAll :: (Foldable f, KnownSMTSort t) => f (Expr t) -> Seq.Seq (SomeKnownSMTSort SMTVar)
+varsAll = foldr (\f vs -> vs `nubAppend` vars1 f) mempty
+{-# INLINEABLE varsAll #-}
 
+-- | Given an expression returns an 'Seq.Seq' containing all 'SMTVar's occuring in that formula.
 vars1 :: KnownSMTSort t => Expr t -> Seq.Seq (SomeKnownSMTSort SMTVar)
 vars1 (Var v)            = Seq.singleton $ SomeSMTSort v
 vars1 (Constant _)       = mempty
@@ -138,3 +142,4 @@ vars1 (Exists _ _)       = mempty
 
 nubAppend :: Eq a => Seq.Seq a -> Seq.Seq a -> Seq.Seq a
 nubAppend xs ys = foldr (\x zs -> if isJust $ x `Seq.elemIndexL` zs then zs else zs Seq.|> x) ys xs
+{-# INLINEABLE nubAppend #-}
