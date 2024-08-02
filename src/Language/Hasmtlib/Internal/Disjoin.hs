@@ -23,12 +23,12 @@ merge = unionsWithKey (\_ (IntValueMap l) (IntValueMap r) -> IntValueMap $ l `In
 instance Disjoinable SMT where
   disjoin smt =
     fmap (\fs -> smt
-        & vars %~ Seq.filter (\(SomeSMTSort v) -> allVarIds fs ^. contains (coerce v))
+        & vars %~ Seq.filter (\(SomeSMTSort v) -> varIdsAll fs ^. contains (coerce v))
         & formulas .~ fs) $
     fst $
     Foldable.foldr'
       (\f (fss, v_fssIndex) ->
-        let vs = IntSet.toList $ varIds f
+        let vs = IntSet.toList $ varIds1 f
             fssIndexs = mapMaybe (v_fssIndex IntMap.!?) vs
         in case fssIndexs of
               [] -> let f_index = Seq.length fss
@@ -42,7 +42,7 @@ instance Disjoinable SMT where
                                 (mempty :: Seq (Seq (Expr BoolSort)), pure f)
                                 fss
                         f_index      = Seq.length fss'
-                        v_fssIndex'  = IntSet.foldr' (\v -> at v ?~ f_index) v_fssIndex $ allVarIds mergedFs
+                        v_fssIndex'  = IntSet.foldr' (\v -> at v ?~ f_index) v_fssIndex $ varIdsAll mergedFs
                     in (fss' |> mergedFs, v_fssIndex')
       )
       (mempty :: Seq (Seq (Expr t)), mempty :: IntMap Int)
