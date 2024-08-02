@@ -38,6 +38,9 @@ library
                      , Language.Hasmtlib.Internal.Bitvec
                      , Language.Hasmtlib.Internal.Render
                      , Language.Hasmtlib.Internal.Disjoin
+                     , Language.Hasmtlib.Internal.Expr
+                     , Language.Hasmtlib.Internal.Expr.Num
+                     , Language.Hasmtlib.Internal.Expr.Analyze
                      , Language.Hasmtlib.Solver.Common
                      , Language.Hasmtlib.Solver.Bitwuzla
                      , Language.Hasmtlib.Solver.CVC5
@@ -56,9 +59,7 @@ library
                      , Language.Hasmtlib.Type.Option
                      , Language.Hasmtlib.Type.ArrayMap
 
-  other-modules:       Language.Hasmtlib.Internal.Expr
-                     , Language.Hasmtlib.Internal.Expr.Num
-                     , Language.Hasmtlib.Internal.Expr.Analyze
+  -- other-modules:
 
   build-depends:       attoparsec                   >= 0.14.4 && < 1
                      , base                         >= 4.17.2 && < 5
