@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module Language.Hasmtlib.Type.SMTSort where
 
@@ -101,6 +102,17 @@ type family AllC cs k :: Constraint where
 -- | An existential wrapper that hides some 'SMTSort' and a list of 'Constraint's holding for it.
 data SomeSMTSort cs f where
   SomeSMTSort :: forall cs f (t :: SMTSort). AllC cs t => f t -> SomeSMTSort cs f
+
+instance (forall t. Eq (f t)) => Eq (SomeSMTSort (KnownSMTSort ': cs) f) where
+  (SomeSMTSort x) == (SomeSMTSort y) = case geq (sortSing' x) (sortSing' y) of
+    Nothing   -> False
+    Just Refl -> x == y
+
+instance (forall t. Ord (f t)) => Ord (SomeSMTSort (KnownSMTSort ': cs) f) where
+  compare (SomeSMTSort x) (SomeSMTSort y) = case gcompare (sortSing' x) (sortSing' y) of
+    GLT -> LT
+    GEQ -> compare x y
+    GGT -> GT
 
 instance Render (SSMTSort t) where
   render SBoolSort   = "Bool"
