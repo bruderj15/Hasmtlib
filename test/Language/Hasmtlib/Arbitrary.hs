@@ -4,6 +4,7 @@ module Language.Hasmtlib.Arbitrary where
 
 import Prelude hiding (not, and, or, (&&), (||), Integral(..))
 import Language.Hasmtlib.Internal.Expr.Analyze
+import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib
 import Test.QuickCheck hiding ((===), (==>))
@@ -24,7 +25,11 @@ instance (KnownSMTSort t, Arbitrary (HaskellType t)) => Arbitrary (Expr t) where
   arbitrary = sized sizedArbitraryExpr
 
 sizedArbitraryExpr :: forall t. (KnownSMTSort t, Arbitrary (HaskellType t)) => Int -> Gen (Expr t)
-sizedArbitraryExpr 0 = constant <$> arbitrary   -- TODO: Or Var
+sizedArbitraryExpr 0 = oneof
+  [
+    constant <$> arbitrary
+  , Var . SMTVar . getPositive <$> arbitrary
+  ]
 sizedArbitraryExpr n = case sortSing @t of
   SBoolSort      -> oneof
     [
