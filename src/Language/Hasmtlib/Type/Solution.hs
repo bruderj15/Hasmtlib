@@ -19,18 +19,18 @@ type Solver s m = s -> m (Result, Solution)
 data Result = Unsat | Unknown | Sat deriving (Show, Eq, Ord)
 
 instance Semigroup Result where
-  Unsat <> Unsat     = Unsat
-  Unsat <> Unknown   = Unsat
-  Unsat <> Sat       = Unsat
+  Unsat   <> Unsat   = Unsat
+  Unsat   <> Unknown = Unsat
+  Unsat   <> Sat     = Unsat
   Unknown <> Unsat   = Unsat
   Unknown <> Unknown = Unknown
   Unknown <> Sat     = Unknown
-  Sat <> Unsat       = Unsat
-  Sat <> Unknown     = Unknown
-  Sat <> Sat         = Sat
+  Sat     <> Unsat   = Unsat
+  Sat     <> Unknown = Unknown
+  Sat     <> Sat     = Sat
 
 instance Monoid Result where
-  mempty = Sat
+  mempty  = Sat
   mappend = (<>)
 
 -- | A Solution is a dependent map 'DMap' from 'SSMTSort's t to 'IntMap' t.
@@ -56,7 +56,7 @@ instance Ord (HaskellType t) => OrdHaskellType t
 type SomeKnownOrdSMTSort f = SomeSMTSort '[KnownSMTSort, OrdHaskellType] f
 
 -- | Create a 'Solution' from some 'SMTVarSol's.
-fromSomeVarSols :: [SomeKnownOrdSMTSort SMTVarSol] -> Solution
+fromSomeVarSols :: Foldable f => f (SomeKnownOrdSMTSort SMTVarSol) -> Solution
 fromSomeVarSols = foldl
   (\dsol (SomeSMTSort s) -> let sSort = sortSing' s in
     dsol & dmat sSort %~

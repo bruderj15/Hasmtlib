@@ -1,9 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DataKinds #-}
 
-module Language.Hasmtlib.Internal.Expr.Arbitrary where
+module Language.Hasmtlib.Arbitrary where
 
 import Prelude hiding (not, and, or, (&&), (||), Integral(..))
 import Language.Hasmtlib.Internal.Expr.Analyze

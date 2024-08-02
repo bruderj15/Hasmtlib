@@ -84,7 +84,7 @@ instance KnownNat n => KnownSMTSort (BvSort n) where sortSing = SBvSort (Proxy @
 instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => KnownSMTSort (ArraySort k v) where
    sortSing = SArraySort (Proxy @k) (Proxy @v)
 
--- | Wrapper for 'sortSing' which takes a 'Proxy'
+-- | Wrapper for 'sortSing' which takes a 'Proxy'-like argument for @t@.
 sortSing' :: forall prxy t. KnownSMTSort t => prxy t -> SSMTSort t
 sortSing' _ = sortSing @t
 

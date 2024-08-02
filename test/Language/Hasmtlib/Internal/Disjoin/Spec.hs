@@ -2,7 +2,7 @@ module Language.Hasmtlib.Internal.Disjoin.Spec where
 
 import Language.Hasmtlib
 import Language.Hasmtlib.Internal.Disjoin
-import Language.Hasmtlib.Internal.Expr.Arbitrary
+import Language.Hasmtlib.Arbitrary
 import Test.QuickCheck.Arbitrary
 import Test.Hspec.QuickCheck
 import Test.Hspec

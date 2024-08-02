@@ -14,11 +14,10 @@ import Data.Coerce
 import qualified Data.Foldable as Foldable
 import Control.Lens hiding ((|>))
 
+-- | Class that allows to split a datum into a sequence of disjoint data.
 class Disjoinable a where
+  -- | Disjoin a datum into a disjoint sequence of data.
   disjoin :: a -> Seq a
-
-merge :: Foldable f => f Solution -> Solution
-merge = unionsWithKey (\_ (IntValueMap l) (IntValueMap r) -> IntValueMap $ l `IntMap.union` r) . Foldable.toList
 
 instance Disjoinable SMT where
   disjoin smt =
@@ -47,3 +46,7 @@ instance Disjoinable SMT where
       )
       (mempty :: Seq (Seq (Expr t)), mempty :: IntMap Int)
       (smt^.formulas)
+
+-- | Merge many 'Solution's into a single one.
+merge :: Foldable f => f Solution -> Solution
+merge = unionsWithKey (\_ (IntValueMap l) (IntValueMap r) -> IntValueMap $ l `IntMap.union` r) . Foldable.toList
