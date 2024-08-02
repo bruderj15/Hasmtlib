@@ -14,33 +14,36 @@ import Data.Coerce
 import qualified Data.Foldable as Foldable
 import Control.Lens hiding ((|>))
 
+class Disjoinable a where
+  disjoin :: a -> Seq a
+
 merge :: Foldable f => f Solution -> Solution
 merge = unionsWithKey (\_ (IntValueMap l) (IntValueMap r) -> IntValueMap $ l `IntMap.union` r) . Foldable.toList
 
-disjoin :: SMT -> Seq SMT
-disjoin smt =
-  fmap (\fs -> smt
-      & vars %~ Seq.filter (\(SomeSMTSort v) -> allVarIds fs ^. contains (coerce v))
-      & formulas .~ fs) $
-  fst $
-  Foldable.foldr'
-    (\f (fss, v_fssIndex) ->
-      let vs = IntSet.toList $ varIds f
-          fssIndexs = mapMaybe (v_fssIndex IntMap.!?) vs
-       in case fssIndexs of
-            [] -> let f_index = Seq.length fss
-                      fss' = fss |> pure f
-                      v_fssIndex' = v_fssIndex <> IntMap.fromList (fmap (, f_index) vs)
-                   in (fss', v_fssIndex')
-            is -> let (fss', mergedFs) = ifoldl'
-                              (\i (fss'', merged) fs ->
-                                if i `elem` is then (fss'', merged >< fs) else (fss'' |> fs, merged)
-                              )
-                              (mempty :: Seq (Seq (Expr BoolSort)), pure f)
-                              fss
-                      f_index      = Seq.length fss'
-                      v_fssIndex'  = IntSet.foldr' (\v -> at v ?~ f_index) v_fssIndex $ allVarIds mergedFs
-                   in (fss' |> mergedFs, v_fssIndex')
-    )
-    (mempty :: Seq (Seq (Expr t)), mempty :: IntMap Int)
-    (smt^.formulas)
+instance Disjoinable SMT where
+  disjoin smt =
+    fmap (\fs -> smt
+        & vars %~ Seq.filter (\(SomeSMTSort v) -> allVarIds fs ^. contains (coerce v))
+        & formulas .~ fs) $
+    fst $
+    Foldable.foldr'
+      (\f (fss, v_fssIndex) ->
+        let vs = IntSet.toList $ varIds f
+            fssIndexs = mapMaybe (v_fssIndex IntMap.!?) vs
+        in case fssIndexs of
+              [] -> let f_index = Seq.length fss
+                        fss' = fss |> pure f
+                        v_fssIndex' = v_fssIndex <> IntMap.fromList (fmap (, f_index) vs)
+                    in (fss', v_fssIndex')
+              is -> let (fss', mergedFs) = ifoldl'
+                                (\i (fss'', merged) fs ->
+                                  if i `elem` is then (fss'', merged >< fs) else (fss'' |> fs, merged)
+                                )
+                                (mempty :: Seq (Seq (Expr BoolSort)), pure f)
+                                fss
+                        f_index      = Seq.length fss'
+                        v_fssIndex'  = IntSet.foldr' (\v -> at v ?~ f_index) v_fssIndex $ allVarIds mergedFs
+                    in (fss' |> mergedFs, v_fssIndex')
+      )
+      (mempty :: Seq (Seq (Expr t)), mempty :: IntMap Int)
+      (smt^.formulas)
