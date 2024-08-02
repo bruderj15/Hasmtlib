@@ -3,9 +3,8 @@ module Language.Hasmtlib.Internal.Expr.Analyze where
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.SMTSort
 import Data.Coerce
-import Data.Maybe
 import qualified Data.IntSet as IntSet
-import qualified Data.Sequence as Seq
+import qualified Data.Set as Set
 import qualified Data.Vector.Sized as Vector
 
 -- | For many expressions, returns an 'IntSet.IntSet' containing all underlying identifiers of 'SMTVar's occuring in any of the given formulas.
@@ -74,33 +73,33 @@ varIds1 (ArrStore i x arr) = varIds1 i `IntSet.union` varIds1 x `IntSet.union` v
 varIds1 (ForAll _ _)       = mempty
 varIds1 (Exists _ _)       = mempty
 
--- | For many expressions, returns a 'Seq.Seq' containing all 'SMTVar's occuring in any of the given formulas.
-varsAll :: (Foldable f, KnownSMTSort t) => f (Expr t) -> Seq.Seq (SomeKnownSMTSort SMTVar)
-varsAll = foldr (\f vs -> vs `nubAppend` vars1 f) mempty
+-- | For many expressions, returns a 'Set.Set' containing all 'SMTVar's occuring in any of the given formulas.
+varsAll :: (Foldable f, KnownSMTSort t) => f (Expr t) -> Set.Set (SomeKnownSMTSort SMTVar)
+varsAll = foldr (\f vs -> vs <> vars1 f) mempty
 {-# INLINEABLE varsAll #-}
 
--- | Given an expression returns an 'Seq.Seq' containing all 'SMTVar's occuring in that formula.
-vars1 :: KnownSMTSort t => Expr t -> Seq.Seq (SomeKnownSMTSort SMTVar)
-vars1 (Var v)            = Seq.singleton $ SomeSMTSort v
+-- | Given an expression returns an 'Set.Set' containing all 'SMTVar's occuring in that formula.
+vars1 :: KnownSMTSort t => Expr t -> Set.Set (SomeKnownSMTSort SMTVar)
+vars1 (Var v)            = Set.singleton $ SomeSMTSort v
 vars1 (Constant _)       = mempty
-vars1 (Plus x y)         = vars1 x `nubAppend` vars1 y
+vars1 (Plus x y)         = vars1 x <> vars1 y
 vars1 (Neg x)            = vars1 x
-vars1 (Mul x y)          = vars1 x `nubAppend` vars1 y
+vars1 (Mul x y)          = vars1 x <> vars1 y
 vars1 (Abs x)            = vars1 x
-vars1 (Mod x y)          = vars1 x `nubAppend` vars1 y
-vars1 (IDiv x y)         = vars1 x `nubAppend` vars1 y
-vars1 (Div x y)          = vars1 x `nubAppend` vars1 y
-vars1 (LTH x y)          = vars1 x `nubAppend` vars1 y
-vars1 (LTHE x y)         = vars1 x `nubAppend` vars1 y
-vars1 (EQU xs)           = Vector.foldl' (\vs x -> vs `nubAppend` vars1 x) mempty xs
-vars1 (Distinct xs)      = Vector.foldl' (\vs x -> vs `nubAppend` vars1 x) mempty xs
-vars1 (GTHE x y)         = vars1 x `nubAppend` vars1 y
-vars1 (GTH x y)          = vars1 x `nubAppend` vars1 y
+vars1 (Mod x y)          = vars1 x <> vars1 y
+vars1 (IDiv x y)         = vars1 x <> vars1 y
+vars1 (Div x y)          = vars1 x <> vars1 y
+vars1 (LTH x y)          = vars1 x <> vars1 y
+vars1 (LTHE x y)         = vars1 x <> vars1 y
+vars1 (EQU xs)           = Vector.foldl' (\vs x -> vs <> vars1 x) mempty xs
+vars1 (Distinct xs)      = Vector.foldl' (\vs x -> vs <> vars1 x) mempty xs
+vars1 (GTHE x y)         = vars1 x <> vars1 y
+vars1 (GTH x y)          = vars1 x <> vars1 y
 vars1 (Not x)            = vars1 x
-vars1 (And x y)          = vars1 x `nubAppend` vars1 y
-vars1 (Or x y)           = vars1 x `nubAppend` vars1 y
-vars1 (Impl x y)         = vars1 x `nubAppend` vars1 y
-vars1 (Xor x y)          = vars1 x `nubAppend` vars1 y
+vars1 (And x y)          = vars1 x <> vars1 y
+vars1 (Or x y)           = vars1 x <> vars1 y
+vars1 (Impl x y)         = vars1 x <> vars1 y
+vars1 (Xor x y)          = vars1 x <> vars1 y
 vars1 Pi                 = mempty
 vars1 (Sqrt x)           = vars1 x
 vars1 (Exp x)            = vars1 x
@@ -113,33 +112,29 @@ vars1 (Atan x)           = vars1 x
 vars1 (ToReal x)         = vars1 x
 vars1 (ToInt x)          = vars1 x
 vars1 (IsInt x)          = vars1 x
-vars1 (Ite p t f)        = vars1 p `nubAppend` vars1 t `nubAppend` vars1 f
+vars1 (Ite p t f)        = vars1 p <> vars1 t <> vars1 f
 vars1 (BvNot x)          = vars1 x
-vars1 (BvAnd x y)        = vars1 x `nubAppend` vars1 y
-vars1 (BvOr x y)         = vars1 x `nubAppend` vars1 y
-vars1 (BvXor x y)        = vars1 x `nubAppend` vars1 y
-vars1 (BvNand x y)       = vars1 x `nubAppend` vars1 y
-vars1 (BvNor x y)        = vars1 x `nubAppend` vars1 y
+vars1 (BvAnd x y)        = vars1 x <> vars1 y
+vars1 (BvOr x y)         = vars1 x <> vars1 y
+vars1 (BvXor x y)        = vars1 x <> vars1 y
+vars1 (BvNand x y)       = vars1 x <> vars1 y
+vars1 (BvNor x y)        = vars1 x <> vars1 y
 vars1 (BvNeg x)          = vars1 x
-vars1 (BvAdd x y)        = vars1 x `nubAppend` vars1 y
-vars1 (BvSub x y)        = vars1 x `nubAppend` vars1 y
-vars1 (BvMul x y)        = vars1 x `nubAppend` vars1 y
-vars1 (BvuDiv x y)       = vars1 x `nubAppend` vars1 y
-vars1 (BvuRem x y)       = vars1 x `nubAppend` vars1 y
-vars1 (BvShL x y)        = vars1 x `nubAppend` vars1 y
-vars1 (BvLShR x y)       = vars1 x `nubAppend` vars1 y
-vars1 (BvConcat x y)     = vars1 x `nubAppend` vars1 y
+vars1 (BvAdd x y)        = vars1 x <> vars1 y
+vars1 (BvSub x y)        = vars1 x <> vars1 y
+vars1 (BvMul x y)        = vars1 x <> vars1 y
+vars1 (BvuDiv x y)       = vars1 x <> vars1 y
+vars1 (BvuRem x y)       = vars1 x <> vars1 y
+vars1 (BvShL x y)        = vars1 x <> vars1 y
+vars1 (BvLShR x y)       = vars1 x <> vars1 y
+vars1 (BvConcat x y)     = vars1 x <> vars1 y
 vars1 (BvRotL _ x)       = vars1 x
 vars1 (BvRotR _ x)       = vars1 x
-vars1 (BvuLT x y)        = vars1 x `nubAppend` vars1 y
-vars1 (BvuLTHE x y)      = vars1 x `nubAppend` vars1 y
-vars1 (BvuGTHE x y)      = vars1 x `nubAppend` vars1 y
-vars1 (BvuGT x y)        = vars1 x `nubAppend` vars1 y
-vars1 (ArrSelect i arr)  = vars1 i `nubAppend` vars1 arr
-vars1 (ArrStore i x arr) = vars1 i `nubAppend` vars1 x `nubAppend` vars1 arr
+vars1 (BvuLT x y)        = vars1 x <> vars1 y
+vars1 (BvuLTHE x y)      = vars1 x <> vars1 y
+vars1 (BvuGTHE x y)      = vars1 x <> vars1 y
+vars1 (BvuGT x y)        = vars1 x <> vars1 y
+vars1 (ArrSelect i arr)  = vars1 i <> vars1 arr
+vars1 (ArrStore i x arr) = vars1 i <> vars1 x <> vars1 arr
 vars1 (ForAll _ _)       = mempty
 vars1 (Exists _ _)       = mempty
-
-nubAppend :: Eq a => Seq.Seq a -> Seq.Seq a -> Seq.Seq a
-nubAppend xs ys = foldr (\x zs -> if isJust $ x `Seq.elemIndexL` zs then zs else zs Seq.|> x) ys xs
-{-# INLINEABLE nubAppend #-}

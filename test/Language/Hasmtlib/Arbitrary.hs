@@ -11,7 +11,8 @@ import Test.QuickCheck hiding ((===), (==>))
 import Data.Proxy
 import Data.Coerce
 import Data.Maybe
-import Data.IntSet as IntSet
+import qualified Data.IntSet as IntSet
+import qualified Data.Sequence as Seq
 import Control.Monad
 import GHC.TypeLits
 
@@ -107,6 +108,6 @@ numExprGens n =
 instance Arbitrary SMT where
   arbitrary = do
     fs <- arbitrary
-    let vs      = varsAll fs
-        lastVar = fromMaybe 0 (maxView (varIdsAll fs) >>= return . fst)
+    let vs      = foldr (Seq.<|) mempty $ varsAll fs
+        lastVar = fromMaybe 0 (IntSet.maxView (varIdsAll fs) >>= return . fst)
     return $ SMT lastVar vs fs Nothing mempty
