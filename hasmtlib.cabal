@@ -92,10 +92,14 @@ test-suite hasmtlib-tests
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Main.hs
-  build-depends:       base                           >= 4.17.2 && < 5
-                       , hasmtlib
-                       , containers                   >= 0.6.7  && < 1
-                       , hspec                        >=2.7
-                       , QuickCheck
   default-language:    GHC2021
   default-extensions:  DataKinds, GADTs, TypeFamilies, OverloadedStrings
+
+  build-depends:         base                         >= 4.17.2 && < 5
+                       , hasmtlib
+                       , containers                   >= 0.6.7  && < 1
+                       , hspec                        >= 2.7
+                       , QuickCheck                   >= 2.12
+
+  other-modules:         Language.Hasmtlib.Internal.Disjoin.Spec
+                       , Language.Hasmtlib.Internal.Expr.Arbitrary
