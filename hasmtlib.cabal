@@ -100,6 +100,7 @@ test-suite hasmtlib-tests
                        , hasmtlib
                        , containers                   >= 0.6.7  && < 1
                        , lens                         >= 5      && < 6
+                       , dependent-map                >= 0.4    && < 1
                        , hspec                        >= 2.7
                        , QuickCheck                   >= 2.12
 
