@@ -1,5 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Language.Hasmtlib.Codec where
 
@@ -22,10 +23,21 @@ import qualified Data.Vector.Sized as V
 import Control.Monad
 import GHC.Generics
 
+type family DefaultDecoded a :: Type where
+  DefaultDecoded (t a b c d e f g h) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f) (Decoded g) (Decoded h)
+  DefaultDecoded (t a b c d e f g) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f) (Decoded g)
+  DefaultDecoded (t a b c d e f) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f)
+  DefaultDecoded (t a b c d e) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e)
+  DefaultDecoded (t a b c d) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d)
+  DefaultDecoded (t a b c) = t (Decoded a) (Decoded b) (Decoded c)
+  DefaultDecoded (t a b) = t (Decoded a) (Decoded b)
+  DefaultDecoded (t a) = t (Decoded a)
+  DefaultDecoded () = ()
+
 -- | Lift values to SMT-Values or decode them.
 class Codec a where
   type Decoded a :: Type
-  -- type Decoded a = GDecoded (Rep a) a
+  type Decoded a = DefaultDecoded a
 
   -- | Decode a value using given solution.
   decode :: Solution -> a -> Maybe (Decoded a)
@@ -113,43 +125,24 @@ instance KnownSMTSort t => Codec (Expr t) where
 
   encode = Constant . wrapValue
 
-instance Codec () where
-  type Decoded () = ()
+instance Codec ()
+instance (Codec a, Codec b) => Codec (a,b)
+instance (Codec a, Codec b, Codec c) => Codec (a,b,c)
+instance (Codec a, Codec b, Codec c, Codec d) => Codec (a,b,c,d)
+instance (Codec a, Codec b, Codec c, Codec d, Codec e) => Codec (a,b,c,d,e)
+instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f) => Codec (a,b,c,d,e,f)
+instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g) => Codec (a,b,c,d,e,f,g)
+instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g, Codec h) => Codec (a,b,c,d,e,f,g,h)
+instance Codec a => Codec [a]
+instance Codec a => Codec (Maybe a)
+instance Codec a => Codec (Tree a)
+instance (Codec a, Codec b) => Codec (Either a b)
 
-instance (Codec a, Codec b) => Codec (a,b) where
-  type Decoded (a,b) = (Decoded a, Decoded b)
-
-instance (Codec a, Codec b, Codec c) => Codec (a,b,c) where
-  type Decoded (a,b,c) = (Decoded a, Decoded b, Decoded c)
-
-instance (Codec a, Codec b, Codec c, Codec d) => Codec (a,b,c,d) where
-  type Decoded (a,b,c,d) = (Decoded a, Decoded b, Decoded c, Decoded d)
-
-instance (Codec a, Codec b, Codec c, Codec d, Codec e) => Codec (a,b,c,d,e) where
-  type Decoded (a,b,c,d,e) = (Decoded a, Decoded b, Decoded c, Decoded d, Decoded e)
-
-instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f) => Codec (a,b,c,d,e,f) where
-  type Decoded (a,b,c,d,e,f) = (Decoded a, Decoded b, Decoded c, Decoded d, Decoded e, Decoded f)
-
-instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g) => Codec (a,b,c,d,e,f,g) where
-  type Decoded (a,b,c,d,e,f,g) = (Decoded a, Decoded b, Decoded c, Decoded d, Decoded e, Decoded f, Decoded g)
-
-instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g, Codec h) => Codec (a,b,c,d,e,f,g,h) where
-  type Decoded (a,b,c,d,e,f,g,h) = (Decoded a, Decoded b, Decoded c, Decoded d, Decoded e, Decoded f, Decoded g, Decoded h)
-
-instance Codec a => Codec [a] where
-  type Decoded [a] = [Decoded a]
-instance Codec a => Codec (Maybe a) where
-  type Decoded (Maybe a) = Maybe (Decoded a)
-instance Codec a => Codec (Tree a) where
-  type Decoded (Tree a) = Tree (Decoded a)
 instance Codec a => Codec (IntMap a) where
-  type Decoded (IntMap a) = IntMap (Decoded a)
   decode sol = traverse (decode sol)
   encode = fmap encode
 
 instance Codec a => Codec (Seq a) where
-  type Decoded (Seq a) = Seq (Decoded a)
   decode sol = traverse (decode sol)
   encode = fmap encode
 
@@ -157,9 +150,6 @@ instance Codec a => Codec (Map k a) where
   type Decoded (Map k a) = Map k (Decoded a)
   decode sol = traverse (decode sol)
   encode = fmap encode
-
-instance (Codec a, Codec b) => Codec (Either a b) where
-  type Decoded (Either a b) = Either (Decoded a) (Decoded b)
 
 class GCodec f where
   type GDecoded f :: Type -> Type
