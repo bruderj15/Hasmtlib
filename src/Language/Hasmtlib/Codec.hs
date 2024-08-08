@@ -1,6 +1,4 @@
 {-# LANGUAGE DefaultSignatures #-}
--- required for DefaultEncoded a
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Language.Hasmtlib.Codec where
