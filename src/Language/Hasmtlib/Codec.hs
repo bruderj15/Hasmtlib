@@ -23,6 +23,7 @@ import qualified Data.Vector.Sized as V
 import Control.Monad
 import GHC.Generics
 
+-- | Computes a default 'Decoded' 'Type' by distributing 'Decoded' to it's type arguments.
 type family DefaultDecoded a :: Type where
   DefaultDecoded (t a b c d e f g h) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f) (Decoded g) (Decoded h)
   DefaultDecoded (t a b c d e f g) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f) (Decoded g)
@@ -35,7 +36,10 @@ type family DefaultDecoded a :: Type where
   DefaultDecoded () = ()
 
 -- | Lift values to SMT-Values or decode them.
+--
+--   You can derive an instance of this class if your type is 'Generic'.
 class Codec a where
+  -- | Resulting of decoding @a@
   type Decoded a :: Type
   type Decoded a = DefaultDecoded a
 
