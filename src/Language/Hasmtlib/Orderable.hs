@@ -13,6 +13,9 @@ import Language.Hasmtlib.Boolean
 import Data.Int
 import Data.Word
 import Data.Void
+import Data.Tree (Tree)
+import Data.Monoid (Sum, Product, First, Last, Dual)
+import Data.Functor.Identity (Identity)
 import Numeric.Natural
 import GHC.Generics
 import GHC.TypeNats
@@ -155,3 +158,21 @@ instance Orderable Ordering where x <?  y = bool (x <  y)
                                   x <=? y = bool (x <= y)
 instance Orderable Bool     where x <?  y = bool (x <  y)
                                   x <=? y = bool (x <= y)
+
+instance (Orderable a, Orderable b) => Orderable (a,b)
+instance (Orderable a, Orderable b, Orderable c) => Orderable (a,b,c)
+instance (Orderable a, Orderable b, Orderable c, Orderable d) => Orderable (a,b,c,d)
+instance (Orderable a, Orderable b, Orderable c, Orderable d, Orderable e) => Orderable (a,b,c,d,e)
+instance (Orderable a, Orderable b, Orderable c, Orderable d, Orderable e, Orderable f) => Orderable (a,b,c,d,e,f)
+instance (Orderable a, Orderable b, Orderable c, Orderable d, Orderable e, Orderable f, Orderable g) => Orderable (a,b,c,d,e,f,g)
+instance (Orderable a, Orderable b, Orderable c, Orderable d, Orderable e, Orderable f, Orderable g, Orderable h) => Orderable (a,b,c,d,e,f,g,h)
+instance Orderable a => Orderable [a]
+instance Orderable a => Orderable (Tree a)
+instance Orderable a => Orderable (Maybe a)
+instance (Orderable a, Orderable b) => Orderable (Either a b)
+instance Orderable a => Orderable (Sum a)
+instance Orderable a => Orderable (Product a)
+instance Orderable a => Orderable (First a)
+instance Orderable a => Orderable (Last a)
+instance Orderable a => Orderable (Dual a)
+instance Orderable a => Orderable (Identity a)

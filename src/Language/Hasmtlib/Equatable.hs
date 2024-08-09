@@ -11,6 +11,9 @@ import Language.Hasmtlib.Boolean
 import Data.Int
 import Data.Word
 import Data.Void
+import Data.Tree (Tree)
+import Data.Monoid (Sum, Product, First, Last, Dual)
+import Data.Functor.Identity (Identity)
 import qualified Data.Vector.Sized as V
 import Numeric.Natural
 import GHC.Generics
@@ -83,3 +86,20 @@ instance Equatable Float    where x === y = bool (x == y)
 instance Equatable Double   where x === y = bool (x == y)
 instance Equatable Ordering where x === y = bool (x == y)
 instance Equatable Bool     where x === y = bool (x == y)
+instance (Equatable a, Equatable b) => Equatable (a,b)
+instance (Equatable a, Equatable b, Equatable c) => Equatable (a,b,c)
+instance (Equatable a, Equatable b, Equatable c, Equatable d) => Equatable (a,b,c,d)
+instance (Equatable a, Equatable b, Equatable c, Equatable d, Equatable e) => Equatable (a,b,c,d,e)
+instance (Equatable a, Equatable b, Equatable c, Equatable d, Equatable e, Equatable f) => Equatable (a,b,c,d,e,f)
+instance (Equatable a, Equatable b, Equatable c, Equatable d, Equatable e, Equatable f, Equatable g) => Equatable (a,b,c,d,e,f,g)
+instance (Equatable a, Equatable b, Equatable c, Equatable d, Equatable e, Equatable f, Equatable g, Equatable h) => Equatable (a,b,c,d,e,f,g,h)
+instance Equatable a => Equatable [a]
+instance Equatable a => Equatable (Tree a)
+instance Equatable a => Equatable (Maybe a)
+instance (Equatable a, Equatable b) => Equatable (Either a b)
+instance Equatable a => Equatable (Sum a)
+instance Equatable a => Equatable (Product a)
+instance Equatable a => Equatable (First a)
+instance Equatable a => Equatable (Last a)
+instance Equatable a => Equatable (Dual a)
+instance Equatable a => Equatable (Identity a)
