@@ -6,6 +6,8 @@ import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.SMTSort
 import Data.Sequence (Seq)
 import Data.Tree
+import Data.Monoid (Sum, Product, First, Last, Dual)
+import Data.Functor.Identity (Identity)
 
 -- | If condition (p :: b) then (t :: a) else (f :: a)
 --
@@ -30,6 +32,12 @@ instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) [a]
 instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) (Maybe a)
 instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) (Seq a)
 instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) (Tree a)
+instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) (Sum a)
+instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) (Product a)
+instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) (First a)
+instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) (Last a)
+instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) (Dual a)
+instance Iteable (Expr BoolSort) a => Iteable (Expr BoolSort) (Identity a)
 
 instance Iteable (Expr BoolSort) () where
   ite _ _ _ = ()
