@@ -22,6 +22,8 @@ import GHC.TypeNats
 
 -- | Compare two as as SMT-Expression.
 --
+--   You can derive an instance of this class if your type is 'Generic'.
+--
 -- @
 -- x <- var @RealSort
 -- y <- var

@@ -20,6 +20,8 @@ import GHC.Generics
 
 -- | Test two as on equality as SMT-Expression.
 --
+--   You can derive an instance of this class if your type is 'Generic'.
+--
 -- @
 --     x <- var @RealType
 --     y <- var
