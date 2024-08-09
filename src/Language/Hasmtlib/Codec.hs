@@ -1,7 +1,6 @@
 {-# LANGUAGE DefaultSignatures #-}
--- required for DefaultEncoded a
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Language.Hasmtlib.Codec where
 
@@ -20,28 +19,43 @@ import Data.Sequence (Seq)
 import Data.IntMap as IM hiding (foldl)
 import Data.Dependent.Map as DMap
 import Data.Tree (Tree)
+import Data.Monoid (Sum, Product, First, Last, Dual)
+import Data.Functor.Identity (Identity)
 import qualified Data.Vector.Sized as V
 import Control.Monad
+import GHC.Generics
 
--- | Compute the default 'Decoded' 'Type' for every functor-wrapper.
---   Useful for instances using default signatures.
+-- | Computes a default 'Decoded' 'Type' by distributing 'Decoded' to it's type arguments.
 type family DefaultDecoded a :: Type where
-  DefaultDecoded (f a) = f (Decoded a)
+  DefaultDecoded (t a b c d e f g h) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f) (Decoded g) (Decoded h)
+  DefaultDecoded (t a b c d e f g) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f) (Decoded g)
+  DefaultDecoded (t a b c d e f) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f)
+  DefaultDecoded (t a b c d e) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e)
+  DefaultDecoded (t a b c d) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d)
+  DefaultDecoded (t a b c) = t (Decoded a) (Decoded b) (Decoded c)
+  DefaultDecoded (t a b) = t (Decoded a) (Decoded b)
+  DefaultDecoded (t a) = t (Decoded a)
+  DefaultDecoded () = ()
 
 -- | Lift values to SMT-Values or decode them.
+--
+--   You can derive an instance of this class if your type is 'Generic'.
 class Codec a where
+  -- | Resulting of decoding @a@
   type Decoded a :: Type
   type Decoded a = DefaultDecoded a
 
   -- | Decode a value using given solution.
   decode :: Solution -> a -> Maybe (Decoded a)
-  default decode :: (Traversable f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Solution -> a -> Maybe (Decoded a)
-  decode sol = traverse (decode sol)
+  default decode :: (Generic a, Generic (Decoded a), GCodec (Rep a), GDecoded (Rep a) x ~ Rep (Decoded a) x) => Solution -> a -> Maybe (Decoded a)
+  decode sol x = do
+    gdecodedx <- gdecode sol $ from x
+    Just $ to gdecodedx
 
   -- | Encode a value as constant.
   encode :: Decoded a -> a
-  default encode :: (Functor f, Codec b, a ~ f b, Decoded a ~ f (Decoded b)) => Decoded a -> a
-  encode = fmap encode
+  default encode :: (Generic a, Generic (Decoded a), GCodec (Rep a), GDecoded (Rep a) x ~ Rep (Decoded a) x) => Decoded a -> a
+  encode = to . gencode . from
 
 -- | Decode and evaluate expressions
 instance KnownSMTSort t => Codec (Expr t) where
@@ -117,56 +131,71 @@ instance KnownSMTSort t => Codec (Expr t) where
 
   encode = Constant . wrapValue
 
-instance Codec () where
-  type Decoded () = ()
-  decode _ _ = Just ()
-  encode _   = ()
-
-instance (Codec a, Codec b) => Codec (a,b) where
-  type Decoded (a,b) = (Decoded a, Decoded b)
-  decode s (a,b) = (,) <$> decode s a <*> decode s b
-  encode   (a,b) = (encode a, encode b)
-
-instance (Codec a, Codec b, Codec c) => Codec (a,b,c) where
-  type Decoded (a,b,c) = (Decoded a, Decoded b, Decoded c)
-  decode s (a,b,c) = (,,) <$> decode s a <*> decode s b <*> decode s c
-  encode   (a,b,c) = (encode a, encode b, encode c)
-
-instance (Codec a, Codec b, Codec c, Codec d) => Codec (a,b,c,d) where
-  type Decoded (a,b,c,d) = (Decoded a, Decoded b, Decoded c, Decoded d)
-  decode s (a,b,c,d) = (,,,) <$> decode s a <*> decode s b <*> decode s c <*> decode s d
-  encode   (a,b,c,d) = (encode a, encode b, encode c, encode d)
-
-instance (Codec a, Codec b, Codec c, Codec d, Codec e) => Codec (a,b,c,d,e) where
-  type Decoded (a,b,c,d,e) = (Decoded a, Decoded b, Decoded c, Decoded d, Decoded e)
-  decode s (a,b,c,d,e) = (,,,,) <$> decode s a <*> decode s b <*> decode s c <*> decode s d <*> decode s e
-  encode   (a,b,c,d,e) = (encode a, encode b, encode c, encode d, encode e)
-
-instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f) => Codec (a,b,c,d,e,f) where
-  type Decoded (a,b,c,d,e,f) = (Decoded a, Decoded b, Decoded c, Decoded d, Decoded e, Decoded f)
-  decode s (a,b,c,d,e,f) = (,,,,,) <$> decode s a <*> decode s b <*> decode s c <*> decode s d <*> decode s e <*> decode s f
-  encode   (a,b,c,d,e,f) = (encode a, encode b, encode c, encode d, encode e, encode f)
-
-instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g) => Codec (a,b,c,d,e,f,g) where
-  type Decoded (a,b,c,d,e,f,g) = (Decoded a, Decoded b, Decoded c, Decoded d, Decoded e, Decoded f, Decoded g)
-  decode s (a,b,c,d,e,f,g) = (,,,,,,) <$> decode s a <*> decode s b <*> decode s c <*> decode s d <*> decode s e <*> decode s f <*> decode s g
-  encode   (a,b,c,d,e,f,g) = (encode a, encode b, encode c, encode d, encode e, encode f, encode g)
-
-instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g, Codec h) => Codec (a,b,c,d,e,f,g,h) where
-  type Decoded (a,b,c,d,e,f,g,h) = (Decoded a, Decoded b, Decoded c, Decoded d, Decoded e, Decoded f, Decoded g, Decoded h)
-  decode s (a,b,c,d,e,f,g,h) = (,,,,,,,) <$> decode s a <*> decode s b <*> decode s c <*> decode s d <*> decode s e <*> decode s f <*> decode s g <*> decode s h
-  encode   (a,b,c,d,e,f,g,h) = (encode a, encode b, encode c, encode d, encode e, encode f, encode g, encode h)
-
+instance Codec ()
+instance (Codec a, Codec b) => Codec (a,b)
+instance (Codec a, Codec b, Codec c) => Codec (a,b,c)
+instance (Codec a, Codec b, Codec c, Codec d) => Codec (a,b,c,d)
+instance (Codec a, Codec b, Codec c, Codec d, Codec e) => Codec (a,b,c,d,e)
+instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f) => Codec (a,b,c,d,e,f)
+instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g) => Codec (a,b,c,d,e,f,g)
+instance (Codec a, Codec b, Codec c, Codec d, Codec e, Codec f, Codec g, Codec h) => Codec (a,b,c,d,e,f,g,h)
 instance Codec a => Codec [a]
-instance Codec a => Codec (IntMap a)
-instance Codec a => Codec (Map k a)
 instance Codec a => Codec (Maybe a)
-instance Codec a => Codec (Seq a)
 instance Codec a => Codec (Tree a)
+instance (Codec a, Codec b) => Codec (Either a b)
+instance Codec a => Codec (Sum a)
+instance Codec a => Codec (Product a)
+instance Codec a => Codec (First a)
+instance Codec a => Codec (Last a)
+instance Codec a => Codec (Dual a)
+instance Codec a => Codec (Identity a)
 
-instance (Codec a, Codec b) => Codec (Either a b) where
-  type Decoded (Either a b) = Either (Decoded a) (Decoded b)
-  decode s (Left  a) = Left  <$> decode s a
-  decode s (Right b) = Right <$> decode s b
-  encode   (Left  a) = Left  (encode a)
-  encode   (Right b) = Right (encode b)
+instance Codec a => Codec (IntMap a) where
+  decode sol = traverse (decode sol)
+  encode = fmap encode
+
+instance Codec a => Codec (Seq a) where
+  decode sol = traverse (decode sol)
+  encode = fmap encode
+
+instance Codec a => Codec (Map k a) where
+  type Decoded (Map k a) = Map k (Decoded a)
+  decode sol = traverse (decode sol)
+  encode = fmap encode
+
+class GCodec f where
+  type GDecoded f :: Type -> Type
+  gdecode :: Solution -> f a -> Maybe (GDecoded f a)
+  gencode :: GDecoded f a -> f a
+
+instance GCodec U1 where
+  type GDecoded U1 = U1
+  gdecode _ U1     = Just U1
+  gencode          = id
+
+instance GCodec V1 where
+  type GDecoded V1 = V1
+  gdecode _        = Just
+  gencode          = id
+
+instance (GCodec f, GCodec g) => GCodec (f :*: g) where
+  type GDecoded (f :*: g) = (GDecoded f :*: GDecoded g)
+  gdecode sol (a :*: b)   = liftM2 (:*:) (gdecode sol a) (gdecode sol b)
+  gencode (a :*: b)       = gencode a :*: gencode b
+
+instance (GCodec f, GCodec g) => GCodec (f :+: g) where
+  type GDecoded (f :+: g) = (GDecoded f :+: GDecoded g)
+  gdecode sol (L1 a)      = L1 <$> gdecode sol a
+  gdecode sol (R1 a)      = R1 <$> gdecode sol a
+  gencode (L1 a)          = L1 $ gencode a
+  gencode (R1 a)          = R1 $ gencode a
+
+instance GCodec f => GCodec (M1 i c f) where
+  type GDecoded (M1 i c f) = (M1 i c (GDecoded f))
+  gdecode sol (M1 x)       = M1 <$> gdecode sol x
+  gencode (M1 x)           = M1 $ gencode x
+
+instance Codec a => GCodec (K1 i a) where
+  type GDecoded (K1 i a) = K1 i (Decoded a)
+  gdecode sol (K1 a)     = K1 <$> decode sol a
+  gencode (K1 a)         = K1 $ encode a

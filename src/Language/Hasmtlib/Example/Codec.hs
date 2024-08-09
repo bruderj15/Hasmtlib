@@ -3,14 +3,8 @@ module Language.Hasmtlib.Example.Codec where
 import Language.Hasmtlib
 import GHC.Generics (Generic)
 
-data Foo a = Foo a a deriving (Generic, Eq, Show, Functor, Foldable, Traversable)
-
-instance Applicative Foo where
-  pure x = Foo x x
-  (Foo f g) <*> (Foo x y) = Foo (f x) (g y)
-
+data Foo a = Foo a a deriving (Generic, Show)
 instance Equatable a => Equatable (Foo a)
--- Leverage Functor, Foldable, Traversable and Applicative and get default instances
 instance Codec a => Codec (Foo a)
 instance Variable a => Variable (Foo a)
 
