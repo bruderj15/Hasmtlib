@@ -24,6 +24,7 @@ import Data.Functor.Identity (Identity)
 import qualified Data.Vector.Sized as V
 import Control.Monad
 import GHC.Generics
+import GHC.TypeLits
 
 -- | Computes a default 'Decoded' 'Type' by distributing 'Decoded' to it's type arguments.
 type family DefaultDecoded a :: Type where
@@ -35,13 +36,18 @@ type family DefaultDecoded a :: Type where
   DefaultDecoded (t a b c) = t (Decoded a) (Decoded b) (Decoded c)
   DefaultDecoded (t a b) = t (Decoded a) (Decoded b)
   DefaultDecoded (t a) = t (Decoded a)
-  DefaultDecoded () = ()
+  DefaultDecoded x = TypeError (
+          Text "DefaultDecoded (" :<>: ShowType x :<>: Text ") is not allowed."
+    :$$:  Text "Try providing the associated Type Decoded (" :<>: ShowType x :<>: Text ") manually:"
+    :$$:  Text "instance Codec (" :<>: ShowType x :<>: Text ") where "
+    :$$:  Text "   type Decoded (" :<>: ShowType x :<>: Text ") = ... "
+    )
 
 -- | Lift values to SMT-Values or decode them.
 --
 --   You can derive an instance of this class if your type is 'Generic'.
 class Codec a where
-  -- | Resulting of decoding @a@
+  -- | Result of decoding @a@.
   type Decoded a :: Type
   type Decoded a = DefaultDecoded a
 
@@ -131,7 +137,7 @@ instance KnownSMTSort t => Codec (Expr t) where
 
   encode = Constant . wrapValue
 
-instance Codec ()
+instance Codec () where type Decoded () = ()
 instance (Codec a, Codec b) => Codec (a,b)
 instance (Codec a, Codec b, Codec c) => Codec (a,b,c)
 instance (Codec a, Codec b, Codec c, Codec d) => Codec (a,b,c,d)
