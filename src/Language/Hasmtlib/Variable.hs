@@ -6,6 +6,10 @@ import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Data.Proxy
+import Data.Monoid (Sum, Product, First, Last, Alt, Dual)
+import Data.Functor.Const (Const)
+import Data.Functor.Identity (Identity)
+import Data.Functor.Compose (Compose)
 import GHC.Generics
 
 -- | Construct a variable datum of a data-type by creating variables for all its fields.
@@ -41,6 +45,15 @@ instance (Variable a, Variable b, Variable c, Variable d, Variable e) => Variabl
 instance (Variable a, Variable b, Variable c, Variable d, Variable e, Variable f) => Variable (a,b,c,d,e,f)
 instance (Variable a, Variable b, Variable c, Variable d, Variable e, Variable f, Variable g) => Variable (a,b,c,d,e,f,g)
 instance (Variable a, Variable b, Variable c, Variable d, Variable e, Variable f, Variable g, Variable h) => Variable (a,b,c,d,e,f,g,h)
+instance Variable a => Variable (Sum a)
+instance Variable a => Variable (Product a)
+instance Variable a => Variable (First a)
+instance Variable a => Variable (Last a)
+instance Variable a => Variable (Dual a)
+instance Variable a => Variable (Identity a)
+instance Variable m => Variable (Const m a)
+instance Variable (f a) => Variable (Alt f a)
+instance Variable (f (g a)) => Variable (Compose f g a)
 
 instance Variable a => Variable (Maybe a) where
   variable = Just <$> variable
