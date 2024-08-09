@@ -19,6 +19,8 @@ import Data.Sequence (Seq)
 import Data.IntMap as IM hiding (foldl)
 import Data.Dependent.Map as DMap
 import Data.Tree (Tree)
+import Data.Monoid (Sum, Product, First, Last, Dual)
+import Data.Functor.Identity (Identity)
 import qualified Data.Vector.Sized as V
 import Control.Monad
 import GHC.Generics
@@ -141,6 +143,12 @@ instance Codec a => Codec [a]
 instance Codec a => Codec (Maybe a)
 instance Codec a => Codec (Tree a)
 instance (Codec a, Codec b) => Codec (Either a b)
+instance Codec a => Codec (Sum a)
+instance Codec a => Codec (Product a)
+instance Codec a => Codec (First a)
+instance Codec a => Codec (Last a)
+instance Codec a => Codec (Dual a)
+instance Codec a => Codec (Identity a)
 
 instance Codec a => Codec (IntMap a) where
   decode sol = traverse (decode sol)
