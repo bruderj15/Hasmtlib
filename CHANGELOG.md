@@ -6,6 +6,14 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.2.0 _(2024-08-09)_
+
+### Added
+- Added multiple basic instances for `Equatable`, `Orderable`, `Iteable`, `Variable` & `Codec`
+
+### Changed
+- *(breaking change)* `Variable` & `Codec` now ship with a `Generic` default implementation instead of relying on `Applicative`. This will break your instances if the type does not have an instance for `Generic`.
+
 ## v2.1.0 _(2024-07-26)_
 
 ### Added
