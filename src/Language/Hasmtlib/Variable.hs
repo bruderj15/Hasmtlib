@@ -6,21 +6,27 @@ import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Data.Proxy
+import Data.Monoid (Sum, Product, First, Last, Alt, Dual)
+import Data.Functor.Const (Const)
+import Data.Functor.Identity (Identity)
+import Data.Functor.Compose (Compose)
+import GHC.Generics
 
 -- | Construct a variable datum of a data-type by creating variables for all its fields.
 --
+--   You can derive an instance of this class if your type is 'Generic' and has exactly one constructor.
+--
 -- @
---    data V3 a = V3 a a a
+--    data V3 a = V3 a a a deriving Generic
 --    instance Variable a => V3 a
 -- @
 --
---    >>> varV3 <- variable @(V3 (Expr RealType)) ; varV3
---        V3 (Var RealType) (Var RealType) (Var RealType)
+--    >>> varV3 :: V3 (Expr RealType) <- variable ; varV3
+--        V3 (Expr RealType) (Expr RealType) (Expr RealType)
 class Variable a where
   variable :: MonadSMT s m => m a
-  default variable :: (MonadSMT s m, Applicative f, Traversable f, Variable b, a ~ f b) => m a
-  variable = sequenceA $ pure variable
-  {-# INLINEABLE variable #-}
+  default variable :: (MonadSMT s m, Generic a, GVariable (Rep a)) => m a
+  variable = to <$> gvariable
 
 -- | Wrapper for 'variable' which takes a 'Proxy'
 variable' :: forall s m a. (MonadSMT s m, Variable a) => Proxy a -> m a
@@ -31,29 +37,41 @@ instance KnownSMTSort t => Variable (Expr t) where
   variable = var
   {-# INLINE variable #-}
 
-instance Variable () where
-  variable = return ()
+instance Variable ()
+instance (Variable a, Variable b) => Variable (a,b)
+instance (Variable a, Variable b, Variable c) => Variable (a,b,c)
+instance (Variable a, Variable b, Variable c, Variable d) => Variable (a,b,c,d)
+instance (Variable a, Variable b, Variable c, Variable d, Variable e) => Variable (a,b,c,d,e)
+instance (Variable a, Variable b, Variable c, Variable d, Variable e, Variable f) => Variable (a,b,c,d,e,f)
+instance (Variable a, Variable b, Variable c, Variable d, Variable e, Variable f, Variable g) => Variable (a,b,c,d,e,f,g)
+instance (Variable a, Variable b, Variable c, Variable d, Variable e, Variable f, Variable g, Variable h) => Variable (a,b,c,d,e,f,g,h)
+instance Variable a => Variable (Sum a)
+instance Variable a => Variable (Product a)
+instance Variable a => Variable (First a)
+instance Variable a => Variable (Last a)
+instance Variable a => Variable (Dual a)
+instance Variable a => Variable (Identity a)
+instance Variable m => Variable (Const m a)
+instance Variable (f a) => Variable (Alt f a)
+instance Variable (f (g a)) => Variable (Compose f g a)
 
-instance (Variable a, Variable b) => Variable (a,b) where
-  variable = (,) <$> variable <*> variable
+instance Variable a => Variable (Maybe a) where
+  variable = Just <$> variable
 
-instance (Variable a, Variable b, Variable c) => Variable (a,b,c) where
-  variable = (,,) <$> variable <*> variable  <*> variable
+instance Variable b => Variable (Either a b) where
+  variable = Right <$> variable
 
-instance (Variable a, Variable b, Variable c, Variable d) => Variable (a,b,c,d) where
-  variable = (,,,) <$> variable <*> variable <*> variable <*> variable
+class GVariable f where
+  gvariable :: MonadSMT s m => m (f a)
 
-instance (Variable a, Variable b, Variable c, Variable d, Variable e) => Variable (a,b,c,d,e) where
-  variable = (,,,,) <$> variable <*> variable <*> variable <*> variable <*> variable
+instance GVariable U1 where
+  gvariable = return U1
 
-instance (Variable a, Variable b, Variable c, Variable d, Variable e, Variable f) => Variable (a,b,c,d,e,f) where
-  variable = (,,,,,) <$> variable <*> variable <*> variable <*> variable <*> variable <*> variable
+instance (GVariable f, GVariable g) => GVariable (f :*: g) where
+  gvariable = liftA2 (:*:) gvariable gvariable
 
-instance (Variable a, Variable b, Variable c, Variable d, Variable e, Variable f, Variable g) => Variable (a,b,c,d,e,f,g) where
-  variable = (,,,,,,) <$> variable <*> variable <*> variable <*> variable <*> variable <*> variable <*> variable
+instance GVariable f => GVariable (M1 i c f) where
+  gvariable = M1 <$> gvariable
 
-instance (Variable a, Variable b, Variable c, Variable d, Variable e, Variable f, Variable g, Variable h) => Variable (a,b,c,d,e,f,g,h) where
-  variable = (,,,,,,,) <$> variable <*> variable <*> variable <*> variable <*> variable <*> variable <*> variable <*> variable
-
-instance Variable a => Variable (Maybe a)
-instance Variable b => Variable (Either a b)
+instance Variable a => GVariable (K1 i a) where
+  gvariable = K1 <$> variable
