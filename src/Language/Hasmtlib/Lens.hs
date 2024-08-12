@@ -16,15 +16,14 @@ type instance IxValue (Expr StringSort) = Expr StringSort
 
 instance Ixed (Expr StringSort) where
   ix i f s = f (strAt s i) <&> \a ->
-    let l = strSubstring a 0 (i - 1)
-        r = strSubstring a i (strLength a - 1)
+    let l = strSubstring a 0 i
+        r = strSubstring a i (strLength a)
      in l <> strReplace r (strAt a i) s
-  {-# INLINEABLE ix #-}
 
 instance AsEmpty (Expr StringSort) where
   _Empty = prism'
     (const mempty)
-    (\s -> ite (strLength s === 0) (Just ()) Nothing)
+    (\s -> ite (s === mempty) (Just ()) Nothing)
 
 instance Prefixed (Expr StringSort) where
   prefixed p = prism'
@@ -34,17 +33,17 @@ instance Prefixed (Expr StringSort) where
 instance Suffixed (Expr StringSort) where
   suffixed qs = prism'
     (<> qs)
-    (\s -> ite (qs `strSuffixOf` s) (Just $ strSubstring s 0 ((strLength s - 1) - strLength qs)) Nothing)
+    (\s -> ite (qs `strSuffixOf` s) (Just $ strSubstring s 0 (strLength s - strLength qs)) Nothing)
 
 instance Cons (Expr StringSort) (Expr StringSort) (Expr StringSort) (Expr StringSort) where
   _Cons = prism'
     (uncurry (<>))
-    (\s -> ite (strLength s >? 0) (Just (strSubstring s 1 (strLength s - 1), strAt s 0)) Nothing)
+    (\s -> ite (strLength s >? 0) (Just (strSubstring s 1 (strLength s), strAt s 0)) Nothing)
 
 instance Snoc (Expr StringSort) (Expr StringSort) (Expr StringSort) (Expr StringSort) where
   _Snoc = prism'
     (uncurry (flip (<>)))
-    (\s -> ite (strLength s >? 0) (Just (strSubstring s 0 (strLength s - 2), strAt s (strLength s - 1))) Nothing)
+    (\s -> ite (strLength s >? 0) (Just (strSubstring s 0 (strLength s - 1), strAt s (strLength s))) Nothing)
 
 type instance Index   (Expr (ArraySort k v)) = Expr k
 type instance IxValue (Expr (ArraySort k v)) = Expr v
