@@ -85,6 +85,13 @@ instance KnownNat n => Orderable (Expr (BvSort n)) where
   (>?)     = BvuGT
   {-# INLINE (>?) #-}
 
+-- | Lexicographic ordering for '(<?)' and reflexive closure of lexicographic ordering for '(<=?)'
+instance Orderable (Expr StringSort) where
+  (<?)     = StrLT
+  {-# INLINE (<?) #-}
+  (<=?)    = StrLTHE
+  {-# INLINE (<=?) #-}
+
 class GEquatable f => GOrderable f where
   (<?#)  :: f a -> f a -> Expr BoolSort
   (<=?#) :: f a -> f a -> Expr BoolSort

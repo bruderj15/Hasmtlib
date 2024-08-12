@@ -1,6 +1,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Language.Hasmtlib.Codec where
 
@@ -19,11 +20,13 @@ import Data.Sequence (Seq)
 import Data.IntMap as IM hiding (foldl)
 import Data.Dependent.Map as DMap
 import Data.Tree (Tree)
+import qualified Data.Text as Text
 import Data.Monoid (Sum, Product, First, Last, Dual)
 import Data.Functor.Identity (Identity)
 import qualified Data.Vector.Sized as V
 import Control.Monad
 import GHC.Generics
+import GHC.TypeLits
 
 -- | Computes a default 'Decoded' 'Type' by distributing 'Decoded' to it's type arguments.
 type family DefaultDecoded a :: Type where
@@ -35,13 +38,18 @@ type family DefaultDecoded a :: Type where
   DefaultDecoded (t a b c) = t (Decoded a) (Decoded b) (Decoded c)
   DefaultDecoded (t a b) = t (Decoded a) (Decoded b)
   DefaultDecoded (t a) = t (Decoded a)
-  DefaultDecoded () = ()
+  DefaultDecoded x = TypeError (
+          Text "DefaultDecoded (" :<>: ShowType x :<>: Text ") is not allowed."
+    :$$:  Text "Try providing the associated Type Decoded (" :<>: ShowType x :<>: Text ") manually:"
+    :$$:  Text "instance Codec (" :<>: ShowType x :<>: Text ") where "
+    :$$:  Text "   type Decoded (" :<>: ShowType x :<>: Text ") = ... "
+    )
 
 -- | Lift values to SMT-Values or decode them.
 --
 --   You can derive an instance of this class if your type is 'Generic'.
 class Codec a where
-  -- | Resulting of decoding @a@
+  -- | Result of decoding @a@.
   type Decoded a :: Type
   type Decoded a = DefaultDecoded a
 
@@ -126,12 +134,29 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
   decode sol (ArrSelect i arr)  = liftA2 arrSelect (decode sol i) (decode sol arr)
   decode sol (ArrStore i x arr) = liftM3 arrStore (decode sol i) (decode sol x) (decode sol arr)
+  decode sol (StrConcat x y)         = liftM2 (<>) (decode sol x) (decode sol y)
+  decode sol (StrLength x)           = toInteger . Text.length <$> decode sol x
+  decode sol (StrLT x y)             = liftM2 (<) (decode sol x) (decode sol y)
+  decode sol (StrLTHE x y)           = liftM2 (<=) (decode sol x) (decode sol y)
+  decode sol (StrAt x i)             = liftM2 (\x' i' -> Text.singleton $ Text.index x' (fromInteger i')) (decode sol x) (decode sol i)
+  decode sol (StrSubstring x i j)    = liftM3 (\x' (fromInteger -> i') (fromInteger -> j') -> Text.take (j' - i') $ Text.drop i' x') (decode sol x) (decode sol i) (decode sol j)
+  decode sol (StrPrefixOf x y)       = liftM2 Text.isPrefixOf (decode sol x) (decode sol y)
+  decode sol (StrSuffixOf x y)       = liftM2 Text.isSuffixOf (decode sol x) (decode sol y)
+  decode sol (StrContains x y)       = liftM2 (flip Text.isInfixOf) (decode sol x) (decode sol y)
+  decode sol (StrIndexOf x y i)      = join $ liftM3 (\x' y' (fromInteger -> i') -> Text.findIndex ((y' ==) . Text.singleton) (Text.drop i' x') >>= Just . toInteger) (decode sol x) (decode sol y) (decode sol i)
+  decode sol (StrReplace src target replacement) = liftM3 (\src' target' replacement' -> replaceOne target' replacement' src') (decode sol target) (decode sol src) (decode sol replacement)
+    where
+      replaceOne pattern substitution text
+        | Text.null back = text
+        | otherwise = Text.concat [front, substitution, Text.drop (Text.length pattern) back]
+          where
+            (front, back) = Text.breakOn pattern text
+  decode sol (StrReplaceAll src target replacement) = liftM3 (\src' target' replacement' -> Text.replace target' replacement' src') (decode sol target) (decode sol src) (decode sol replacement)
   decode _ (ForAll _ _)         = Nothing
   decode _ (Exists _ _)         = Nothing
-
   encode = Constant . wrapValue
 
-instance Codec ()
+instance Codec () where type Decoded () = ()
 instance (Codec a, Codec b) => Codec (a,b)
 instance (Codec a, Codec b, Codec c) => Codec (a,b,c)
 instance (Codec a, Codec b, Codec c, Codec d) => Codec (a,b,c,d)

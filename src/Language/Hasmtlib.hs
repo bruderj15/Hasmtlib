@@ -10,6 +10,7 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Type.SMTSort
   , module Language.Hasmtlib.Type.Solution
   , module Language.Hasmtlib.Type.ArrayMap
+  , module Language.Hasmtlib.Lens
   , module Language.Hasmtlib.Integraled
   , module Language.Hasmtlib.Iteable
   , module Language.Hasmtlib.Boolean
@@ -38,6 +39,7 @@ import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
+import Language.Hasmtlib.Lens
 import Language.Hasmtlib.Integraled
 import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Boolean
