@@ -16,14 +16,17 @@ import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
+import Language.Hasmtlib.Type.Expr
 import Data.Bit
 import Data.Coerce
 import Data.Proxy
 import Data.Ratio ((%))
 import Data.ByteString
 import Data.ByteString.Builder
-import Data.Attoparsec.ByteString hiding (Result, skipWhile)
+import Data.Attoparsec.ByteString hiding (Result, skipWhile, takeTill)
 import Data.Attoparsec.ByteString.Char8 hiding (Result)
+import Data.Text.Encoding (decodeUtf8)
+import qualified Data.Text as Text
 import Control.Applicative
 import Control.Lens hiding (op)
 import GHC.TypeNats
@@ -83,6 +86,7 @@ parseSomeSort = (string "Bool" *> pure (SomeSMTSort SBoolSort))
         <|> (string "Real" *> pure (SomeSMTSort SRealSort))
         <|> parseSomeBitVecSort
         <|> parseSomeArraySort
+        <|> (string "String" *> pure (SomeSMTSort SStringSort))
 {-# INLINEABLE parseSomeSort #-}
 
 parseSomeBitVecSort :: Parser (SomeKnownOrdSMTSort SSMTSort)
@@ -115,19 +119,19 @@ parseExpr' _ = parseExpr @t
 
 -- TODO: Add parseSelect
 parseExpr :: forall t. KnownSMTSort t => Parser (Expr t)
-parseExpr = var <|> constantExpr <|> smtIte
+parseExpr = var <|> constantExpr <|> ternary "ite" (ite @(Expr BoolSort))
         <|> case sortSing @t of
               SIntSort  -> unary "abs" abs <|> unary  "-" negate
                       <|> nary "+" sum  <|> binary "-" (-) <|> nary "*" product <|> binary "mod" Mod
-                      <|> toIntFun
+                      <|> unary "to_int" toIntSort <|> unary "str.len" strLength
+                      <|> ternary "str.indexof" strIndexOf
               SRealSort -> unary "abs" abs <|> unary  "-" negate
                       <|> nary "+" sum  <|> binary "-" (-) <|> nary "*" product <|> binary "/" (/)
-                      <|> toRealFun
+                      <|> unary "to_real" toRealSort
                       <|> smtPi <|> unary "sqrt" sqrt <|> unary "exp" exp
                       <|> unary "sin" sin <|> unary "cos" cos <|> unary "tan" tan
                       <|> unary "arcsin" asin <|> unary "arccos" acos <|> unary "arctan" atan
-              SBoolSort -> isIntFun
-                      <|> unary "not" not
+              SBoolSort -> unary "not" not
                       <|> nary "and" and  <|> nary "or" or <|> binary "=>" (==>) <|> binary "xor" xor
                       <|> binary @IntSort  "=" (===) <|> binary @IntSort  "distinct" (/==)
                       <|> binary @RealSort "=" (===) <|> binary @RealSort "distinct" (/==)
@@ -136,6 +140,10 @@ parseExpr = var <|> constantExpr <|> smtIte
                       <|> binary @IntSort ">=" (>=?) <|> binary @IntSort ">" (>?)
                       <|> binary @RealSort "<" (<?) <|> binary @RealSort "<=" (<=?)
                       <|> binary @RealSort ">=" (>=?) <|> binary @RealSort ">" (>?)
+                      <|> binary @StringSort "str.<" (<?) <|> binary @StringSort "str.<=" (<=?)
+                      <|> unary "is_int" isIntSort
+                      <|> binary "str.prefixof" strPrefixOf <|> binary "str.suffixof" strSuffixOf
+                      <|> binary "str.contains" strContains
                       -- TODO: Add compare ops for all (?) bv-sorts
               SBvSort _ -> unary "bvnot" not
                       <|> binary "bvand" (&&)  <|> binary "bvor" (||) <|> binary "bvxor" xor <|> binary "bvnand" BvNand <|> binary "bvnor" BvNor
@@ -143,14 +151,15 @@ parseExpr = var <|> constantExpr <|> smtIte
                       <|> binary "bvadd" (+)  <|> binary "bvsub" (-) <|> binary "bvmul" (*)
                       <|> binary "bvudiv" BvuDiv <|> binary "bvurem" BvuRem
                       <|> binary "bvshl" BvShL <|> binary "bvlshr" BvLShR
-              SArraySort _ _ -> parseStore
+              SArraySort _ _ -> ternary "store" ArrStore
                       -- TODO: Add compare ops for all (?) array-sorts
+              SStringSort -> binary "str.++" (<>) <|> binary "str.at" strAt <|> ternary "str.substr" StrSubstring
+                      <|> ternary "str.replace" strReplace <|> ternary "str.replace_all" strReplaceAll
 
 var :: Parser (Expr t)
 var = do
   _     <- string "var_"
   vId <- decimal @Int
-
   return $ Var $ coerce vId
 {-# INLINE var #-}
 
@@ -161,7 +170,8 @@ constant = case sortSing @t of
   SBoolSort -> parseBool
   SBvSort p -> anyBitvector p
   SArraySort k v -> constArray k v
-{-# INLINE constant #-}
+  SStringSort -> parseSmtString
+{-# INLINEABLE constant #-}
 
 constantExpr :: forall t. KnownSMTSort t => Parser (Expr t)
 constantExpr = Constant . wrapValue <$> constant @t
@@ -210,29 +220,12 @@ constArray _ _ = do
   return $ asConst constVal
 {-# INLINEABLE constArray #-}
 
-parseSelect :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Proxy k -> Parser (Expr v)
-parseSelect _ = do
-  _ <- char '(' >> skipSpace
-  _ <- string "select" >> skipSpace
-  arr <- parseExpr @(ArraySort k v)
-  _ <- skipSpace
-  i <- parseExpr @k
-  _ <- skipSpace >> char ')'
-
-  return $ ArrSelect arr i
-
-parseStore :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Parser (Expr (ArraySort k v))
-parseStore = do
-  _ <- char '(' >> skipSpace
-  _ <- string "store" >> skipSpace
-  arr <- parseExpr @(ArraySort k v)
-  _ <- skipSpace
-  i <- parseExpr @k
-  _ <- skipSpace
-  x <- parseExpr @v
-  _ <- skipSpace >> char ')'
-
-  return $ ArrStore arr i x
+parseSmtString :: Parser Text.Text
+parseSmtString = do
+  _ <- char '"'
+  s <- decodeUtf8 <$> takeTill (== '"')
+  _ <- char '"'
+  return s
 
 unary :: forall t r. KnownSMTSort t => ByteString -> (Expr t -> Expr r) -> Parser (Expr r)
 unary opStr op = do
@@ -244,7 +237,7 @@ unary opStr op = do
   return $ op val
 {-# INLINE unary #-}
 
-binary :: forall t r. KnownSMTSort t => ByteString -> (Expr t -> Expr t -> Expr r) -> Parser (Expr r)
+binary :: forall t u r. (KnownSMTSort t, KnownSMTSort u) => ByteString -> (Expr t -> Expr u -> Expr r) -> Parser (Expr r)
 binary opStr op = do
   _ <- char '(' >> skipSpace
   _ <- string opStr >> skipSpace
@@ -254,6 +247,19 @@ binary opStr op = do
   _ <- skipSpace >> char ')'
   return $ l `op` r
 {-# INLINE binary #-}
+
+ternary :: forall t u v r. (KnownSMTSort t, KnownSMTSort u, KnownSMTSort v) => ByteString -> (Expr t -> Expr u -> Expr v -> Expr r) -> Parser (Expr r)
+ternary opStr op = do
+  _ <- char '(' >> skipSpace
+  _ <- string opStr >> skipSpace
+  l <- parseExpr
+  _ <- skipSpace
+  m <- parseExpr
+  _ <- skipSpace
+  r <- parseExpr
+  _ <- skipSpace >> char ')'
+  return $ op l m r
+{-# INLINE ternary #-}
 
 nary :: forall t r. KnownSMTSort t => ByteString -> ([Expr t] -> Expr r) -> Parser (Expr r)
 nary opStr op = do
@@ -267,50 +273,6 @@ nary opStr op = do
 smtPi :: Parser (Expr RealSort)
 smtPi = string "real.pi" *> return pi
 {-# INLINE smtPi #-}
-
-toRealFun :: Parser (Expr RealSort)
-toRealFun = do
-  _ <- char '(' >> skipSpace
-  _ <- string "to_real" >> skipSpace
-  val <- parseExpr
-  _ <- skipSpace >> char ')'
-
-  return $ ToReal val
-{-# INLINEABLE toRealFun #-}
-
-toIntFun :: Parser (Expr IntSort)
-toIntFun = do
-  _ <- char '(' >> skipSpace
-  _ <- string "to_int" >> skipSpace
-  val <- parseExpr
-  _ <- skipSpace >> char ')'
-
-  return $ ToInt val
-{-# INLINEABLE toIntFun #-}
-
-isIntFun :: Parser (Expr BoolSort)
-isIntFun = do
-  _ <- char '(' >> skipSpace
-  _ <- string "is_int" >> skipSpace
-  val <- parseExpr
-  _ <- skipSpace >> char ')'
-
-  return $ IsInt val
-{-# INLINEABLE isIntFun #-}
-
-smtIte :: forall t. KnownSMTSort t => Parser (Expr t)
-smtIte = do
-  _ <- char '(' >> skipSpace
-  _ <- string "ite" >> skipSpace
-  p <- parseExpr @BoolSort
-  _ <- skipSpace
-  t <- parseExpr
-  _ <- skipSpace
-  f <- parseExpr
-  _ <- skipSpace >> char ')'
-
-  return $ ite p t f
-{-# INLINEABLE smtIte #-}
 
 anyValue :: Num a => Parser a -> Parser a
 anyValue p = negativeValue p <|> p
