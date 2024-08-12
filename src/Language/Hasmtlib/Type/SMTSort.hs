@@ -10,6 +10,7 @@ import Data.GADT.Compare
 import Data.Kind
 import Data.Proxy
 import Data.ByteString.Builder
+import qualified Data.Text as Text
 import Control.Lens
 import GHC.TypeLits
 
@@ -20,6 +21,7 @@ data SMTSort =
   | RealSort                      -- ^ Sort of Real
   | BvSort Nat                    -- ^ Sort of BitVec with length n
   | ArraySort SMTSort SMTSort     -- ^ Sort of Array with indices k and values v
+  | StringSort                    -- ^ Sort of String
 
 -- | Injective type-family that computes the Haskell 'Type' of an 'SMTSort'.
 type family HaskellType (t :: SMTSort) = (r :: Type) | r -> t where
@@ -28,14 +30,16 @@ type family HaskellType (t :: SMTSort) = (r :: Type) | r -> t where
   HaskellType BoolSort        = Bool
   HaskellType (BvSort n)      = Bitvec n
   HaskellType (ArraySort k v) = ConstArray (HaskellType k) (HaskellType v)
+  HaskellType StringSort      = Text.Text
 
 -- | Singleton for 'SMTSort'.
 data SSMTSort (t :: SMTSort) where
-  SIntSort   :: SSMTSort IntSort
-  SRealSort  :: SSMTSort RealSort
-  SBoolSort  :: SSMTSort BoolSort
-  SBvSort    :: KnownNat n => Proxy n -> SSMTSort (BvSort n)
-  SArraySort :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Proxy k -> Proxy v -> SSMTSort (ArraySort k v)
+  SIntSort    :: SSMTSort IntSort
+  SRealSort   :: SSMTSort RealSort
+  SBoolSort   :: SSMTSort BoolSort
+  SBvSort     :: KnownNat n => Proxy n -> SSMTSort (BvSort n)
+  SArraySort  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Proxy k -> Proxy v -> SSMTSort (ArraySort k v)
+  SStringSort :: SSMTSort StringSort
 
 deriving instance Show (SSMTSort t)
 deriving instance Eq   (SSMTSort t)
@@ -46,8 +50,14 @@ instance GEq SSMTSort where
   geq SRealSort SRealSort     = Just Refl
   geq SBoolSort SBoolSort     = Just Refl
   geq (SBvSort n) (SBvSort m) = case sameNat n m of
-    Just Refl -> Just Refl
     Nothing   -> Nothing
+    Just Refl -> Just Refl
+  geq (SArraySort k v) (SArraySort k' v') = case geq (sortSing' k) (sortSing' k') of
+    Nothing   -> Nothing
+    Just Refl -> case geq (sortSing' v) (sortSing' v') of
+      Nothing -> Nothing
+      Just Refl -> Just Refl
+  geq SStringSort SStringSort = Just Refl
   geq _ _                     = Nothing
 
 instance GCompare SSMTSort where
@@ -65,6 +75,7 @@ instance GCompare SSMTSort where
       GEQ -> GEQ
       GGT -> GGT
     GGT -> GGT
+  gcompare SStringSort SStringSort = GEQ
   gcompare SBoolSort _        = GLT
   gcompare _ SBoolSort        = GGT
   gcompare SIntSort _         = GLT
@@ -73,6 +84,8 @@ instance GCompare SSMTSort where
   gcompare _ SRealSort        = GGT
   gcompare (SArraySort _ _) _ = GLT
   gcompare _ (SArraySort _ _) = GGT
+  gcompare SStringSort _      = GLT
+  gcompare _ SStringSort      = GGT
 
 -- | Compute singleton 'SSMTSort' from it's promoted type 'SMTSort'.
 class    KnownSMTSort (t :: SMTSort)           where sortSing :: SSMTSort t
@@ -82,6 +95,7 @@ instance KnownSMTSort BoolSort                 where sortSing = SBoolSort
 instance KnownNat n => KnownSMTSort (BvSort n) where sortSing = SBvSort (Proxy @n)
 instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => KnownSMTSort (ArraySort k v) where
    sortSing = SArraySort (Proxy @k) (Proxy @v)
+instance KnownSMTSort StringSort                 where sortSing = SStringSort
 
 -- | Wrapper for 'sortSing' which takes a 'Proxy'
 sortSing' :: forall prxy t. KnownSMTSort t => prxy t -> SSMTSort t
@@ -108,4 +122,5 @@ instance Render (SSMTSort t) where
   render SRealSort   = "Real"
   render (SBvSort p) = renderBinary "_" ("BitVec" :: Builder) (natVal p)
   render (SArraySort k v) = renderBinary "Array" (sortSing' k) (sortSing' v)
+  render SStringSort   = "String"
   {-# INLINEABLE render #-}

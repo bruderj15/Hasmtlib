@@ -9,51 +9,57 @@ import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Boolean
 import Data.Map hiding (toList)
-import Data.List (intercalate)
 import Data.Proxy
 import Data.Coerce
-import Data.Foldable (toList)
 import Data.ByteString.Builder
+import Data.ByteString.Lazy.UTF8 (toString)
 import qualified Data.Vector.Sized as V
 import Control.Lens
 import GHC.TypeLits
+import GHC.Generics
 
 -- | An internal SMT variable with a phantom-type which holds an 'Int' as it's identifier.
 type role SMTVar phantom
-newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int } deriving (Show, Eq, Ord)
+newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int } deriving (Show, Eq, Ord, Generic)
 $(makeLenses ''SMTVar)
 
 -- | A wrapper for values of 'SMTSort's.
 data Value (t :: SMTSort) where
-  IntValue   :: HaskellType IntSort    -> Value IntSort
-  RealValue  :: HaskellType RealSort   -> Value RealSort
-  BoolValue  :: HaskellType BoolSort   -> Value BoolSort
-  BvValue    :: HaskellType (BvSort n) -> Value (BvSort n)
-  ArrayValue :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
+  IntValue    :: HaskellType IntSort    -> Value IntSort
+  RealValue   :: HaskellType RealSort   -> Value RealSort
+  BoolValue   :: HaskellType BoolSort   -> Value BoolSort
+  BvValue     :: HaskellType (BvSort n) -> Value (BvSort n)
+  ArrayValue  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
+  StringValue :: HaskellType StringSort -> Value StringSort
+
+deriving instance Eq (HaskellType t) => Eq (Value t)
+deriving instance Ord (HaskellType t) => Ord (Value t)
 
 -- | Unwrap a value from 'Value'.
 unwrapValue :: Value t -> HaskellType t
-unwrapValue (IntValue  v) = v
-unwrapValue (RealValue v) = v
-unwrapValue (BoolValue v) = v
-unwrapValue (BvValue   v) = v
-unwrapValue (ArrayValue v) = v
+unwrapValue (IntValue  v)   = v
+unwrapValue (RealValue v)   = v
+unwrapValue (BoolValue v)   = v
+unwrapValue (BvValue   v)   = v
+unwrapValue (ArrayValue v)  = v
+unwrapValue (StringValue v) = v
 {-# INLINEABLE unwrapValue #-}
 
 -- | Wrap a value into 'Value'.
 wrapValue :: forall t. KnownSMTSort t => HaskellType t -> Value t
 wrapValue = case sortSing @t of
-  SIntSort  -> IntValue
-  SRealSort -> RealValue
-  SBoolSort -> BoolValue
-  SBvSort _ -> BvValue
+  SIntSort       -> IntValue
+  SRealSort      -> RealValue
+  SBoolSort      -> BoolValue
+  SBvSort _      -> BvValue
   SArraySort _ _ -> ArrayValue
+  SStringSort    -> StringValue
 {-# INLINEABLE wrapValue #-}
 
 -- | An existential wrapper that hides some known 'SMTSort'.
 type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f
 
--- | A SMT expression.
+-- | Am SMT expression.
 --   For internal use only.
 --   For building expressions use the corresponding instances (Num, Boolean, ...).
 data Expr (t :: SMTSort) where
@@ -122,6 +128,19 @@ data Expr (t :: SMTSort) where
   ArrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v
   ArrStore  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
 
+  StrConcat     :: Expr StringSort -> Expr StringSort -> Expr StringSort
+  StrLength     :: Expr StringSort -> Expr IntSort
+  StrLT         :: Expr StringSort -> Expr StringSort -> Expr BoolSort
+  StrLTHE       :: Expr StringSort -> Expr StringSort -> Expr BoolSort
+  StrAt         :: Expr StringSort -> Expr IntSort -> Expr StringSort
+  StrSubstring  :: Expr StringSort -> Expr IntSort -> Expr IntSort -> Expr StringSort
+  StrPrexixOf   :: Expr StringSort -> Expr StringSort -> Expr BoolSort
+  StrSuffixOf   :: Expr StringSort -> Expr StringSort -> Expr BoolSort
+  StrContains   :: Expr StringSort -> Expr StringSort -> Expr BoolSort
+  StrIndexOf    :: Expr StringSort -> Expr StringSort -> Expr IntSort -> Expr IntSort
+  StrReplace    :: Expr StringSort -> Expr StringSort -> Expr StringSort -> Expr StringSort
+  StrReplaceAll :: Expr StringSort -> Expr StringSort -> Expr StringSort -> Expr StringSort
+
   -- Just v if quantified var has been created already, Nothing otherwise
   ForAll    :: KnownSMTSort t => Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Expr BoolSort
   Exists    :: KnownSMTSort t => Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Expr BoolSort
@@ -158,6 +177,13 @@ instance KnownNat n => Bounded (Expr (BvSort n)) where
   minBound = Constant $ BvValue minBound
   maxBound = Constant $ BvValue maxBound
 
+instance Semigroup (Expr StringSort) where
+  (<>) = StrConcat
+
+instance Monoid (Expr StringSort) where
+  mempty = Constant $ StringValue mempty
+  mappend = (<>)
+
 instance Render (SMTVar t) where
   render v = "var_" <> intDec (coerce @(SMTVar t) @Int v)
   {-# INLINEABLE render #-}
@@ -176,6 +202,7 @@ instance Render (Value t) where
       constRender v = "((as const " <> render (goSing arr) <> ") " <> render (wrapValue v) <> ")"
       goSing :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => ConstArray (HaskellType k) (HaskellType v) -> SSMTSort (ArraySort k v)
       goSing _ = sortSing @(ArraySort k v)
+  render (StringValue x) = "\"" <> render x <> "\""
 
 instance KnownSMTSort t => Render (Expr t) where
   render (Var v)      = render v
@@ -243,6 +270,19 @@ instance KnownSMTSort t => Render (Expr t) where
   render (ArrSelect a i)    = renderBinary  "select" (render a) (render i)
   render (ArrStore a i v)   = renderTernary "store"  (render a) (render i) (render v)
 
+  render (StrConcat x y)        = renderBinary "str.++"  (render x) (render y)
+  render (StrLength x)          = renderUnary  "str.len" (render x)
+  render (StrLT x y)            = renderBinary "str.<"   (render x) (render y)
+  render (StrLTHE x y)          = renderBinary "str.<="  (render x) (render y)
+  render (StrAt x i)            = renderBinary "str.at"  (render x) (render i)
+  render (StrSubstring x i j)   = renderTernary "str.substr"  (render x) (render i) (render j)
+  render (StrPrexixOf x y)      = renderBinary "str.prefixof" (render x) (render y)
+  render (StrSuffixOf x y)      = renderBinary "str.suffixof" (render x) (render y)
+  render (StrContains x y)      = renderBinary "str.contains" (render x) (render y)
+  render (StrIndexOf x y i)     = renderTernary "str.indexof"     (render x) (render y) (render i)
+  render (StrReplace x y y')    = renderTernary "str.replace"     (render x) (render y) (render y')
+  render (StrReplaceAll x y y') = renderTernary "str.replace_all" (render x) (render y) (render y')
+
   render (ForAll mQvar f) = renderQuantifier "forall" mQvar f
   render (Exists mQvar f) = renderQuantifier "exists" mQvar f
 
@@ -257,70 +297,7 @@ renderQuantifier qname (Just qvar) f =
 renderQuantifier _ Nothing _ = mempty
 
 instance Show (Value t) where
-  show (IntValue x)   = "IntValue "   ++ show x
-  show (RealValue x)  = "RealValue "  ++ show x
-  show (BoolValue x)  = "BoolValue "  ++ show x
-  show (BvValue x)    = "BvValue "    ++ show x
-  show (ArrayValue x) = "ArrValue: "  ++ show (render (ArrayValue x)) -- FIXME: This is bad but easy now
+  show = toString . toLazyByteString . render
 
-instance Show (Expr t) where
-  show (Var v)              = show v
-  show (Constant c)         = show c
-  show (Plus x y)           = "(" ++ show x ++ " + " ++ show y ++ ")"
-  show (Neg x)              = "(- " ++ show x ++ ")"
-  show (Mul x y)            = "(" ++ show x ++ " * " ++ show y ++ ")"
-  show (Abs x)              = "(abs " ++ show x ++ ")"
-  show (Mod x y)            = "(" ++ show x ++ " mod " ++ show y ++ ")"
-  show (IDiv x y)           = "(" ++ show x ++ " div " ++ show y ++ ")"
-  show (Div x y)            = "(" ++ show x ++ " / " ++ show y ++ ")"
-  show (LTH x y)            = "(" ++ show x ++ " < " ++ show y ++ ")"
-  show (LTHE x y)           = "(" ++ show x ++ " <= " ++ show y ++ ")"
-  show (EQU xs)             = "(= " ++ intercalate " " (show <$> toList xs) ++ ")"
-  show (Distinct xs)        = "(distinct " ++ intercalate " " (show <$> toList xs) ++ ")"
-  show (GTHE x y)           = "(" ++ show x ++ " >= " ++ show y ++ ")"
-  show (GTH x y)            = "(" ++ show x ++ " > " ++ show y ++ ")"
-  show (Not x)              = "(not " ++ show x ++ ")"
-  show (And x y)            = "(" ++ show x ++ " && " ++ show y ++ ")"
-  show (Or x y)             = "(" ++ show x ++ " || " ++ show y ++ ")"
-  show (Impl x y)           = "(" ++ show x ++ " ==> " ++ show y ++ ")"
-  show (Xor x y)            = "(" ++ show x ++ " xor " ++ show y ++ ")"
-  show Pi                   = "pi"
-  show (Sqrt x)             = "(sqrt "    ++ show x ++ ")"
-  show (Exp x)              = "(exp "     ++ show x ++ ")"
-  show (Sin x)              = "(sin "     ++ show x ++ ")"
-  show (Cos x)              = "(cos "     ++ show x ++ ")"
-  show (Tan x)              = "(tan "     ++ show x ++ ")"
-  show (Asin x)             = "(arcsin "  ++ show x ++ ")"
-  show (Acos x)             = "(arccos "  ++ show x ++ ")"
-  show (Atan x)             = "(arctan "  ++ show x ++ ")"
-  show (ToReal x)           = "(to_real " ++ show x ++ ")"
-  show (ToInt x)            = "(to_int "  ++ show x ++ ")"
-  show (IsInt x)            = "(is_int "  ++ show x ++ ")"
-  show (Ite p t f)          = "(ite " ++ show p ++ " " ++ show t ++ " " ++ show f ++ ")"
-  show (BvNot x)            = "(not "  ++ show x ++ ")"
-  show (BvAnd x y)          = "(" ++ show x ++ " && " ++ show y ++ ")"
-  show (BvOr x y)           = "(" ++ show x ++ " || " ++ show y ++ ")"
-  show (BvXor x y)          = "(" ++ show x ++ " xor " ++ show y ++ ")"
-  show (BvNand x y)         = "(" ++ show x ++ " nand " ++ show y ++ ")"
-  show (BvNor x y)          = "(" ++ show x ++ " nor " ++ show y ++ ")"
-  show (BvNeg x)            = "(- " ++ show x ++ ")"
-  show (BvAdd x y)          = "(" ++ show x ++ " + " ++ show y ++ ")"
-  show (BvSub x y)          = "(" ++ show x ++ " - " ++ show y ++ ")"
-  show (BvMul x y)          = "(" ++ show x ++ " * " ++ show y ++ ")"
-  show (BvuDiv x y)         = "(" ++ show x ++ " udiv " ++ show y ++ ")"
-  show (BvuRem x y)         = "(" ++ show x ++ " urem " ++ show y ++ ")"
-  show (BvShL x y)          = "(" ++ show x ++ " bvshl " ++ show y ++ ")"
-  show (BvLShR x y)         = "(" ++ show x ++ " bvlshr " ++ show y ++ ")"
-  show (BvConcat x y)       = "(" ++ show x ++ " bvconcat " ++ show y ++ ")"
-  show (BvRotL i x)         = "(" ++ show x ++ " bvrotl " ++ show (natVal i) ++ ")"
-  show (BvRotR i x)         = "(" ++ show x ++ " bvrotr " ++ show (natVal i) ++ ")"
-  show (BvuLT x y)          = "(" ++ show x ++ " bvult " ++ show y ++ ")"
-  show (BvuLTHE x y)        = "(" ++ show x ++ " bvule " ++ show y ++ ")"
-  show (BvuGTHE x y)        = "(" ++ show x ++ " bvuge " ++ show y ++ ")"
-  show (BvuGT x y)          = "(" ++ show x ++ " bvugt " ++ show y ++ ")"
-  show (ForAll (Just qv) f) = "(forall " ++ show qv ++ ": " ++ show (f (Var qv)) ++ ")"
-  show (ForAll Nothing f)   = "(forall var_-1: " ++ show (f (Var (SMTVar (-1)))) ++ ")"
-  show (ArrSelect i arr)    = "(select " ++ show i ++ " " ++ show arr ++ ")"
-  show (ArrStore i x arr)   = "(select " ++ show i ++ " " ++ show x ++ " " ++ show arr ++ ")"
-  show (Exists (Just qv) f) = "(exists " ++ show qv ++ ": " ++ show (f (Var qv)) ++ ")"
-  show (Exists Nothing f)   = "(exists var_-1: " ++ show (f (Var (SMTVar (-1)))) ++ ")"
+instance KnownSMTSort t => Show (Expr t) where
+  show = toString . toLazyByteString . render

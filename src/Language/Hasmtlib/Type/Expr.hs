@@ -10,6 +10,7 @@ module Language.Hasmtlib.Type.Expr
  , toIntSort, toRealSort, isIntSort
  , for_all , exists
  , select, store
+ , strLength, strAt, strSubstring, strPrefixOf, strSuffixOf, strContains, strIndexOf, strReplace, strReplaceAll
  )
 where
 
@@ -118,3 +119,56 @@ toIntSort = ToInt
 -- | Checks whether an expression of type 'RealSort' may be safely converted to type 'IntSort'.
 isIntSort :: Expr RealSort -> Expr BoolSort
 isIntSort = IsInt
+
+-- | Length of a string.
+strLength :: Expr StringSort -> Expr IntSort
+strLength = StrLength
+
+-- | Singleton string containing a character at given position
+--   or empty string when position is out of range.
+--   The leftmost position is 0.
+strAt :: Expr StringSort -> Expr IntSort -> Expr StringSort
+strAt = StrAt
+
+-- | @(strSubstring s i n)@ evaluates to the longest (unscattered) substring
+--   of @s@ of length at most @n@ starting at position @i@.
+--   It evaluates to the empty string if @n@ is negative or @i@ is not in
+--   the interval @[0,l-1]@ where @l@ is the length of @s@.
+strSubstring :: Expr StringSort -> Expr IntSort -> Expr IntSort -> Expr StringSort
+strSubstring = StrSubstring
+
+-- | First string is a prefix of second one.
+--   @(str.prefixof s t)@ is @true@ iff @s@ is a prefix of @t@.
+strPrefixOf :: Expr StringSort -> Expr StringSort -> Expr BoolSort
+strPrefixOf = StrPrexixOf
+
+-- | First string is a suffix of second one.
+--   @(str.suffixof s t)@ is @true@ iff @s@ is a suffix of @t@.
+strSuffixOf :: Expr StringSort -> Expr StringSort -> Expr BoolSort
+strSuffixOf = StrSuffixOf
+
+-- | First string contains second one
+--   @(str.contains s t)@ iff @s@ contains @t@.
+strContains :: Expr StringSort -> Expr StringSort -> Expr BoolSort
+strContains = StrContains
+
+-- | Index of first occurrence of second string in first one starting at the position specified by the third argument.
+--   @(str.indexof s t i)@, with @0 <= i <= |s|@ is the position of the first
+--   occurrence of @t@ in @s@ at or after position @i@, if any.
+--   Otherwise, it is @-1@. Note that the result is @i@ whenever @i@ is within
+--   the range @[0, |s|]@ and @t@ is empty.
+strIndexOf :: Expr StringSort -> Expr StringSort -> Expr IntSort -> Expr IntSort
+strIndexOf = StrIndexOf
+
+-- | @(str.replace s t t')@ is the string obtained by replacing the first
+--   occurrence of @t@ in @s@, if any, by @t'@. Note that if @t@ is empty, the
+--   result is to prepend @t'@ to @s@; also, if @t@ does not occur in @s@ then
+--   the result is @s@.
+strReplace :: Expr StringSort -> Expr StringSort -> Expr StringSort -> Expr StringSort
+strReplace = StrReplace
+
+-- | @(str.replace_all s t t’)@ is @s@ if @t@ is the empty string. Otherwise, it
+--   is the string obtained from @s@ by replacing all occurrences of @t@ in @s@
+--   by @t’@, starting with the first occurrence and proceeding in left-to-right order.
+strReplaceAll :: Expr StringSort -> Expr StringSort -> Expr StringSort -> Expr StringSort
+strReplaceAll = StrReplaceAll
