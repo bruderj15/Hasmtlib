@@ -2,6 +2,7 @@ module Language.Hasmtlib.Example.Arith where
 
 import Prelude hiding ((&&))
 import Language.Hasmtlib
+import Control.Lens
 
 main :: IO ()
 main = do
@@ -16,6 +17,10 @@ main = do
     assert $ y === "World"
     assert $ z === x <> " " <> y
 
-    return z
+    p <- var @StringSort
+    let argh :: Expr StringSort = "Argh!"
+    assert $ p === "_Cons: " <| z <> argh^.ix 4
+
+    return p
 
   print res
