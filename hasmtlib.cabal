@@ -26,6 +26,7 @@ library
   default-extensions:  DataKinds, GADTs, TypeFamilies, OverloadedStrings
 
   exposed-modules:     Language.Hasmtlib
+                     , Language.Hasmtlib.Lens
                      , Language.Hasmtlib.Codec
                      , Language.Hasmtlib.Iteable
                      , Language.Hasmtlib.Boolean
@@ -44,7 +45,6 @@ library
                      , Language.Hasmtlib.Solver.OpenSMT
                      , Language.Hasmtlib.Solver.Yices
                      , Language.Hasmtlib.Solver.Z3
-                     , Language.Hasmtlib.Type.Lens
                      , Language.Hasmtlib.Type.Expr
                      , Language.Hasmtlib.Type.MonadSMT
                      , Language.Hasmtlib.Type.SMT
