@@ -11,6 +11,8 @@ import Language.Hasmtlib.Boolean
 import Data.Map hiding (toList)
 import Data.Proxy
 import Data.Coerce
+import Data.String (IsString(..))
+import Data.Text (pack)
 import Data.ByteString.Builder
 import Data.ByteString.Lazy.UTF8 (toString)
 import qualified Data.Vector.Sized as V
@@ -134,7 +136,7 @@ data Expr (t :: SMTSort) where
   StrLTHE       :: Expr StringSort -> Expr StringSort -> Expr BoolSort
   StrAt         :: Expr StringSort -> Expr IntSort -> Expr StringSort
   StrSubstring  :: Expr StringSort -> Expr IntSort -> Expr IntSort -> Expr StringSort
-  StrPrexixOf   :: Expr StringSort -> Expr StringSort -> Expr BoolSort
+  StrPrefixOf   :: Expr StringSort -> Expr StringSort -> Expr BoolSort
   StrSuffixOf   :: Expr StringSort -> Expr StringSort -> Expr BoolSort
   StrContains   :: Expr StringSort -> Expr StringSort -> Expr BoolSort
   StrIndexOf    :: Expr StringSort -> Expr StringSort -> Expr IntSort -> Expr IntSort
@@ -183,6 +185,9 @@ instance Semigroup (Expr StringSort) where
 instance Monoid (Expr StringSort) where
   mempty = Constant $ StringValue mempty
   mappend = (<>)
+
+instance IsString (Expr StringSort) where
+  fromString = Constant . StringValue . pack
 
 instance Render (SMTVar t) where
   render v = "var_" <> intDec (coerce @(SMTVar t) @Int v)
@@ -276,7 +281,7 @@ instance KnownSMTSort t => Render (Expr t) where
   render (StrLTHE x y)          = renderBinary "str.<="  (render x) (render y)
   render (StrAt x i)            = renderBinary "str.at"  (render x) (render i)
   render (StrSubstring x i j)   = renderTernary "str.substr"  (render x) (render i) (render j)
-  render (StrPrexixOf x y)      = renderBinary "str.prefixof" (render x) (render y)
+  render (StrPrefixOf x y)      = renderBinary "str.prefixof" (render x) (render y)
   render (StrSuffixOf x y)      = renderBinary "str.suffixof" (render x) (render y)
   render (StrContains x y)      = renderBinary "str.contains" (render x) (render y)
   render (StrIndexOf x y i)     = renderTernary "str.indexof"     (render x) (render y) (render i)

@@ -4,7 +4,7 @@
 module Language.Hasmtlib.Type.Expr
  ( SMTVar(..), varId
  , Value(..), unwrapValue, wrapValue
- , Expr
+ , Expr(..)
  , equal, distinct
  , bvShL, bvLShR, bvConcat, bvRotL, bvRotR
  , toIntSort, toRealSort, isIntSort
@@ -140,7 +140,7 @@ strSubstring = StrSubstring
 -- | First string is a prefix of second one.
 --   @(str.prefixof s t)@ is @true@ iff @s@ is a prefix of @t@.
 strPrefixOf :: Expr StringSort -> Expr StringSort -> Expr BoolSort
-strPrefixOf = StrPrexixOf
+strPrefixOf = StrPrefixOf
 
 -- | First string is a suffix of second one.
 --   @(str.suffixof s t)@ is @true@ iff @s@ is a suffix of @t@.

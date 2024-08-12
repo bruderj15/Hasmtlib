@@ -38,12 +38,12 @@ instance Suffixed (Expr StringSort) where
 instance Cons (Expr StringSort) (Expr StringSort) (Expr StringSort) (Expr StringSort) where
   _Cons = prism'
     (uncurry (<>))
-    (\s -> ite (strLength s >? 0) (Just (strSubstring s 1 (strLength s), strAt s 0)) Nothing)
+    (\s -> ite (strLength s >? 0) (Just (strAt s 0, strSubstring s 1 (strLength s))) Nothing)
 
 instance Snoc (Expr StringSort) (Expr StringSort) (Expr StringSort) (Expr StringSort) where
   _Snoc = prism'
-    (uncurry (flip (<>)))
-    (\s -> ite (strLength s >? 0) (Just (strSubstring s 0 (strLength s - 1), strAt s (strLength s))) Nothing)
+    (uncurry (<>))
+    (\s -> ite (strLength s >? 0) (Just (strSubstring s 0 (strLength s - 1), strAt s (strLength s - 1))) Nothing)
 
 type instance Index   (Expr (ArraySort k v)) = Expr k
 type instance IxValue (Expr (ArraySort k v)) = Expr v
@@ -117,7 +117,7 @@ instance KnownSMTSort t => Plated (Expr t) where
   plate f (StrLTHE x y)           = StrLTHE <$> somePlate f x <*> somePlate f y
   plate f (StrAt x i)             = StrAt <$> f x <*> somePlate f i
   plate f (StrSubstring x i j)    = StrSubstring <$> f x <*> somePlate f i <*> somePlate f j
-  plate f (StrPrexixOf x y)       = StrPrexixOf <$> somePlate f x <*> somePlate f y
+  plate f (StrPrefixOf x y)       = StrPrefixOf <$> somePlate f x <*> somePlate f y
   plate f (StrSuffixOf x y)       = StrSuffixOf <$> somePlate f x <*> somePlate f y
   plate f (StrContains x y)       = StrContains <$> somePlate f x <*> somePlate f y
   plate f (StrIndexOf x y i)      = StrIndexOf <$> somePlate f x <*> somePlate f y <*> f i
@@ -199,7 +199,7 @@ somePlate f expr = case geq (sortSing @t) (sortSing' expr) of
     StrLTHE x y          -> StrLTHE       <$> somePlate f x <*> somePlate f y
     StrAt x i            -> StrAt         <$> somePlate f x <*> somePlate f i
     StrSubstring x i j   -> StrSubstring  <$> somePlate f x <*> somePlate f i <*> somePlate f j
-    StrPrexixOf x y      -> StrPrexixOf   <$> somePlate f x <*> somePlate f y
+    StrPrefixOf x y      -> StrPrefixOf   <$> somePlate f x <*> somePlate f y
     StrSuffixOf x y      -> StrSuffixOf   <$> somePlate f x <*> somePlate f y
     StrContains x y      -> StrContains   <$> somePlate f x <*> somePlate f y
     StrIndexOf x y i     -> StrIndexOf    <$> somePlate f x <*> somePlate f y <*> somePlate f i
