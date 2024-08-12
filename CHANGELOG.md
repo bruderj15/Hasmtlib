@@ -6,6 +6,16 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.3.0 _(2024-08-12)_
+
+### Added
+- Added full SMTLib2.6-standard support for sort String
+- Added module `Language.Hasmtlib.Lens` featuring `instance Plated (Expr t)` for rewriting
+
+### Changed
+- Export constructors of `Expr t`
+- `instance Show (Expr t)` now displays expressions in SMTLib2-Syntax
+
 ## v2.2.0 _(2024-08-09)_
 
 ### Added
