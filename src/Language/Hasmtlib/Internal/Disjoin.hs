@@ -1,4 +1,8 @@
-module Language.Hasmtlib.Internal.Disjoin where
+module Language.Hasmtlib.Internal.Disjoin
+  ( Disjoinable(..)
+  , merge
+  )
+where
 
 import Language.Hasmtlib.Internal.Expr.Analyze
 import Language.Hasmtlib.Internal.Expr
@@ -8,11 +12,14 @@ import Language.Hasmtlib.Type.SMT
 import Data.Dependent.Map as DMap hiding (mapMaybe)
 import Data.IntMap as IntMap hiding (mapMaybe)
 import Data.IntSet as IntSet
-import Data.Sequence as Seq
+import Data.Sequence as Seq hiding ((|>), (<|))
 import Data.Maybe
 import Data.Coerce
+import Data.STRef
 import qualified Data.Foldable as Foldable
-import Control.Lens hiding ((|>))
+import Control.Lens
+import Control.Monad.ST
+import Control.Monad
 
 -- | Class that allows to split a datum into a sequence of disjoint data.
 class Disjoinable a where
@@ -21,31 +28,36 @@ class Disjoinable a where
 
 instance Disjoinable SMT where
   disjoin smt =
-    fmap (\fs -> smt
+    (\fs -> smt
         & vars %~ Seq.filter (\(SomeSMTSort v) -> varIdsAll fs ^. contains (coerce v))
-        & formulas .~ fs) $
-    fst $
-    Foldable.foldr'
-      (\f (fss, v_fssIndex) ->
-        let vs = IntSet.toList $ varIds1 f
-            fssIndexs = mapMaybe (v_fssIndex IntMap.!?) vs
-        in case fssIndexs of
-              [] -> let f_index = Seq.length fss
-                        fss' = fss |> pure f
-                        v_fssIndex' = v_fssIndex <> IntMap.fromList (fmap (, f_index) vs)
-                    in (fss', v_fssIndex')
-              is -> let (fss', mergedFs) = ifoldl'
-                                (\i (fss'', merged) fs ->
-                                  if i `elem` is then (fss'', merged >< fs) else (fss'' |> fs, merged)
-                                )
-                                (mempty :: Seq (Seq (Expr BoolSort)), pure f)
-                                fss
-                        f_index      = Seq.length fss'
-                        v_fssIndex'  = IntSet.foldr' (\v -> at v ?~ f_index) v_fssIndex $ varIdsAll mergedFs
-                    in (fss' |> mergedFs, v_fssIndex')
-      )
-      (mempty :: Seq (Seq (Expr t)), mempty :: IntMap Int)
-      (smt^.formulas)
+        & formulas .~ fs)
+    <$> disjoinST smt
+
+disjoinST :: SMT -> Seq (Seq (Expr BoolSort))
+disjoinST s = runST $ do
+  lastFormulaId_Ref <- newSTRef @Int 0
+  vId_fId_Ref <- newSTRef @(IntMap Int) mempty
+  fId_fs_Ref  <- newSTRef @(IntMap (Seq (Expr BoolSort))) mempty
+
+  forM_ (s^.formulas) $ \f -> do
+    modifySTRef' lastFormulaId_Ref (+1)
+    nextFormulaId <- readSTRef lastFormulaId_Ref
+    vId_fId <- readSTRef vId_fId_Ref
+    let vs = IntSet.toList $ varIds1 f
+        fIds = mapMaybe (vId_fId IntMap.!?) vs
+     in case fIds of
+          [] -> do
+            modifySTRef' fId_fs_Ref (at nextFormulaId ?~ pure f)
+            modifySTRef' vId_fId_Ref (<> IntMap.fromList (fmap (, nextFormulaId) vs))
+          fId -> do
+            fId_fs <- readSTRef fId_fs_Ref
+            let mergedFs =  f <| join (Seq.fromList $ mapMaybe (fId_fs IntMap.!?) fId)
+            writeSTRef fId_fs_Ref $ Prelude.foldr IntMap.delete fId_fs fIds -- delete old formula associations
+            modifySTRef' fId_fs_Ref (at nextFormulaId ?~ mergedFs)
+            modifySTRef' vId_fId_Ref (IntMap.fromList (fmap (, nextFormulaId) $ IntSet.toList $ varIdsAll mergedFs) <>) -- update new var associations
+
+  fId_fs <- readSTRef fId_fs_Ref
+  return $ Seq.fromList $ IntMap.elems fId_fs
 
 -- | Merge many 'Solution's into a single one.
 merge :: Foldable f => f Solution -> Solution
