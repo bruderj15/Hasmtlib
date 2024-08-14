@@ -36,7 +36,7 @@ data SSMTSort (t :: SMTSort) where
   SRealSort  :: SSMTSort RealSort
   SBoolSort  :: SSMTSort BoolSort
   SBvSort    :: KnownNat n => Proxy n -> SSMTSort (BvSort n)
-  SArraySort :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Proxy k -> Proxy v -> SSMTSort (ArraySort k v)
+  SArraySort :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Proxy k -> Proxy v -> SSMTSort (ArraySort k v)
 
 deriving instance Show (SSMTSort t)
 deriving instance Eq   (SSMTSort t)
@@ -81,7 +81,7 @@ instance KnownSMTSort IntSort                  where sortSing = SIntSort
 instance KnownSMTSort RealSort                 where sortSing = SRealSort
 instance KnownSMTSort BoolSort                 where sortSing = SBoolSort
 instance KnownNat n => KnownSMTSort (BvSort n) where sortSing = SBvSort (Proxy @n)
-instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => KnownSMTSort (ArraySort k v) where
+instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => KnownSMTSort (ArraySort k v) where
    sortSing = SArraySort (Proxy @k) (Proxy @v)
 
 -- | Wrapper for 'sortSing' which takes a 'Proxy'-like argument for @t@.

@@ -16,6 +16,7 @@ import Data.Sequence as Seq hiding ((|>), (<|))
 import Data.Maybe
 import Data.Coerce
 import Data.STRef
+import Data.List (nub)
 import qualified Data.Foldable as Foldable
 import Control.Lens
 import Control.Monad.ST
@@ -48,8 +49,8 @@ disjoinST s = runST $ do
             modifySTRef' vId_fId_Ref (<> IntMap.fromList (fmap (, formulaId) vs))
           _ -> do
             fId_fs <- readSTRef fId_fs_Ref
-            let mergedFs =  f <| join (Seq.fromList $ mapMaybe (fId_fs IntMap.!?) fIds)
-            writeSTRef fId_fs_Ref $ Prelude.foldr IntMap.delete fId_fs fIds -- delete old formula associations
+            let mergedFs =  f <| join (Seq.fromList $ nub $ mapMaybe (fId_fs IntMap.!?) fIds)
+            writeSTRef fId_fs_Ref $ Foldable.foldr' IntMap.delete fId_fs fIds -- delete old formula associations
             modifySTRef' fId_fs_Ref (at formulaId ?~ mergedFs)
             modifySTRef' vId_fId_Ref (IntMap.fromList (fmap (, formulaId) $ IntSet.toList $ varIdsAll mergedFs) <>) -- update new var associations
 
