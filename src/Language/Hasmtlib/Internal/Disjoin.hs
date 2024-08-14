@@ -35,26 +35,23 @@ instance Disjoinable SMT where
 
 disjoinST :: SMT -> Seq (Seq (Expr BoolSort))
 disjoinST s = runST $ do
-  lastFormulaId_Ref <- newSTRef @Int 0
   vId_fId_Ref <- newSTRef @(IntMap Int) mempty
   fId_fs_Ref  <- newSTRef @(IntMap (Seq (Expr BoolSort))) mempty
 
-  forM_ (s^.formulas) $ \f -> do
-    modifySTRef' lastFormulaId_Ref (+1)
-    nextFormulaId <- readSTRef lastFormulaId_Ref
+  iforM_ (s^.formulas) $ \formulaId f -> do
     vId_fId <- readSTRef vId_fId_Ref
     let vs = IntSet.toList $ varIds1 f
         fIds = mapMaybe (vId_fId IntMap.!?) vs
      in case fIds of
           [] -> do
-            modifySTRef' fId_fs_Ref (at nextFormulaId ?~ pure f)
-            modifySTRef' vId_fId_Ref (<> IntMap.fromList (fmap (, nextFormulaId) vs))
-          fId -> do
+            modifySTRef' fId_fs_Ref (at formulaId ?~ pure f)
+            modifySTRef' vId_fId_Ref (<> IntMap.fromList (fmap (, formulaId) vs))
+          _ -> do
             fId_fs <- readSTRef fId_fs_Ref
-            let mergedFs =  f <| join (Seq.fromList $ mapMaybe (fId_fs IntMap.!?) fId)
+            let mergedFs =  f <| join (Seq.fromList $ mapMaybe (fId_fs IntMap.!?) fIds)
             writeSTRef fId_fs_Ref $ Prelude.foldr IntMap.delete fId_fs fIds -- delete old formula associations
-            modifySTRef' fId_fs_Ref (at nextFormulaId ?~ mergedFs)
-            modifySTRef' vId_fId_Ref (IntMap.fromList (fmap (, nextFormulaId) $ IntSet.toList $ varIdsAll mergedFs) <>) -- update new var associations
+            modifySTRef' fId_fs_Ref (at formulaId ?~ mergedFs)
+            modifySTRef' vId_fId_Ref (IntMap.fromList (fmap (, formulaId) $ IntSet.toList $ varIdsAll mergedFs) <>) -- update new var associations
 
   fId_fs <- readSTRef fId_fs_Ref
   return $ Seq.fromList $ IntMap.elems fId_fs
