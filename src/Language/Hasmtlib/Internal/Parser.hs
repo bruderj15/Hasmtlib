@@ -6,12 +6,7 @@ module Language.Hasmtlib.Internal.Parser where
 import Prelude hiding (not, (&&), (||), and , or)
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Render
-import Language.Hasmtlib.Internal.Expr.Num ()
-import Language.Hasmtlib.Internal.Expr
-import Language.Hasmtlib.Equatable
-import Language.Hasmtlib.Orderable
 import Language.Hasmtlib.Boolean
-import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution

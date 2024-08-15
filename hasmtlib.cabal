@@ -26,14 +26,10 @@ library
   default-extensions:  DataKinds, GADTs, TypeFamilies, OverloadedStrings
 
   exposed-modules:     Language.Hasmtlib
-                     , Language.Hasmtlib.Lens
                      , Language.Hasmtlib.Codec
-                     , Language.Hasmtlib.Iteable
                      , Language.Hasmtlib.Boolean
                      , Language.Hasmtlib.Variable
                      , Language.Hasmtlib.Counting
-                     , Language.Hasmtlib.Equatable
-                     , Language.Hasmtlib.Orderable
                      , Language.Hasmtlib.Integraled
                      , Language.Hasmtlib.Internal.Parser
                      , Language.Hasmtlib.Internal.Bitvec
@@ -55,9 +51,6 @@ library
                      , Language.Hasmtlib.Type.Solver
                      , Language.Hasmtlib.Type.Option
                      , Language.Hasmtlib.Type.ArrayMap
-
-  other-modules:       Language.Hasmtlib.Internal.Expr
-                     , Language.Hasmtlib.Internal.Expr.Num
 
   build-depends:       attoparsec                   >= 0.14.4 && < 1
                      , base                         >= 4.17.2 && < 5

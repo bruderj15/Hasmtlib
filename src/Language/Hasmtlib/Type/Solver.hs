@@ -8,11 +8,10 @@ module Language.Hasmtlib.Type.Solver
 where
 
 import Language.Hasmtlib.Type.MonadSMT
-import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.Pipe
-import Language.Hasmtlib.Orderable
 import Language.Hasmtlib.Codec
 import qualified SMTLIB.Backends as Backend
 import qualified SMTLIB.Backends.Process as Process

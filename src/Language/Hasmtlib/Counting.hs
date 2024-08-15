@@ -1,12 +1,8 @@
 module Language.Hasmtlib.Counting where
 
 import Prelude hiding (not, (&&), (||), or)
-import Language.Hasmtlib.Internal.Expr.Num ()
-import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.SMTSort
-import Language.Hasmtlib.Equatable
-import Language.Hasmtlib.Orderable
-import Language.Hasmtlib.Iteable
+import Language.Hasmtlib.Type.Expr
 import Data.Proxy
 
 -- | Wrapper for 'count' which takes a 'Proxy'.

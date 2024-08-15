@@ -1,6 +1,6 @@
 module Language.Hasmtlib.Type.MonadSMT where
 
-import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
@@ -85,9 +85,10 @@ assertMaybe :: MonadSMT s m => Maybe (Expr BoolSort) -> m ()
 assertMaybe Nothing = return ()
 assertMaybe (Just expr) = assert expr
 
+-- TODO: Use Plated instance instead
 --   We need this separate so we get a pure API for quantifiers
 --   Ideally we would do that when rendering the expression
---   However renderSMTLib2 is pure but we need a new quantified var which is stateful
+--   However Language.Hasmtlib.Internal.Render#render is pure but we need a new quantified var which is stateful
 -- | Assign quantified variables to all quantified subexpressions of an expression.
 --   This shall only be used internally.
 --   Usually before rendering an assert.

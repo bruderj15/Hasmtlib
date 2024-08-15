@@ -3,11 +3,11 @@
 
 module Language.Hasmtlib.Type.SMT where
 
-import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Option
+import Language.Hasmtlib.Type.Expr
 import Data.List (isPrefixOf)
 import Data.Default
 import Data.Coerce
@@ -19,11 +19,11 @@ import Control.Lens hiding (List)
 
 -- | The state of the SMT-problem.
 data SMT = SMT
-  { _lastVarId :: {-# UNPACK #-} !Int                     -- ^ Last Id assigned to a new var
-  , _vars     :: !(Seq (SomeKnownSMTSort SMTVar))         -- ^ All constructed variables
-  , _formulas :: !(Seq (Expr BoolSort))                   -- ^ All asserted formulas
-  , _mlogic   :: Maybe String                             -- ^ Logic for the SMT-Solver
-  , _options  :: [SMTOption]                              -- ^ All manually configured SMT-Solver-Options
+  { _lastVarId :: {-# UNPACK #-} !Int                                 -- ^ Last Id assigned to a new var
+  , _vars      :: !(Seq (SomeKnownSMTSort SMTVar))                    -- ^ All constructed variables
+  , _formulas  :: !(Seq (Expr BoolSort))                              -- ^ All asserted formulas
+  , _mlogic    :: Maybe String                                        -- ^ Logic for the SMT-Solver
+  , _options   :: [SMTOption]                                         -- ^ All manually configured SMT-Solver-Options
   }
 $(makeLenses ''SMT)
 

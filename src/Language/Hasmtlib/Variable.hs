@@ -2,7 +2,7 @@
 
 module Language.Hasmtlib.Variable where
 
-import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Data.Proxy
