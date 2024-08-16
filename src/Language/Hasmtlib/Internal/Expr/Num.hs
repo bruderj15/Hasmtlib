@@ -14,15 +14,18 @@ instance Num (Expr IntSort) where
    {-# INLINE fromInteger #-}
    (Constant (IntValue 0)) + y = y
    x + (Constant (IntValue 0)) = x
+   (Constant (IntValue x)) + (Constant (IntValue y)) = Constant (IntValue (x + y))
    x + y = Plus x y
    {-# INLINE (+) #-}
    x - (Constant (IntValue 0)) = x
+   (Constant (IntValue x)) - (Constant (IntValue y)) = Constant (IntValue (x - y))
    x - y = Plus x (Neg y)
    {-# INLINE (-) #-}
    (Constant (IntValue 0)) * _ = 0
    _ * (Constant (IntValue 0)) = 0
    (Constant (IntValue 1)) * y = y
    x * (Constant (IntValue 1)) = x
+   (Constant (IntValue x)) * (Constant (IntValue y)) = Constant (IntValue (x * y))
    x * y = Mul x y
    {-# INLINE (*) #-}
    negate      = Neg
@@ -35,11 +38,21 @@ instance Num (Expr IntSort) where
 instance Num (Expr RealSort) where
    fromInteger = Constant . RealValue . fromIntegral
    {-# INLINE fromInteger #-}
-   (+)         = Plus
+   (Constant (RealValue 0)) + y = y
+   x + (Constant (RealValue 0)) = x
+   (Constant (RealValue x)) + (Constant (RealValue y)) = Constant (RealValue (x + y))
+   x + y = Plus x y
    {-# INLINE (+) #-}
-   x - y       = Plus x (Neg y)
+   x - (Constant (RealValue 0)) = x
+   (Constant (RealValue x)) - (Constant (RealValue y)) = Constant (RealValue (x - y))
+   x - y = Plus x (Neg y)
    {-# INLINE (-) #-}
-   (*)         = Mul
+   (Constant (RealValue 0)) * _ = 0
+   _ * (Constant (RealValue 0)) = 0
+   (Constant (RealValue 1)) * y = y
+   x * (Constant (RealValue 1)) = x
+   (Constant (RealValue x)) * (Constant (RealValue y)) = Constant (RealValue (x * y))
+   x * y = Mul x y
    {-# INLINE (*) #-}
    negate      = Neg
    {-# INLINE negate #-}
@@ -51,11 +64,21 @@ instance Num (Expr RealSort) where
 instance KnownNat n => Num (Expr (BvSort n)) where
    fromInteger = Constant . BvValue . fromInteger
    {-# INLINE fromInteger #-}
-   (+)         = BvAdd
+   (Constant (BvValue 0)) + y = y
+   x + (Constant (BvValue 0)) = x
+   (Constant (BvValue x)) + (Constant (BvValue y)) = Constant (BvValue (x + y))
+   x + y = BvAdd x y
    {-# INLINE (+) #-}
-   (-)         = BvSub
+   x - (Constant (BvValue 0)) = x
+   (Constant (BvValue x)) - (Constant (BvValue y)) = Constant (BvValue (x - y))
+   x - y = BvSub x y
    {-# INLINE (-) #-}
-   (*)         = BvMul
+   (Constant (BvValue 0)) * _ = 0
+   _ * (Constant (BvValue 0)) = 0
+   (Constant (BvValue 1)) * y = y
+   x * (Constant (BvValue 1)) = x
+   (Constant (BvValue x)) * (Constant (BvValue y)) = Constant (BvValue (x * y))
+   x * y = BvMul x y
    {-# INLINE (*) #-}
    abs         = id
    {-# INLINE abs #-}
@@ -65,7 +88,10 @@ instance KnownNat n => Num (Expr (BvSort n)) where
 instance Fractional (Expr RealSort) where
   fromRational = Constant . RealValue . fromRational
   {-# INLINE fromRational #-}
-  (/)          = Div
+  x / (Constant (RealValue 1)) = x
+  (Constant (RealValue 0)) / _ = 0
+  (Constant (RealValue x)) / (Constant (RealValue y)) = Constant (RealValue (x / y))
+  x / y          = Div x y
   {-# INLINE (/) #-}
 
 instance Floating (Expr RealSort) where
