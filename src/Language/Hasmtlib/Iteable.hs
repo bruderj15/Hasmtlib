@@ -2,6 +2,9 @@
 
 module Language.Hasmtlib.Iteable where
 
+import Prelude hiding (Applicative(..))
+import Control.Applicative (Applicative(..))
+
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.SMTSort
 import Data.Sequence (Seq)

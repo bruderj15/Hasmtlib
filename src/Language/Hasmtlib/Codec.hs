@@ -5,7 +5,9 @@
 
 module Language.Hasmtlib.Codec where
 
-import Prelude hiding (not, (&&), (||), all, and)
+import Prelude hiding (Applicative(..), not, (&&), (||), all, and)
+import Control.Applicative(Applicative(..))
+
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Expr
 import Language.Hasmtlib.Type.Solution
