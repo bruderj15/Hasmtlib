@@ -18,7 +18,9 @@ category:              SMT, Logic
 build-type:            Simple
 extra-source-files:    README.md
 extra-doc-files:       CHANGELOG.md
-tested-with:           GHC == 9.6.5
+tested-with:           GHC == 9.4.8
+                     , GHC == 9.6.5
+                     , GHC == 9.10.1
 
 library
   hs-source-dirs:      src
