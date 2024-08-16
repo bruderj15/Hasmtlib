@@ -150,13 +150,20 @@ data Expr (t :: SMTSort) where
 instance Boolean (Expr BoolSort) where
   bool = Constant . BoolValue
   {-# INLINE bool #-}
-  (&&) = And
+  (Constant (BoolValue x)) && y = if x then y else false
+  x && (Constant (BoolValue y)) = if y then x else false
+  x && y = And x y
   {-# INLINE (&&) #-}
-  (||) = Or
+  (Constant (BoolValue x)) || y = if x then true else y
+  x || (Constant (BoolValue y)) = if y then true else x
+  x || y = Or x y
   {-# INLINE (||) #-}
-  not  = Not
+  not (Constant (BoolValue x)) = bool . Prelude.not $ x
+  not x = Not x
   {-# INLINE not #-}
-  xor  = Xor
+  xor (Constant (BoolValue x)) y  = if x then Language.Hasmtlib.Boolean.not y else y
+  xor x (Constant (BoolValue y)) = if y then Language.Hasmtlib.Boolean.not x else x
+  xor x y = Xor x y
   {-# INLINE xor #-}
 
 instance KnownNat n => Boolean (Expr (BvSort n)) where
