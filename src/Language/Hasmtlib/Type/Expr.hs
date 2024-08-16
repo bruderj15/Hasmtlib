@@ -33,7 +33,8 @@ import Data.ByteString.Builder
 import Data.ByteString.Lazy.UTF8 (toString)
 import qualified Data.Vector.Sized as V
 import Control.Lens hiding (from, to)
-import GHC.TypeNats
+import GHC.TypeLits hiding (someNatVal)
+import GHC.TypeNats (someNatVal)
 import GHC.Generics
 
 -- | An internal SMT variable with a phantom-type which holds an 'Int' as it's identifier.
@@ -48,12 +49,25 @@ data Value (t :: SMTSort) where
   IntValue    :: HaskellType IntSort    -> Value IntSort
   RealValue   :: HaskellType RealSort   -> Value RealSort
   BoolValue   :: HaskellType BoolSort   -> Value BoolSort
-  BvValue     :: HaskellType (BvSort n) -> Value (BvSort n)
+  BvValue     :: KnownNat n => HaskellType (BvSort n) -> Value (BvSort n)
   ArrayValue  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
   StringValue :: HaskellType StringSort -> Value StringSort
 
 deriving instance Eq (HaskellType t) => Eq (Value t)
 deriving instance Ord (HaskellType t) => Ord (Value t)
+
+instance GEq Value where
+  geq (BoolValue x) (BoolValue y)   = if x == y then Just Refl else Nothing
+  geq (IntValue x) (IntValue y)     = if x == y then Just Refl else Nothing
+  geq (RealValue x) (RealValue y)   = if x == y then Just Refl else Nothing
+  geq (BvValue x) (BvValue y)       = case cmpNat x y of
+    EQI -> if x == y then Just Refl else Nothing
+    _   -> Nothing
+  geq ax@(ArrayValue x) ay@(ArrayValue y) = case geq (sortSing' ax) (sortSing' ay) of
+    Nothing -> Nothing
+    Just Refl -> if x == y then Just Refl else Nothing
+  geq (StringValue x) (StringValue y) = if x == y then Just Refl else Nothing
+  geq _ _ = Nothing
 
 -- | Unwrap a value from 'Value'.
 unwrapValue :: Value t -> HaskellType t
@@ -956,6 +970,7 @@ type instance IxValue (Expr (ArraySort k v)) = Expr v
 instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Ixed (Expr (ArraySort k v)) where
   ix i f arr = f (select arr i) <&> store arr i
 
+-- | __Caution for quantified expressions:__ 'uniplate1-function' @f@ will only be applied if quantification has taken place already.
 instance Uniplate1 Expr '[KnownSMTSort] where
   uniplate1 _ expr@(Var _)            = pure expr
   uniplate1 _ expr@(Constant _)       = pure expr
@@ -1030,7 +1045,7 @@ instance Uniplate1 Expr '[KnownSMTSort] where
   uniplate1 f (Exists (Just qv) expr) = Exists (Just qv) . const <$> f (expr (Var qv))
   uniplate1 _ (Exists Nothing expr)   = pure $ Exists Nothing expr
 
--- | __Caution for quantified expressions:__ 'plate-function' @f@ will only be applied if quantification already has taken place.
+-- | __Caution for quantified expressions:__ 'plate-function' @f@ will only be applied if quantification has taken place already.
 instance KnownSMTSort t => Plated (Expr t) where
   plate f = uniplate1 (tryPlate f)
     where
