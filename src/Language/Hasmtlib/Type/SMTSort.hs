@@ -1,8 +1,10 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module Language.Hasmtlib.Type.SMTSort where
 
+import Language.Hasmtlib.Internal.Constraint
 import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.ArrayMap
@@ -38,7 +40,7 @@ data SSMTSort (t :: SMTSort) where
   SRealSort   :: SSMTSort RealSort
   SBoolSort   :: SSMTSort BoolSort
   SBvSort     :: KnownNat n => Proxy n -> SSMTSort (BvSort n)
-  SArraySort  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Proxy k -> Proxy v -> SSMTSort (ArraySort k v)
+  SArraySort  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Proxy k -> Proxy v -> SSMTSort (ArraySort k v)
   SStringSort :: SSMTSort StringSort
 
 deriving instance Show (SSMTSort t)
@@ -93,7 +95,7 @@ instance KnownSMTSort IntSort                  where sortSing = SIntSort
 instance KnownSMTSort RealSort                 where sortSing = SRealSort
 instance KnownSMTSort BoolSort                 where sortSing = SBoolSort
 instance KnownNat n => KnownSMTSort (BvSort n) where sortSing = SBvSort (Proxy @n)
-instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => KnownSMTSort (ArraySort k v) where
+instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => KnownSMTSort (ArraySort k v) where
    sortSing = SArraySort (Proxy @k) (Proxy @v)
 instance KnownSMTSort StringSort                 where sortSing = SStringSort
 
@@ -101,20 +103,11 @@ instance KnownSMTSort StringSort                 where sortSing = SStringSort
 sortSing' :: forall prxy t. KnownSMTSort t => prxy t -> SSMTSort t
 sortSing' _ = sortSing @t
 
--- | AllC ensures that a list of constraints is applied to a poly-kinded 'Type' k
---
--- @
--- AllC '[]       k = ()
--- AllC (c ': cs) k = (c k, AllC cs k)
--- @
-type AllC :: [k -> Constraint] -> k -> Constraint
-type family AllC cs k :: Constraint where
-  AllC '[]       k = ()
-  AllC (c ': cs) k = (c k, AllC cs k)
-
 -- | An existential wrapper that hides some 'SMTSort' and a list of 'Constraint's holding for it.
 data SomeSMTSort cs f where
   SomeSMTSort :: forall cs f (t :: SMTSort). AllC cs t => f t -> SomeSMTSort cs f
+
+deriving instance (forall t. Show (f t)) => Show (SomeSMTSort cs f)
 
 instance Render (SSMTSort t) where
   render SBoolSort   = "Bool"

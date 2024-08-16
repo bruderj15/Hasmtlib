@@ -34,6 +34,8 @@ library
                      , Language.Hasmtlib.Internal.Parser
                      , Language.Hasmtlib.Internal.Bitvec
                      , Language.Hasmtlib.Internal.Render
+                     , Language.Hasmtlib.Internal.Uniplate1
+                     , Language.Hasmtlib.Internal.Constraint
                      , Language.Hasmtlib.Solver.Common
                      , Language.Hasmtlib.Solver.Bitwuzla
                      , Language.Hasmtlib.Solver.CVC5

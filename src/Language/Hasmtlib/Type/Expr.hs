@@ -3,16 +3,19 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 module Language.Hasmtlib.Type.Expr where
 
 import Prelude hiding (Integral(..), not, and, or, any, all, (&&), (||))
 import Language.Hasmtlib.Internal.Render
+import Language.Hasmtlib.Internal.Uniplate1
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Integraled
 import Language.Hasmtlib.Boolean
 import Data.GADT.Compare
+import Data.GADT.DeepSeq
 import Data.Map hiding (toList)
 import Data.Proxy
 import Data.Coerce
@@ -35,7 +38,9 @@ import GHC.Generics
 
 -- | An internal SMT variable with a phantom-type which holds an 'Int' as it's identifier.
 type role SMTVar phantom
-newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int } deriving (Show, Eq, Ord, Generic)
+newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int }
+  deriving stock (Show, Generic)
+  deriving newtype (Eq, Ord)
 $(makeLenses ''SMTVar)
 
 -- | A wrapper for values of 'SMTSort's.
@@ -44,7 +49,7 @@ data Value (t :: SMTSort) where
   RealValue   :: HaskellType RealSort   -> Value RealSort
   BoolValue   :: HaskellType BoolSort   -> Value BoolSort
   BvValue     :: HaskellType (BvSort n) -> Value (BvSort n)
-  ArrayValue  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
+  ArrayValue  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
   StringValue :: HaskellType StringSort -> Value StringSort
 
 deriving instance Eq (HaskellType t) => Eq (Value t)
@@ -140,7 +145,7 @@ data Expr (t :: SMTSort) where
   BvuGTHE   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
   BvuGT     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
 
-  ArrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v
+  ArrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
   ArrStore  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
 
   StrConcat     :: Expr StringSort -> Expr StringSort -> Expr StringSort
@@ -179,7 +184,7 @@ isLeaf _ = False
 class Iteable b a where
   ite :: b -> a -> a -> a
   default ite :: (Iteable b c, Applicative f, f c ~ a) => b -> a -> a -> a
-  ite p t f = liftA2 (ite p) t f
+  ite p = liftA2 (ite p)
 
 instance Iteable (Expr BoolSort) (Expr t) where
   ite = Ite
@@ -532,7 +537,7 @@ exists = Exists Nothing
 {-# INLINE exists #-}
 
 -- | Select a value from an array.
-select :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v
+select :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
 select = ArrSelect
 {-# INLINE select #-}
 
@@ -809,7 +814,7 @@ instance Render (Value t) where
       | otherwise  -> constRender v
     where
       constRender v = "((as const " <> render (goSing arr) <> ") " <> render (wrapValue v) <> ")"
-      goSing :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => ConstArray (HaskellType k) (HaskellType v) -> SSMTSort (ArraySort k v)
+      goSing :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => ConstArray (HaskellType k) (HaskellType v) -> SSMTSort (ArraySort k v)
       goSing _ = sortSing @(ArraySort k v)
   render (StringValue x) = "\"" <> render x <> "\""
 
@@ -948,164 +953,235 @@ instance Snoc (Expr StringSort) (Expr StringSort) (Expr StringSort) (Expr String
 type instance Index   (Expr (ArraySort k v)) = Expr k
 type instance IxValue (Expr (ArraySort k v)) = Expr v
 
-instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Ixed (Expr (ArraySort k v)) where
+instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Ixed (Expr (ArraySort k v)) where
   ix i f arr = f (select arr i) <&> store arr i
 
--- | **Caution for quantified expressions:** 'plate-function' @f@ will only be applied if quantification already has taken place.(&&)
---   Therefore make sure 'quantify' has been run before.
---   Otherwise the quantified expression and therefore all it's sub-expressions will not have @f@ applied.
-instance KnownSMTSort t => Plated (Expr t) where
-  plate _ expr@(Var _)            = pure expr
-  plate _ expr@(Constant _)       = pure expr
-  plate f (Plus x y)              = Plus <$> f x <*> f y
-  plate f (Neg x)                 = Neg <$> f x
-  plate f (Mul x y)               = Mul <$> f x <*> f y
-  plate f (Abs x)                 = Abs <$> f x
-  plate f (Mod x y)               = Mod <$> f x <*> f y
-  plate f (IDiv x y)              = IDiv <$> f x <*> f y
-  plate f (Div x y)               = Div <$> f x <*> f y
-  plate f (LTH x y)               = LTH <$> somePlate f x <*> somePlate f y
-  plate f (LTHE x y)              = LTHE <$> somePlate f x <*> somePlate f y
-  plate f (EQU xs)                = EQU <$> traverse (somePlate f) xs
-  plate f (Distinct xs)           = Distinct <$> traverse (somePlate f) xs
-  plate f (GTHE x y)              = GTHE <$> somePlate f x <*> somePlate f y
-  plate f (GTH x y)               = GTH <$> somePlate f x <*> somePlate f y
-  plate f (Not x)                 = Not <$> somePlate f x
-  plate f (And x y)               = And <$> somePlate f x <*> somePlate f y
-  plate f (Or x y)                = Or <$> somePlate f x <*> somePlate f y
-  plate f (Impl x y)              = Impl <$> somePlate f x <*> somePlate f y
-  plate f (Xor x y)               = Xor <$> somePlate f x <*> somePlate f y
-  plate _ Pi                      = pure Pi
-  plate f (Sqrt x)                = Sqrt <$> f x
-  plate f (Exp x)                 = Exp <$> f x
-  plate f (Sin x)                 = Sin <$> f x
-  plate f (Cos x)                 = Cos <$> f x
-  plate f (Tan x)                 = Tan <$> f x
-  plate f (Asin x)                = Asin <$> f x
-  plate f (Acos x)                = Acos <$> f x
-  plate f (Atan x)                = Atan <$> f x
-  plate f (ToReal x)              = ToReal <$> somePlate f x
-  plate f (ToInt x)               = ToInt <$> somePlate f x
-  plate f (IsInt x)               = IsInt <$> somePlate f x
-  plate f (Ite p t n)             = Ite <$> somePlate f p <*> f t <*> f n
-  plate f (BvNot x)               = BvNot <$> f x
-  plate f (BvAnd x y)             = BvAnd <$> f x <*> f y
-  plate f (BvOr x y)              = BvOr <$> f x <*> f y
-  plate f (BvXor x y)             = BvXor <$> f x <*> f y
-  plate f (BvNand x y)            = BvNand <$> f x <*> f y
-  plate f (BvNor x y)             = BvNor <$> f x <*> f y
-  plate f (BvNeg x)               = BvNeg <$> f x
-  plate f (BvAdd x y)             = BvAdd <$> f x <*> f y
-  plate f (BvSub x y)             = BvSub <$> f x <*> f y
-  plate f (BvMul x y)             = BvMul <$> f x <*> f y
-  plate f (BvuDiv x y)            = BvuDiv <$> f x <*> f y
-  plate f (BvuRem x y)            = BvuRem <$> f x <*> f y
-  plate f (BvShL x y)             = BvShL <$> f x <*> f y
-  plate f (BvLShR x y)            = BvLShR <$> f x <*> f y
-  plate f (BvConcat x y)          = BvConcat <$> somePlate f x <*> somePlate f y
-  plate f (BvRotL i x)            = BvRotL i <$> f x
-  plate f (BvRotR i x)            = BvRotR i <$> f x
-  plate f (BvuLT x y)             = BvuLT <$> somePlate f x <*> somePlate f y
-  plate f (BvuLTHE x y)           = BvuLTHE <$> somePlate f x <*> somePlate f y
-  plate f (BvuGTHE x y)           = BvuGTHE <$> somePlate f x <*> somePlate f y
-  plate f (BvuGT x y)             = BvuGT <$> somePlate f x <*> somePlate f y
-  plate f (ArrSelect i arr)       = ArrSelect i <$> somePlate f arr
-  plate f (ArrStore i x arr)      = ArrStore i <$> somePlate f x <*> somePlate f arr
-  plate f (StrConcat x y)         = StrConcat <$> f x <*> f y
-  plate f (StrLength x)           = StrLength <$> somePlate f x
-  plate f (StrLT x y)             = StrLT <$> somePlate f x <*> somePlate f y
-  plate f (StrLTHE x y)           = StrLTHE <$> somePlate f x <*> somePlate f y
-  plate f (StrAt x i)             = StrAt <$> f x <*> somePlate f i
-  plate f (StrSubstring x i j)    = StrSubstring <$> f x <*> somePlate f i <*> somePlate f j
-  plate f (StrPrefixOf x y)       = StrPrefixOf <$> somePlate f x <*> somePlate f y
-  plate f (StrSuffixOf x y)       = StrSuffixOf <$> somePlate f x <*> somePlate f y
-  plate f (StrContains x y)       = StrContains <$> somePlate f x <*> somePlate f y
-  plate f (StrIndexOf x y i)      = StrIndexOf <$> somePlate f x <*> somePlate f y <*> f i
-  plate f (StrReplace x y y')     = StrReplace <$> f x <*> f y <*> f y'
-  plate f (StrReplaceAll x y y')  = StrReplaceAll <$> f x <*> f y <*> f y'
-  plate f (ForAll (Just qv) expr) = ForAll (Just qv) . const <$> somePlate f (expr (Var qv))
-  plate _ (ForAll Nothing expr)   = pure $ ForAll Nothing expr
-  plate f (Exists (Just qv) expr) = Exists (Just qv) . const <$> somePlate f (expr (Var qv))
-  plate _ (Exists Nothing expr)   = pure $ Exists Nothing expr
+instance Uniplate1 Expr '[KnownSMTSort] where
+  uniplate1 _ expr@(Var _)            = pure expr
+  uniplate1 _ expr@(Constant _)       = pure expr
+  uniplate1 f (Plus x y)              = Plus <$> f x <*> f y
+  uniplate1 f (Neg x)                 = Neg <$> f x
+  uniplate1 f (Mul x y)               = Mul <$> f x <*> f y
+  uniplate1 f (Abs x)                 = Abs <$> f x
+  uniplate1 f (Mod x y)               = Mod <$> f x <*> f y
+  uniplate1 f (IDiv x y)              = IDiv <$> f x <*> f y
+  uniplate1 f (Div x y)               = Div <$> f x <*> f y
+  uniplate1 f (LTH x y)               = LTH <$> f x <*> f y
+  uniplate1 f (LTHE x y)              = LTHE <$> f x <*> f y
+  uniplate1 f (EQU xs)                = EQU <$> traverse f xs
+  uniplate1 f (Distinct xs)           = Distinct <$> traverse f xs
+  uniplate1 f (GTHE x y)              = GTHE <$> f x <*> f y
+  uniplate1 f (GTH x y)               = GTH <$> f x <*> f y
+  uniplate1 f (Not x)                 = Not <$> f x
+  uniplate1 f (And x y)               = And <$> f x <*> f y
+  uniplate1 f (Or x y)                = Or <$> f x <*> f y
+  uniplate1 f (Impl x y)              = Impl <$> f x <*> f y
+  uniplate1 f (Xor x y)               = Xor <$> f x <*> f y
+  uniplate1 _ Pi                      = pure Pi
+  uniplate1 f (Sqrt x)                = Sqrt <$> f x
+  uniplate1 f (Exp x)                 = Exp <$> f x
+  uniplate1 f (Sin x)                 = Sin <$> f x
+  uniplate1 f (Cos x)                 = Cos <$> f x
+  uniplate1 f (Tan x)                 = Tan <$> f x
+  uniplate1 f (Asin x)                = Asin <$> f x
+  uniplate1 f (Acos x)                = Acos <$> f x
+  uniplate1 f (Atan x)                = Atan <$> f x
+  uniplate1 f (ToReal x)              = ToReal <$> f x
+  uniplate1 f (ToInt x)               = ToInt <$> f x
+  uniplate1 f (IsInt x)               = IsInt <$> f x
+  uniplate1 f (Ite p t n)             = Ite <$> f p <*> f t <*> f n
+  uniplate1 f (BvNot x)               = BvNot <$> f x
+  uniplate1 f (BvAnd x y)             = BvAnd <$> f x <*> f y
+  uniplate1 f (BvOr x y)              = BvOr <$> f x <*> f y
+  uniplate1 f (BvXor x y)             = BvXor <$> f x <*> f y
+  uniplate1 f (BvNand x y)            = BvNand <$> f x <*> f y
+  uniplate1 f (BvNor x y)             = BvNor <$> f x <*> f y
+  uniplate1 f (BvNeg x)               = BvNeg <$> f x
+  uniplate1 f (BvAdd x y)             = BvAdd <$> f x <*> f y
+  uniplate1 f (BvSub x y)             = BvSub <$> f x <*> f y
+  uniplate1 f (BvMul x y)             = BvMul <$> f x <*> f y
+  uniplate1 f (BvuDiv x y)            = BvuDiv <$> f x <*> f y
+  uniplate1 f (BvuRem x y)            = BvuRem <$> f x <*> f y
+  uniplate1 f (BvShL x y)             = BvShL <$> f x <*> f y
+  uniplate1 f (BvLShR x y)            = BvLShR <$> f x <*> f y
+  uniplate1 f (BvConcat x y)          = BvConcat <$> f x <*> f y
+  uniplate1 f (BvRotL i x)            = BvRotL i <$> f x
+  uniplate1 f (BvRotR i x)            = BvRotR i <$> f x
+  uniplate1 f (BvuLT x y)             = BvuLT <$> f x <*> f y
+  uniplate1 f (BvuLTHE x y)           = BvuLTHE <$> f x <*> f y
+  uniplate1 f (BvuGTHE x y)           = BvuGTHE <$> f x <*> f y
+  uniplate1 f (BvuGT x y)             = BvuGT <$> f x <*> f y
+  uniplate1 f (ArrSelect i arr)       = ArrSelect i <$> f arr
+  uniplate1 f (ArrStore i x arr)      = ArrStore i <$> f x <*> f arr
+  uniplate1 f (StrConcat x y)         = StrConcat <$> f x <*> f y
+  uniplate1 f (StrLength x)           = StrLength <$> f x
+  uniplate1 f (StrLT x y)             = StrLT <$> f x <*> f y
+  uniplate1 f (StrLTHE x y)           = StrLTHE <$> f x <*> f y
+  uniplate1 f (StrAt x i)             = StrAt <$> f x <*> f i
+  uniplate1 f (StrSubstring x i j)    = StrSubstring <$> f x <*> f i <*> f j
+  uniplate1 f (StrPrefixOf x y)       = StrPrefixOf <$> f x <*> f y
+  uniplate1 f (StrSuffixOf x y)       = StrSuffixOf <$> f x <*> f y
+  uniplate1 f (StrContains x y)       = StrContains <$> f x <*> f y
+  uniplate1 f (StrIndexOf x y i)      = StrIndexOf <$> f x <*> f y <*> f i
+  uniplate1 f (StrReplace x y y')     = StrReplace <$> f x <*> f y <*> f y'
+  uniplate1 f (StrReplaceAll x y y')  = StrReplaceAll <$> f x <*> f y <*> f y'
+  uniplate1 f (ForAll (Just qv) expr) = ForAll (Just qv) . const <$> f (expr (Var qv))
+  uniplate1 _ (ForAll Nothing expr)   = pure $ ForAll Nothing expr
+  uniplate1 f (Exists (Just qv) expr) = Exists (Just qv) . const <$> f (expr (Var qv))
+  uniplate1 _ (Exists Nothing expr)   = pure $ Exists Nothing expr
 
--- | Apply the 'plate'-function @f@ for given 'Expr' @expr@ if possible.
---   Otherwise try to apply @f@ for the children of @expr@.
---   **Caution for quantified expressions:** 'plate-function' @f@ will only be applied if quantification already has taken place.(&&)
---   Therefore make sure 'quantify' has been run before.
---   Otherwise the quantified expression and therefore all it's sub-expressions will not have @f@ applied.
-somePlate :: forall t f. (KnownSMTSort t, Applicative f) => (Expr t -> f (Expr t)) -> (forall s. KnownSMTSort s => Expr s -> f (Expr s))
-somePlate f expr = case geq (sortSing @t) (sortSing' expr) of
-  Just Refl -> f expr
-  Nothing   -> case expr of
-    Var _                -> pure expr
-    Constant _           -> pure expr
-    Plus x y             -> Plus <$> somePlate f x <*> somePlate f y
-    Neg x                -> Neg  <$> somePlate f x
-    Mul x y              -> Mul  <$> somePlate f x <*> somePlate f y
-    Abs x                -> Abs  <$> somePlate f x
-    Mod x y              -> Mod  <$> somePlate f x <*> somePlate f y
-    IDiv x y             -> IDiv <$> somePlate f x <*> somePlate f y
-    Div x y              -> Div  <$> somePlate f x <*> somePlate f y
-    LTH x y              -> LTH  <$> somePlate f x <*> somePlate f y
-    LTHE x y             -> LTHE <$> somePlate f x <*> somePlate f y
-    EQU xs               -> EQU  <$> traverse (somePlate f) xs
-    Distinct xs          -> Distinct <$> traverse (somePlate f) xs
-    GTHE x y             -> GTHE <$> somePlate f x <*> somePlate f y
-    GTH x y              -> GTH  <$> somePlate f x <*> somePlate f y
-    Not x                -> Not  <$> somePlate f x
-    And x y              -> And  <$> somePlate f x <*> somePlate f y
-    Or x y               -> Or   <$> somePlate f x <*> somePlate f y
-    Impl x y             -> Impl <$> somePlate f x <*> somePlate f y
-    Xor x y              -> Xor  <$> somePlate f x <*> somePlate f y
-    Pi                   -> pure Pi
-    Sqrt x               -> Sqrt <$> somePlate f x
-    Exp x                -> Exp  <$> somePlate f x
-    Sin x                -> Sin  <$> somePlate f x
-    Cos x                -> Cos  <$> somePlate f x
-    Tan x                -> Tan  <$> somePlate f x
-    Asin x               -> Asin <$> somePlate f x
-    Acos x               -> Acos <$> somePlate f x
-    Atan x               -> Atan <$> somePlate f x
-    ToReal x             -> ToReal <$> somePlate f x
-    ToInt x              -> ToInt  <$> somePlate f x
-    IsInt x              -> IsInt  <$> somePlate f x
-    Ite p t n            -> Ite    <$> somePlate f p <*> somePlate f t <*> somePlate f n
-    BvNot x              -> BvNot  <$> somePlate f x
-    BvAnd x y            -> BvAnd  <$> somePlate f x <*> somePlate f y
-    BvOr x y             -> BvOr   <$> somePlate f x <*> somePlate f y
-    BvXor x y            -> BvXor  <$> somePlate f x <*> somePlate f y
-    BvNand x y           -> BvNand <$> somePlate f x <*> somePlate f y
-    BvNor x y            -> BvNor  <$> somePlate f x <*> somePlate f y
-    BvNeg x              -> BvNeg  <$> somePlate f x
-    BvAdd x y            -> BvAdd  <$> somePlate f x <*> somePlate f y
-    BvSub x y            -> BvSub  <$> somePlate f x <*> somePlate f y
-    BvMul x y            -> BvMul  <$> somePlate f x <*> somePlate f y
-    BvuDiv x y           -> BvuDiv <$> somePlate f x <*> somePlate f y
-    BvuRem x y           -> BvuRem <$> somePlate f x <*> somePlate f y
-    BvShL x y            -> BvShL  <$> somePlate f x <*> somePlate f y
-    BvLShR x y           -> BvLShR <$> somePlate f x <*> somePlate f y
-    BvConcat x y         -> BvConcat <$> somePlate f x <*> somePlate f y
-    BvRotL i x           -> BvRotL i <$> somePlate f x
-    BvRotR i x           -> BvRotR i <$> somePlate f x
-    BvuLT x y            -> BvuLT    <$> somePlate f x <*> somePlate f y
-    BvuLTHE x y          -> BvuLTHE  <$> somePlate f x <*> somePlate f y
-    BvuGTHE x y          -> BvuGTHE  <$> somePlate f x <*> somePlate f y
-    BvuGT x y            -> BvuGT    <$> somePlate f x <*> somePlate f y
-    ArrSelect i arr      -> ArrSelect i   <$> somePlate f arr
-    ArrStore i x arr     -> ArrStore i    <$> somePlate f x <*> somePlate f arr
-    StrConcat x y        -> StrConcat     <$> somePlate f x <*> somePlate f y
-    StrLength x          -> StrLength     <$> somePlate f x
-    StrLT x y            -> StrLT         <$> somePlate f x <*> somePlate f y
-    StrLTHE x y          -> StrLTHE       <$> somePlate f x <*> somePlate f y
-    StrAt x i            -> StrAt         <$> somePlate f x <*> somePlate f i
-    StrSubstring x i j   -> StrSubstring  <$> somePlate f x <*> somePlate f i <*> somePlate f j
-    StrPrefixOf x y      -> StrPrefixOf   <$> somePlate f x <*> somePlate f y
-    StrSuffixOf x y      -> StrSuffixOf   <$> somePlate f x <*> somePlate f y
-    StrContains x y      -> StrContains   <$> somePlate f x <*> somePlate f y
-    StrIndexOf x y i     -> StrIndexOf    <$> somePlate f x <*> somePlate f y <*> somePlate f i
-    StrReplace x y y'    -> StrReplace    <$> somePlate f x <*> somePlate f y <*> somePlate f y'
-    StrReplaceAll x y y' -> StrReplaceAll <$> somePlate f x <*> somePlate f y <*> somePlate f y'
-    ForAll (Just qv) qexpr -> ForAll (Just qv) . const <$> somePlate f (qexpr (Var qv))
-    ForAll Nothing qexpr   -> pure $ ForAll Nothing qexpr
-    Exists (Just qv) qexpr -> Exists (Just qv) . const <$> somePlate f (qexpr (Var qv))
-    Exists Nothing qexpr   -> pure $ Exists Nothing qexpr
+-- | __Caution for quantified expressions:__ 'plate-function' @f@ will only be applied if quantification already has taken place.
+instance KnownSMTSort t => Plated (Expr t) where
+  plate f = uniplate1 (tryPlate f)
+    where
+      tryPlate :: forall s f. (KnownSMTSort s, Applicative f) => (Expr s -> f (Expr s)) -> (forall r. KnownSMTSort r => Expr r -> f (Expr r))
+      tryPlate f' expr = case geq (sortSing @s) (sortSing' expr) of
+        Just Refl -> f' expr
+        Nothing   -> case expr of
+          Var _                -> pure expr
+          Constant _           -> pure expr
+          Plus x y             -> Plus <$> tryPlate f' x <*> tryPlate f' y
+          Neg x                -> Neg  <$> tryPlate f' x
+          Mul x y              -> Mul  <$> tryPlate f' x <*> tryPlate f' y
+          Abs x                -> Abs  <$> tryPlate f' x
+          Mod x y              -> Mod  <$> tryPlate f' x <*> tryPlate f' y
+          IDiv x y             -> IDiv <$> tryPlate f' x <*> tryPlate f' y
+          Div x y              -> Div  <$> tryPlate f' x <*> tryPlate f' y
+          LTH x y              -> LTH  <$> tryPlate f' x <*> tryPlate f' y
+          LTHE x y             -> LTHE <$> tryPlate f' x <*> tryPlate f' y
+          EQU xs               -> EQU  <$> traverse (tryPlate f') xs
+          Distinct xs          -> Distinct <$> traverse (tryPlate f') xs
+          GTHE x y             -> GTHE <$> tryPlate f' x <*> tryPlate f' y
+          GTH x y              -> GTH  <$> tryPlate f' x <*> tryPlate f' y
+          Not x                -> Not  <$> tryPlate f' x
+          And x y              -> And  <$> tryPlate f' x <*> tryPlate f' y
+          Or x y               -> Or   <$> tryPlate f' x <*> tryPlate f' y
+          Impl x y             -> Impl <$> tryPlate f' x <*> tryPlate f' y
+          Xor x y              -> Xor  <$> tryPlate f' x <*> tryPlate f' y
+          Pi                   -> pure Pi
+          Sqrt x               -> Sqrt <$> tryPlate f' x
+          Exp x                -> Exp  <$> tryPlate f' x
+          Sin x                -> Sin  <$> tryPlate f' x
+          Cos x                -> Cos  <$> tryPlate f' x
+          Tan x                -> Tan  <$> tryPlate f' x
+          Asin x               -> Asin <$> tryPlate f' x
+          Acos x               -> Acos <$> tryPlate f' x
+          Atan x               -> Atan <$> tryPlate f' x
+          ToReal x             -> ToReal <$> tryPlate f' x
+          ToInt x              -> ToInt  <$> tryPlate f' x
+          IsInt x              -> IsInt  <$> tryPlate f' x
+          Ite p t n            -> Ite    <$> tryPlate f' p <*> tryPlate f' t <*> tryPlate f' n
+          BvNot x              -> BvNot  <$> tryPlate f' x
+          BvAnd x y            -> BvAnd  <$> tryPlate f' x <*> tryPlate f' y
+          BvOr x y             -> BvOr   <$> tryPlate f' x <*> tryPlate f' y
+          BvXor x y            -> BvXor  <$> tryPlate f' x <*> tryPlate f' y
+          BvNand x y           -> BvNand <$> tryPlate f' x <*> tryPlate f' y
+          BvNor x y            -> BvNor  <$> tryPlate f' x <*> tryPlate f' y
+          BvNeg x              -> BvNeg  <$> tryPlate f' x
+          BvAdd x y            -> BvAdd  <$> tryPlate f' x <*> tryPlate f' y
+          BvSub x y            -> BvSub  <$> tryPlate f' x <*> tryPlate f' y
+          BvMul x y            -> BvMul  <$> tryPlate f' x <*> tryPlate f' y
+          BvuDiv x y           -> BvuDiv <$> tryPlate f' x <*> tryPlate f' y
+          BvuRem x y           -> BvuRem <$> tryPlate f' x <*> tryPlate f' y
+          BvShL x y            -> BvShL  <$> tryPlate f' x <*> tryPlate f' y
+          BvLShR x y           -> BvLShR <$> tryPlate f' x <*> tryPlate f' y
+          BvConcat x y         -> BvConcat <$> tryPlate f' x <*> tryPlate f' y
+          BvRotL i x           -> BvRotL i <$> tryPlate f' x
+          BvRotR i x           -> BvRotR i <$> tryPlate f' x
+          BvuLT x y            -> BvuLT    <$> tryPlate f' x <*> tryPlate f' y
+          BvuLTHE x y          -> BvuLTHE  <$> tryPlate f' x <*> tryPlate f' y
+          BvuGTHE x y          -> BvuGTHE  <$> tryPlate f' x <*> tryPlate f' y
+          BvuGT x y            -> BvuGT    <$> tryPlate f' x <*> tryPlate f' y
+          ArrSelect i arr      -> ArrSelect i   <$> tryPlate f' arr
+          ArrStore i x arr     -> ArrStore i    <$> tryPlate f' x <*> tryPlate f' arr
+          StrConcat x y        -> StrConcat     <$> tryPlate f' x <*> tryPlate f' y
+          StrLength x          -> StrLength     <$> tryPlate f' x
+          StrLT x y            -> StrLT         <$> tryPlate f' x <*> tryPlate f' y
+          StrLTHE x y          -> StrLTHE       <$> tryPlate f' x <*> tryPlate f' y
+          StrAt x i            -> StrAt         <$> tryPlate f' x <*> tryPlate f' i
+          StrSubstring x i j   -> StrSubstring  <$> tryPlate f' x <*> tryPlate f' i <*> tryPlate f' j
+          StrPrefixOf x y      -> StrPrefixOf   <$> tryPlate f' x <*> tryPlate f' y
+          StrSuffixOf x y      -> StrSuffixOf   <$> tryPlate f' x <*> tryPlate f' y
+          StrContains x y      -> StrContains   <$> tryPlate f' x <*> tryPlate f' y
+          StrIndexOf x y i     -> StrIndexOf    <$> tryPlate f' x <*> tryPlate f' y <*> tryPlate f' i
+          StrReplace x y y'    -> StrReplace    <$> tryPlate f' x <*> tryPlate f' y <*> tryPlate f' y'
+          StrReplaceAll x y y' -> StrReplaceAll <$> tryPlate f' x <*> tryPlate f' y <*> tryPlate f' y'
+          ForAll (Just qv) qexpr -> ForAll (Just qv) . const <$> tryPlate f' (qexpr (Var qv))
+          ForAll Nothing qexpr   -> pure $ ForAll Nothing qexpr
+          Exists (Just qv) qexpr -> Exists (Just qv) . const <$> tryPlate f' (qexpr (Var qv))
+          Exists Nothing qexpr   -> pure $ Exists Nothing qexpr
+
+instance GNFData Expr where
+  grnf expr = case expr of
+    Var (SMTVar vId)     -> vId `seq` ()
+    Constant c           -> c `seq` ()
+    Plus e1 e2           -> grnf e1 `seq` grnf e2
+    Neg e                -> grnf e
+    Mul e1 e2            -> grnf e1 `seq` grnf e2
+    Abs e                -> grnf e
+    Mod e1 e2            -> grnf e1 `seq` grnf e2
+    IDiv e1 e2           -> grnf e1 `seq` grnf e2
+    Div e1 e2            -> grnf e1 `seq` grnf e2
+    LTH e1 e2            -> grnf e1 `seq` grnf e2
+    LTHE e1 e2           -> grnf e1 `seq` grnf e2
+    EQU vec              -> vec `seq` V.foldl' (const grnf) () vec
+    Distinct vec         -> vec `seq` V.foldl' (const grnf) () vec
+    GTHE e1 e2           -> grnf e1 `seq` grnf e2
+    GTH e1 e2            -> grnf e1 `seq` grnf e2
+    Not e                -> grnf e
+    And e1 e2            -> grnf e1 `seq` grnf e2
+    Or e1 e2             -> grnf e1 `seq` grnf e2
+    Impl e1 e2           -> grnf e1 `seq` grnf e2
+    Xor e1 e2            -> grnf e1 `seq` grnf e2
+    Pi                   -> ()
+    Sqrt e               -> grnf e
+    Exp e                -> grnf e
+    Sin e                -> grnf e
+    Cos e                -> grnf e
+    Tan e                -> grnf e
+    Asin e               -> grnf e
+    Acos e               -> grnf e
+    Atan e               -> grnf e
+    ToReal e             -> grnf e
+    ToInt e              -> grnf e
+    IsInt e              -> grnf e
+    Ite c e1 e2          -> grnf c `seq` grnf e1 `seq` grnf e2
+    BvNot e              -> grnf e
+    BvAnd e1 e2          -> grnf e1 `seq` grnf e2
+    BvOr e1 e2           -> grnf e1 `seq` grnf e2
+    BvXor e1 e2          -> grnf e1 `seq` grnf e2
+    BvNand e1 e2         -> grnf e1 `seq` grnf e2
+    BvNor e1 e2          -> grnf e1 `seq` grnf e2
+    BvNeg e              -> grnf e
+    BvAdd e1 e2          -> grnf e1 `seq` grnf e2
+    BvSub e1 e2          -> grnf e1 `seq` grnf e2
+    BvMul e1 e2          -> grnf e1 `seq` grnf e2
+    BvuDiv e1 e2         -> grnf e1 `seq` grnf e2
+    BvuRem e1 e2         -> grnf e1 `seq` grnf e2
+    BvShL e1 e2          -> grnf e1 `seq` grnf e2
+    BvLShR e1 e2         -> grnf e1 `seq` grnf e2
+    BvConcat e1 e2       -> grnf e1 `seq` grnf e2
+    BvRotL _ e           -> grnf e
+    BvRotR _ e           -> grnf e
+    BvuLT e1 e2          -> grnf e1 `seq` grnf e2
+    BvuLTHE e1 e2        -> grnf e1 `seq` grnf e2
+    BvuGTHE e1 e2        -> grnf e1 `seq` grnf e2
+    BvuGT e1 e2          -> grnf e1 `seq` grnf e2
+    ArrSelect e1 e2      -> grnf e1 `seq` grnf e2
+    ArrStore e1 e2 e3    -> grnf e1 `seq` grnf e2 `seq` grnf e3
+    StrConcat e1 e2      -> grnf e1 `seq` grnf e2
+    StrLength e          -> grnf e
+    StrLT e1 e2          -> grnf e1 `seq` grnf e2
+    StrLTHE e1 e2        -> grnf e1 `seq` grnf e2
+    StrAt e1 e2          -> grnf e1 `seq` grnf e2
+    StrSubstring e1 e2 e3 -> grnf e1 `seq` grnf e2 `seq` grnf e3
+    StrPrefixOf e1 e2    -> grnf e1 `seq` grnf e2
+    StrSuffixOf e1 e2    -> grnf e1 `seq` grnf e2
+    StrContains e1 e2    -> grnf e1 `seq` grnf e2
+    StrIndexOf e1 e2 e3  -> grnf e1 `seq` grnf e2 `seq` grnf e3
+    StrReplace e1 e2 e3  -> grnf e1 `seq` grnf e2 `seq` grnf e3
+    StrReplaceAll e1 e2 e3 -> grnf e1 `seq` grnf e2 `seq` grnf e3
+    ForAll Nothing _     -> ()
+    ForAll (Just qv) f   -> grnf $ f $ Var qv
+    Exists Nothing _     -> ()
+    Exists (Just qv) f   -> grnf $ f $ Var qv
