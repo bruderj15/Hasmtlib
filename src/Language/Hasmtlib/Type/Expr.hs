@@ -970,7 +970,7 @@ type instance IxValue (Expr (ArraySort k v)) = Expr v
 instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Ixed (Expr (ArraySort k v)) where
   ix i f arr = f (select arr i) <&> store arr i
 
--- | __Caution for quantified expressions:__ 'uniplate1-function' @f@ will only be applied if quantification has taken place already.
+-- | __Caution for quantified expressions:__ 'uniplate1' will only be applied if quantification has taken place already.
 instance Uniplate1 Expr '[KnownSMTSort] where
   uniplate1 _ expr@(Var _)            = pure expr
   uniplate1 _ expr@(Constant _)       = pure expr
@@ -1045,7 +1045,7 @@ instance Uniplate1 Expr '[KnownSMTSort] where
   uniplate1 f (Exists (Just qv) expr) = Exists (Just qv) . const <$> f (expr (Var qv))
   uniplate1 _ (Exists Nothing expr)   = pure $ Exists Nothing expr
 
--- | __Caution for quantified expressions:__ 'plate-function' @f@ will only be applied if quantification has taken place already.
+-- | __Caution for quantified expressions:__ 'plate' will only be applied if quantification has taken place already.
 instance KnownSMTSort t => Plated (Expr t) where
   plate f = uniplate1 (tryPlate f)
     where
