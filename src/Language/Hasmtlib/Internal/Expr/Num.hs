@@ -12,11 +12,18 @@ import GHC.TypeNats
 instance Num (Expr IntSort) where
    fromInteger = Constant . IntValue
    {-# INLINE fromInteger #-}
-   (+)         = Plus
+   (Constant (IntValue 0)) + y = y
+   x + (Constant (IntValue 0)) = x
+   x + y = Plus x y
    {-# INLINE (+) #-}
-   (-) x y     = Plus x (Neg y)
+   x - (Constant (IntValue 0)) = x
+   x - y = Plus x (Neg y)
    {-# INLINE (-) #-}
-   (*)         = Mul
+   (Constant (IntValue 0)) * _ = 0
+   _ * (Constant (IntValue 0)) = 0
+   (Constant (IntValue 1)) * y = y
+   x * (Constant (IntValue 1)) = x
+   x * y = Mul x y
    {-# INLINE (*) #-}
    negate      = Neg
    {-# INLINE negate #-}
