@@ -4,6 +4,7 @@
 
 module Language.Hasmtlib.Internal.Expr where
 
+import Prelude hiding (not)
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.SMTSort
@@ -158,11 +159,11 @@ instance Boolean (Expr BoolSort) where
   x || (Constant (BoolValue y)) = if y then true else x
   x || y = Or x y
   {-# INLINE (||) #-}
-  not (Constant (BoolValue x)) = bool . Prelude.not $ x
+  not (Constant (BoolValue x)) = bool . not $ x
   not x = Not x
   {-# INLINE not #-}
-  xor (Constant (BoolValue x)) y  = if x then Language.Hasmtlib.Boolean.not y else y
-  xor x (Constant (BoolValue y)) = if y then Language.Hasmtlib.Boolean.not x else x
+  xor (Constant (BoolValue x)) y = if x then not y else y
+  xor x (Constant (BoolValue y)) = if y then not x else x
   xor x y = Xor x y
   {-# INLINE xor #-}
 
