@@ -1,0 +1,13 @@
+- arguments: [-XCPP, --cpp-define=HLINT, --cpp-ansi]
+
+- ignore:
+    name: Use camelCase
+
+- ignore:
+    name: Use lambda-case
+
+- ignore:
+    name: Use || # We define a different `or`
+
+- ignore:
+    name: Use && # We define a different `and`
