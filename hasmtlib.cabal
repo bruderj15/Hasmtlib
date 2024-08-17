@@ -1,7 +1,7 @@
 cabal-version:         3.0
 
 name:                  hasmtlib
-version:               2.3.2
+version:               2.3.3
 synopsis:              A monad for interfacing with external SMT solvers
 description:           Hasmtlib is a library for generating SMTLib2-problems using a monad.
   It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types.
