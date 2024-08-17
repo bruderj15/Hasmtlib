@@ -198,7 +198,7 @@ isLeaf _ = False
 class Iteable b a where
   ite :: b -> a -> a -> a
   default ite :: (Iteable b c, Applicative f, f c ~ a) => b -> a -> a -> a
-  ite p = liftA2 (ite p)
+  ite p t f = ite p <$> t <*> f
 
 instance Iteable (Expr BoolSort) (Expr t) where
   ite = Ite
