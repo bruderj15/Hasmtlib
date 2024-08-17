@@ -24,7 +24,7 @@ class WithSolver a where
   withSolver :: Backend.Solver -> Bool -> a
 
 instance WithSolver Pipe where
-  withSolver = Pipe 0 Nothing
+  withSolver = Pipe 0 Nothing mempty
 
 -- | @'solveWith' solver prob@ solves a SMT problem @prob@ with the given
 -- @solver@. It returns a pair consisting of:

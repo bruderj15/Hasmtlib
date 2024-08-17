@@ -4,6 +4,7 @@
 
 module Language.Hasmtlib.Type.OMT where
 
+import Language.Hasmtlib.Internal.Sharing
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
@@ -44,6 +45,11 @@ $(makeLenses ''OMT)
 instance Default OMT where
   def = OMT def mempty mempty mempty
 
+instance Sharing OMT where
+  type SharingMonad OMT = Monad
+  stableMap = smt.Language.Hasmtlib.Type.SMT.stableMap
+  assertSharedNode expr = modifying (smt.formulas) (|> expr)
+
 instance MonadState OMT m => MonadSMT OMT m where
   smtvar' _ = fmap coerce $ (smt.lastVarId) <+= 1
   {-# INLINE smtvar' #-}
@@ -56,9 +62,10 @@ instance MonadState OMT m => MonadSMT OMT m where
 
   assert expr = do
     omt <- get
+    sExpr <- runSharing expr
     qExpr <- case omt^.smt.mlogic of
-      Nothing    -> return expr
-      Just logic -> if "QF" `isPrefixOf` logic then return expr else quantify expr
+      Nothing    -> return sExpr
+      Just logic -> if "QF" `isPrefixOf` logic then return sExpr else quantify sExpr
     modify $ \s -> s & (smt.formulas) %~ (|> qExpr)
   {-# INLINE assert #-}
 
@@ -70,9 +77,15 @@ instance MonadState OMT m => MonadSMT OMT m where
   setLogic l = smt.mlogic ?= l
 
 instance MonadSMT OMT m => MonadOMT OMT m where
-  minimize expr = targetMinimize %= (|> SomeSMTSort (Minimize expr))
-  maximize expr = targetMaximize %= (|> SomeSMTSort (Maximize expr))
-  assertSoft expr w gid = softFormulas %= (|> SoftFormula expr w gid)
+  minimize expr = do
+    sExpr <- runSharing expr
+    modifying targetMinimize (|> SomeSMTSort (Minimize sExpr))
+  maximize expr = do
+    sExpr <- runSharing expr
+    modifying targetMaximize (|> SomeSMTSort (Maximize sExpr))
+  assertSoft expr w gid = do
+    sExpr <- runSharing expr
+    modifying softFormulas (|> SoftFormula sExpr w gid)
 
 instance Render SoftFormula where
   render sf = "(assert-soft " <> render (sf^.formula) <> " :weight " <> maybe "1" render (sf^.mWeight) <> renderGroupId (sf^.mGroupId) <> ")"
