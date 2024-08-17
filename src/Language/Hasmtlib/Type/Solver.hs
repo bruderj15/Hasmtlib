@@ -147,7 +147,7 @@ solveMaximizedDebug :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderabl
   => (Solution -> IO ())
   -> Expr t
   -> m (Result, Solution)
-solveMaximizedDebug debug = solveOptimized (Just debug) (<?)
+solveMaximizedDebug debug = solveOptimized (Just debug) (>?)
 
 solveOptimized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t)
   => Maybe (Solution -> IO ())

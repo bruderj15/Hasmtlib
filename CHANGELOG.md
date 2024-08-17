@@ -6,6 +6,12 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.3.2 _(2024-08-17)_
+
+### Changed
+- Internal replacement of `Prelude.liftA2` for backwards compatiblity
+- Fixed bug where `solveMaximizedDebug` would solve minimized instead of maximized
+
 ## v2.3.1 _(2024-08-16)_
 
 ### Changed
