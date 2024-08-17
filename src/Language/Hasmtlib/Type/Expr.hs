@@ -781,6 +781,8 @@ instance Boolean (Expr BoolSort) where
   {-# INLINE not #-}
   xor  = Xor
   {-# INLINE xor #-}
+  (<==>) = (===)
+  {-# INLINE (<==>) #-}
 
 instance KnownNat n => Boolean (Expr (BvSort n)) where
   bool = Constant . BvValue . bool
