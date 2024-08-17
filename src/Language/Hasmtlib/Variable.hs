@@ -68,7 +68,7 @@ instance GVariable U1 where
   gvariable = return U1
 
 instance (GVariable f, GVariable g) => GVariable (f :*: g) where
-  gvariable = liftA2 (:*:) gvariable gvariable
+  gvariable = (:*:) <$> gvariable <*> gvariable
 
 instance GVariable f => GVariable (M1 i c f) where
   gvariable = M1 <$> gvariable

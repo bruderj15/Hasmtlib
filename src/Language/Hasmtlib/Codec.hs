@@ -73,15 +73,15 @@ instance KnownSMTSort t => Codec (Expr t) where
     val <- IM.lookup (coerce var) m
     return $ unwrapValue val
   decode _ (Constant v)         = Just $ unwrapValue v
-  decode sol (Plus x y)         = liftA2 (+)   (decode sol x) (decode sol y)
+  decode sol (Plus x y)         = (+)   <$> decode sol x <*> decode sol y
   decode sol (Neg x)            = fmap negate  (decode sol x)
-  decode sol (Mul x y)          = liftA2 (*)   (decode sol x) (decode sol y)
+  decode sol (Mul x y)          = (*)   <$> decode sol x <*> decode sol y
   decode sol (Abs x)            = fmap abs     (decode sol x)
-  decode sol (Mod x y)          = liftA2 mod   (decode sol x) (decode sol y)
-  decode sol (IDiv x y)         = liftA2 div   (decode sol x) (decode sol y)
-  decode sol (Div x y)          = liftA2 (/)   (decode sol x) (decode sol y)
-  decode sol (LTH x y)          = liftA2 (<)   (decode sol x) (decode sol y)
-  decode sol (LTHE x y)         = liftA2 (<=)  (decode sol x) (decode sol y)
+  decode sol (Mod x y)          = mod   <$> decode sol x <*> decode sol y
+  decode sol (IDiv x y)         = div   <$> decode sol x <*> decode sol y
+  decode sol (Div x y)          = (/)   <$> decode sol x <*> decode sol y
+  decode sol (LTH x y)          = (<)   <$> decode sol x <*> decode sol y
+  decode sol (LTHE x y)         = (<=)  <$> decode sol x <*> decode sol y
   decode sol (EQU xs)           = do
     xs' <- decode sol (V.toList xs)
     case xs' of
@@ -91,13 +91,13 @@ instance KnownSMTSort t => Codec (Expr t) where
     xs' <- decode sol (V.toList xs)
     let xss = List.filter ((==2) . length) $ List.permutations xs'
     return $ all (\case (a:b:_) -> a /= b ; _ -> true) xss
-  decode sol (GTHE x y)         = liftA2 (>=)  (decode sol x) (decode sol y)
-  decode sol (GTH x y)          = liftA2 (>)   (decode sol x) (decode sol y)
+  decode sol (GTHE x y)         = (>=)  <$> decode sol x <*> decode sol y
+  decode sol (GTH x y)          = (>)   <$> decode sol x <*> decode sol y
   decode sol (Not x)            = fmap   not  (decode sol x)
-  decode sol (And x y)          = liftA2 (&&) (decode sol x) (decode sol y)
-  decode sol (Or x y)           = liftA2 (||) (decode sol x) (decode sol y)
-  decode sol (Impl x y)         = liftA2 (==>) (decode sol x) (decode sol y)
-  decode sol (Xor x y)          = liftA2 xor   (decode sol x) (decode sol y)
+  decode sol (And x y)          = (&&) <$> decode sol x <*> decode sol y
+  decode sol (Or x y)           = (||) <$> decode sol x <*> decode sol y
+  decode sol (Impl x y)         = (==>) <$> decode sol x <*> decode sol y
+  decode sol (Xor x y)          = xor   <$> decode sol x <*> decode sol y
   decode _ Pi                   = Just pi
   decode sol (Sqrt x)           = fmap sqrt  (decode sol x)
   decode sol (Exp x)            = fmap exp   (decode sol x)
@@ -110,48 +110,48 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (ToReal x)         = fmap realToFrac (decode sol x)
   decode sol (ToInt x)          = fmap truncate   (decode sol x)
   decode sol (IsInt x)          = fmap ((0 ==) . snd . properFraction) (decode sol x)
-  decode sol (Ite p t f)        = liftM3 (\p' t' f' -> if p' then t' else f') (decode sol p) (decode sol t) (decode sol f)
+  decode sol (Ite p t f)        = (\p' t' f' -> if p' then t' else f') <$> decode sol p <*> decode sol t <*> decode sol f
   decode sol (BvNot x)          = fmap not (decode sol x)
-  decode sol (BvAnd x y)        = liftA2 (&&) (decode sol x) (decode sol y)
-  decode sol (BvOr x y)         = liftA2 (||) (decode sol x) (decode sol y)
-  decode sol (BvXor x y)        = liftA2 xor (decode sol x) (decode sol y)
+  decode sol (BvAnd x y)        = (&&) <$> decode sol x <*> decode sol y
+  decode sol (BvOr x y)         = (||) <$> decode sol x <*> decode sol y
+  decode sol (BvXor x y)        = xor <$> decode sol x <*> decode sol y
   decode sol (BvNand x y)       = nand <$> sequenceA [decode sol x, decode sol y]
   decode sol (BvNor x y)        = nor  <$> sequenceA [decode sol x, decode sol y]
   decode sol (BvNeg x)          = fmap negate (decode sol x)
-  decode sol (BvAdd x y)        = liftA2 (+) (decode sol x) (decode sol y)
-  decode sol (BvSub x y)        = liftA2 (-) (decode sol x) (decode sol y)
-  decode sol (BvMul x y)        = liftA2 (*) (decode sol x) (decode sol y)
-  decode sol (BvuDiv x y)       = liftA2 div (decode sol x) (decode sol y)
-  decode sol (BvuRem x y)       = liftA2 rem (decode sol x) (decode sol y)
-  decode sol (BvShL x y)        = join $ liftA2 bvShL (decode sol x) (decode sol y)
-  decode sol (BvLShR x y)       = join $ liftA2 bvLShR (decode sol x) (decode sol y)
-  decode sol (BvConcat x y)     = liftA2 bvConcat (decode sol x) (decode sol y)
+  decode sol (BvAdd x y)        = (+) <$> decode sol x <*> decode sol y
+  decode sol (BvSub x y)        = (-) <$> decode sol x <*> decode sol y
+  decode sol (BvMul x y)        = (*) <$> decode sol x <*> decode sol y
+  decode sol (BvuDiv x y)       = div <$> decode sol x <*> decode sol y
+  decode sol (BvuRem x y)       = rem <$> decode sol x <*> decode sol y
+  decode sol (BvShL x y)        = join $ bvShL <$> decode sol x <*> decode sol y
+  decode sol (BvLShR x y)       = join $ bvLShR <$> decode sol x <*> decode sol y
+  decode sol (BvConcat x y)     = bvConcat <$> decode sol x <*> decode sol y
   decode sol (BvRotL i x)       = bvRotL i <$> decode sol x
   decode sol (BvRotR i x)       = bvRotR i <$> decode sol x
-  decode sol (BvuLT x y)        = liftA2 (<) (decode sol x) (decode sol y)
-  decode sol (BvuLTHE x y)      = liftA2 (<=) (decode sol x) (decode sol y)
-  decode sol (BvuGTHE x y)      = liftA2 (>=) (decode sol x) (decode sol y)
-  decode sol (BvuGT x y)        = liftA2 (>) (decode sol x) (decode sol y)
-  decode sol (ArrSelect i arr)  = liftA2 arrSelect (decode sol i) (decode sol arr)
-  decode sol (ArrStore i x arr) = liftM3 arrStore (decode sol i) (decode sol x) (decode sol arr)
-  decode sol (StrConcat x y)         = liftM2 (<>) (decode sol x) (decode sol y)
+  decode sol (BvuLT x y)        = (<) <$> decode sol x <*> decode sol y
+  decode sol (BvuLTHE x y)      = (<=) <$> decode sol x <*> decode sol y
+  decode sol (BvuGTHE x y)      = (>=) <$> decode sol x <*> decode sol y
+  decode sol (BvuGT x y)        = (>) <$> decode sol x <*> decode sol y
+  decode sol (ArrSelect i arr)  = arrSelect <$> decode sol i <*> decode sol arr
+  decode sol (ArrStore i x arr) = arrStore <$> decode sol i <*> decode sol x <*> decode sol arr
+  decode sol (StrConcat x y)         = (<>) <$> decode sol x <*> decode sol y
   decode sol (StrLength x)           = toInteger . Text.length <$> decode sol x
-  decode sol (StrLT x y)             = liftM2 (<) (decode sol x) (decode sol y)
-  decode sol (StrLTHE x y)           = liftM2 (<=) (decode sol x) (decode sol y)
-  decode sol (StrAt x i)             = liftM2 (\x' i' -> Text.singleton $ Text.index x' (fromInteger i')) (decode sol x) (decode sol i)
-  decode sol (StrSubstring x i j)    = liftM3 (\x' (fromInteger -> i') (fromInteger -> j') -> Text.take (j' - i') $ Text.drop i' x') (decode sol x) (decode sol i) (decode sol j)
-  decode sol (StrPrefixOf x y)       = liftM2 Text.isPrefixOf (decode sol x) (decode sol y)
-  decode sol (StrSuffixOf x y)       = liftM2 Text.isSuffixOf (decode sol x) (decode sol y)
-  decode sol (StrContains x y)       = liftM2 (flip Text.isInfixOf) (decode sol x) (decode sol y)
-  decode sol (StrIndexOf x y i)      = join $ liftM3 (\x' y' (fromInteger -> i') -> Text.findIndex ((y' ==) . Text.singleton) (Text.drop i' x') >>= Just . toInteger) (decode sol x) (decode sol y) (decode sol i)
-  decode sol (StrReplace src target replacement) = liftM3 (\src' target' replacement' -> replaceOne target' replacement' src') (decode sol target) (decode sol src) (decode sol replacement)
+  decode sol (StrLT x y)             = (<) <$> decode sol x <*> decode sol y
+  decode sol (StrLTHE x y)           = (<=) <$> decode sol x <*> decode sol y
+  decode sol (StrAt x i)             = (\x' i' -> Text.singleton $ Text.index x' (fromInteger i')) <$> decode sol x <*> decode sol i
+  decode sol (StrSubstring x i j)    = (\x' (fromInteger -> i') (fromInteger -> j') -> Text.take (j' - i') $ Text.drop i' x') <$> decode sol x <*> decode sol i <*> decode sol j
+  decode sol (StrPrefixOf x y)       = Text.isPrefixOf <$> decode sol x <*> decode sol y
+  decode sol (StrSuffixOf x y)       = Text.isSuffixOf <$> decode sol x <*> decode sol y
+  decode sol (StrContains x y)       = flip Text.isInfixOf <$> decode sol x <*> decode sol y
+  decode sol (StrIndexOf x y i)      = join $ (\x' y' (fromInteger -> i') -> Text.findIndex ((y' ==) . Text.singleton) (Text.drop i' x') >>= Just . toInteger) <$> decode sol x <*> decode sol y <*> decode sol i
+  decode sol (StrReplace src target replacement) = (\src' target' replacement' -> replaceOne target' replacement' src') <$> decode sol target <*> decode sol src <*> decode sol replacement
     where
       replaceOne pattern substitution text
         | Text.null back = text
         | otherwise = Text.concat [front, substitution, Text.drop (Text.length pattern) back]
           where
             (front, back) = Text.breakOn pattern text
-  decode sol (StrReplaceAll src target replacement) = liftM3 (\src' target' replacement' -> Text.replace target' replacement' src') (decode sol target) (decode sol src) (decode sol replacement)
+  decode sol (StrReplaceAll src target replacement) = (\src' target' replacement' -> Text.replace target' replacement' src') <$> decode sol target <*> decode sol src <*> decode sol replacement
   decode _ (ForAll _ _)         = Nothing
   decode _ (Exists _ _)         = Nothing
   encode = Constant . wrapValue
@@ -205,7 +205,7 @@ instance GCodec V1 where
 
 instance (GCodec f, GCodec g) => GCodec (f :*: g) where
   type GDecoded (f :*: g) = (GDecoded f :*: GDecoded g)
-  gdecode sol (a :*: b)   = liftM2 (:*:) (gdecode sol a) (gdecode sol b)
+  gdecode sol (a :*: b)   = (:*:) <$> gdecode sol a <*> gdecode sol b
   gencode (a :*: b)       = gencode a :*: gencode b
 
 instance (GCodec f, GCodec g) => GCodec (f :+: g) where
