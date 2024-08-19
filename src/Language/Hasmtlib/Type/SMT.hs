@@ -37,7 +37,7 @@ instance Default SMT where
 instance Sharing SMT where
   type SharingMonad SMT = Monad
   stableMap = Language.Hasmtlib.Type.SMT.stableMap
-  assertSharedNode expr = modifying formulas (|> expr)
+  assertSharedNode _ expr = modifying formulas (|> expr)
 
 instance MonadState SMT m => MonadSMT SMT m where
   smtvar' _ = fmap coerce $ lastVarId <+= 1

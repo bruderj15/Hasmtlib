@@ -15,8 +15,9 @@ import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Internal.Parser hiding (var, constant)
 import qualified SMTLIB.Backends as B
 import Data.HashMap.Lazy
+import Data.Sequence hiding ((|>))
 import Data.List (isPrefixOf)
-import Data.IntMap as IMap (singleton)
+import Data.IntMap as IntMap (singleton, IntMap)
 import Data.Dependent.Map as DMap
 import Data.Coerce
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Char8
@@ -33,19 +34,22 @@ import System.Mem.StableName
 --   All commands that expect an answer have the queue to be sent to the solver before sending the command itself.
 --   If 'B.Solver' is not 'B.Queuing', all commands are sent to the solver immediately.
 data Pipe = Pipe
-  { _lastPipeVarId :: {-# UNPACK #-} !Int                                 -- ^ Last Id assigned to a new var
-  , _mPipeLogic    :: Maybe String                                        -- ^ Logic for the SMT-Solver
-  , _pipeStableMap :: !(HashMap (StableName ()) (SomeKnownSMTSort Expr))  -- ^ Mapping between a 'StableName' and it's 'Expr' we may share
-  , _pipe          :: !B.Solver                                           -- ^ Active pipe to the backend
-  , _isDebugging   :: Bool                                                -- ^ Flag if pipe shall debug
+  { _lastPipeVarId     :: {-# UNPACK #-} !Int                                 -- ^ Last Id assigned to a new var
+  , _mPipeLogic        :: Maybe String                                        -- ^ Logic for the SMT-Solver
+  , _incrStackHeight   :: {-# UNPACK #-} !Int                                 -- ^ Current height of the incremental stack
+  , _pipeStableMap     :: !(HashMap (StableName ()) (SomeKnownSMTSort Expr))  -- ^ Mapping between a 'StableName' and it's 'Expr' we may share
+  , _stackHeightAuxMap :: !(IntMap (Seq (StableName ())))                     -- ^ Mapping between the stack height and all 'StableName's of expressions that had been shared on that stack height
+  , _pipe              :: !B.Solver                                           -- ^ Active pipe to the backend
+  , _isDebugging       :: !Bool                                               -- ^ Flag if pipe shall debug
   }
 $(makeLenses ''Pipe)
 
 instance Sharing Pipe where
   type SharingMonad Pipe = MonadIO
   stableMap = pipeStableMap
-  assertSharedNode expr = do
+  assertSharedNode sn expr = do
     smt <- get
+    stackHeightAuxMap.at (smt^.incrStackHeight).non mempty %= (|> sn)
     let cmd = renderAssert expr
     when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
     liftIO $ B.command_ (smt^.pipe) cmd
@@ -93,14 +97,15 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
     let cmd = "(push 1)"
     when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
     liftIO $ B.command_ (smt^.pipe) cmd
-  {-# INLINE push #-}
+    incrStackHeight += 1
 
   pop = do
     smt <- get
     let cmd = "(pop 1)"
     when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
     liftIO $ B.command_ (smt^.pipe) cmd
-  {-# INLINE pop #-}
+    forMOf_ (stackHeightAuxMap.ix (smt^.incrStackHeight).folded) smt (\sn -> pipeStableMap.at sn .= Nothing)
+    incrStackHeight -= 1
 
   checkSat = do
     smt <- get
@@ -142,12 +147,11 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
           decode
             (DMap.singleton
               (sortSing @t)
-              (IntValueMap $ IMap.singleton (sol^.solVar.varId) (sol^.solVal)))
+              (IntValueMap $ IntMap.singleton (sol^.solVar.varId) (sol^.solVal)))
             v
   getValue expr = do
     model <- getModel
     return $ decode model expr
-  {-# INLINEABLE getValue #-}
 
 instance (MonadSMT Pipe m, MonadIO m) => MonadOMT Pipe m where
   minimize expr = do

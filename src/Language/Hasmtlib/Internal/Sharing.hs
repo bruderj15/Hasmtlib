@@ -29,13 +29,14 @@ class Sharing s where
   -- | A 'Lens'' on a mapping between a 'StableName' and it's 'Expr' we may share.
   stableMap :: Lens' s (HashMap (StableName ()) (SomeKnownSMTSort Expr))
 
-  -- | Asserts that a node-expression is represented by it's auxiliary node-variable: @nodeExpr :: Expr t === nodeVar@
-  assertSharedNode :: (MonadState s m, SharingMonad s m) => Expr BoolSort -> m ()
+  -- | Asserts that a node-expression is represented by it's auxiliary node-variable: @nodeExpr :: Expr t === nodeVar@.
+  --   Also gives access to the 'StableName' of the original expression.
+  assertSharedNode :: (MonadState s m, SharingMonad s m) => StableName () -> Expr BoolSort -> m ()
 
 -- | Shares all possible sub-expressions in given expression.
 --   Replaces each node in the expression-tree with an auxiliary variable.
 --   All nodes @x@ @y@ where @makeStableName x == makeStableName y@ are replaced with the same auxiliary variable.
---   Therfore this creates a DAG.
+--   Therefore this creates a DAG.
 runSharing :: (KnownSMTSort t, MonadSMT s m, Sharing s, SharingMonad s m) => Expr t -> m (Expr t)
 runSharing = lazyParaM1 (
     \origExpr expr ->
@@ -66,7 +67,7 @@ share origExpr expr = do
 makeNode :: (Equatable (Expr t), KnownSMTSort t, MonadSMT s m, Sharing s, SharingMonad s m) => StableName () -> Expr t -> m (Expr t)
 makeNode sn nodeExpr = do
   nodeVar <- var
-  assertSharedNode $ nodeVar === nodeExpr
+  assertSharedNode sn $ nodeVar === nodeExpr
   stableMap.at sn ?= SomeSMTSort nodeVar
   return nodeVar
 

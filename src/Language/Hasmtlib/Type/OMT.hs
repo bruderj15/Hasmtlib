@@ -48,7 +48,7 @@ instance Default OMT where
 instance Sharing OMT where
   type SharingMonad OMT = Monad
   stableMap = smt.Language.Hasmtlib.Type.SMT.stableMap
-  assertSharedNode expr = modifying (smt.formulas) (|> expr)
+  assertSharedNode _ expr = modifying (smt.formulas) (|> expr)
 
 instance MonadState OMT m => MonadSMT OMT m where
   smtvar' _ = fmap coerce $ (smt.lastVarId) <+= 1
