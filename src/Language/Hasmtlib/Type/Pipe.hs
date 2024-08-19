@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Language.Hasmtlib.Type.Pipe where
 
@@ -15,9 +16,9 @@ import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Internal.Parser hiding (var, constant)
 import qualified SMTLIB.Backends as B
 import Data.HashMap.Lazy
-import Data.Sequence hiding ((|>))
+import Data.Sequence hiding ((|>), (:>))
 import Data.List (isPrefixOf)
-import Data.IntMap as IntMap (singleton, IntMap)
+import Data.IntMap as IntMap (singleton)
 import Data.Dependent.Map as DMap
 import Data.Coerce
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Char8
@@ -36,9 +37,8 @@ import System.Mem.StableName
 data Pipe = Pipe
   { _lastPipeVarId     :: {-# UNPACK #-} !Int                                 -- ^ Last Id assigned to a new var
   , _mPipeLogic        :: Maybe String                                        -- ^ Logic for the SMT-Solver
-  , _incrStackHeight   :: {-# UNPACK #-} !Int                                 -- ^ Current height of the incremental stack
   , _pipeStableMap     :: !(HashMap (StableName ()) (SomeKnownSMTSort Expr))  -- ^ Mapping between a 'StableName' and it's 'Expr' we may share
-  , _stackHeightAuxMap :: !(IntMap (Seq (StableName ())))                     -- ^ Mapping between the stack height and all 'StableName's of expressions that had been shared on that stack height
+  , _incrSharedAuxs    :: !(Seq (Seq (StableName ())))                        -- ^ Index of each 'Seq' ('StableName' ()) is incremental stack height where 'StableName' representing auxiliary var that has been shared
   , _pipe              :: !B.Solver                                           -- ^ Active pipe to the backend
   , _isDebugging       :: !Bool                                               -- ^ Flag if pipe shall debug
   }
@@ -49,7 +49,7 @@ instance Sharing Pipe where
   stableMap = pipeStableMap
   assertSharedNode sn expr = do
     smt <- get
-    stackHeightAuxMap.at (smt^.incrStackHeight).non mempty %= (|> sn)
+    modifying (incrSharedAuxs._last) (|> sn)
     let cmd = renderAssert expr
     when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
     liftIO $ B.command_ (smt^.pipe) cmd
@@ -97,15 +97,15 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
     let cmd = "(push 1)"
     when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
     liftIO $ B.command_ (smt^.pipe) cmd
-    incrStackHeight += 1
+    incrSharedAuxs <>= mempty
 
   pop = do
     smt <- get
     let cmd = "(pop 1)"
     when (smt^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
     liftIO $ B.command_ (smt^.pipe) cmd
-    forMOf_ (stackHeightAuxMap.ix (smt^.incrStackHeight).folded) smt (\sn -> pipeStableMap.at sn .= Nothing)
-    incrStackHeight -= 1
+    forMOf_ (incrSharedAuxs._last.folded) smt (\sn -> pipeStableMap.at sn .= Nothing)
+    modifying incrSharedAuxs $ \case (auxs:>_) -> auxs ; auxs -> auxs
 
   checkSat = do
     smt <- get

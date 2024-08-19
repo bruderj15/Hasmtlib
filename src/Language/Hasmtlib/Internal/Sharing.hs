@@ -10,7 +10,6 @@ import Language.Hasmtlib.Internal.Uniplate1
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Expr
-import Data.GADT.DeepSeq
 import Data.GADT.Compare
 import Data.HashMap.Lazy
 import Control.Monad.State
@@ -71,5 +70,5 @@ makeNode sn nodeExpr = do
   stableMap.at sn ?= SomeSMTSort nodeVar
   return nodeVar
 
-makeStableName' :: GNFData f => f a -> IO (StableName ())
-makeStableName' x = grnf x `seq` fmap unsafeCoerce (makeStableName x)
+makeStableName' :: a -> IO (StableName ())
+makeStableName' x = x `seq` fmap unsafeCoerce (makeStableName x)
