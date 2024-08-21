@@ -6,10 +6,10 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
-## v2.3.3 _(2024-08-17)_
+## v2.4.0 _(2024-08-21)_
 
 ### Added
-- Added _**observable** sharing_ with `Language.Hasmtlib.Internal.Sharing`.
+- Added _**observable** sharing_ with `Language.Hasmtlib.Internal.Sharing`. Thank you fabeulous@github for the great help!
 - Added `Language.Hasmtlib.Internal.Uniplate1` for plating GADTs
 
 ### Changed
