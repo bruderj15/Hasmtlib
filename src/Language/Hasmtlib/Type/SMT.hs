@@ -3,32 +3,41 @@
 
 module Language.Hasmtlib.Type.SMT where
 
-import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Internal.Sharing
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Option
+import Language.Hasmtlib.Type.Expr
 import Data.List (isPrefixOf)
 import Data.Default
 import Data.Coerce
 import Data.Sequence hiding ((|>), filter)
 import Data.Data (toConstr, showConstr)
 import Data.ByteString.Builder
+import Data.HashMap.Lazy (HashMap)
 import Control.Monad.State
 import Control.Lens hiding (List)
+import System.Mem.StableName
 
 -- | The state of the SMT-problem.
 data SMT = SMT
-  { _lastVarId :: {-# UNPACK #-} !Int                     -- ^ Last Id assigned to a new var
-  , _vars     :: !(Seq (SomeKnownSMTSort SMTVar))         -- ^ All constructed variables
-  , _formulas :: !(Seq (Expr BoolSort))                   -- ^ All asserted formulas
-  , _mlogic   :: Maybe String                             -- ^ Logic for the SMT-Solver
-  , _options  :: [SMTOption]                              -- ^ All manually configured SMT-Solver-Options
+  { _lastVarId :: {-# UNPACK #-} !Int                                 -- ^ Last Id assigned to a new var
+  , _vars      :: !(Seq (SomeKnownSMTSort SMTVar))                    -- ^ All constructed variables
+  , _formulas  :: !(Seq (Expr BoolSort))                              -- ^ All asserted formulas
+  , _mlogic    :: Maybe String                                        -- ^ Logic for the SMT-Solver
+  , _options   :: [SMTOption]                                         -- ^ All manually configured SMT-Solver-Options
+  , _stableMap :: !(HashMap (StableName ()) (SomeKnownSMTSort Expr))  -- ^ Mapping between a 'StableName' and it's 'Expr' we may share
   }
 $(makeLenses ''SMT)
 
 instance Default SMT where
-  def = SMT 0 mempty mempty mempty [ProduceModels True]
+  def = SMT 0 mempty mempty mempty [ProduceModels True] mempty
+
+instance Sharing SMT where
+  type SharingMonad SMT = Monad
+  stableMap = Language.Hasmtlib.Type.SMT.stableMap
+  assertSharedNode _ expr = modifying formulas (|> expr)
 
 instance MonadState SMT m => MonadSMT SMT m where
   smtvar' _ = fmap coerce $ lastVarId <+= 1
@@ -42,9 +51,10 @@ instance MonadState SMT m => MonadSMT SMT m where
 
   assert expr = do
     smt <- get
+    sExpr <- runSharing expr
     qExpr <- case smt^.mlogic of
-      Nothing    -> return expr
-      Just logic -> if "QF" `isPrefixOf` logic then return expr else quantify expr
+      Nothing    -> return sExpr
+      Just logic -> if "QF" `isPrefixOf` logic then return sExpr else quantify sExpr
     modify $ \s -> s & formulas %~ (|> qExpr)
   {-# INLINE assert #-}
 

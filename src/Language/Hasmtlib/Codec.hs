@@ -7,7 +7,7 @@ module Language.Hasmtlib.Codec where
 
 import Prelude hiding (not, (&&), (||), all, and)
 import Language.Hasmtlib.Internal.Bitvec
-import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.Expr (Expr(..), SMTVar(..), unwrapValue, wrapValue)
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.SMTSort

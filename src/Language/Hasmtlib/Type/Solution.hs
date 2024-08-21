@@ -5,7 +5,7 @@
 
 module Language.Hasmtlib.Type.Solution where
 
-import Language.Hasmtlib.Internal.Expr
+import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMTSort
 import Data.IntMap as IMap hiding (foldl)
 import Data.Dependent.Map as DMap
