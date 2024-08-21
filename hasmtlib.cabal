@@ -1,7 +1,7 @@
 cabal-version:         3.0
 
 name:                  hasmtlib
-version:               2.3.2
+version:               2.4.0
 synopsis:              A monad for interfacing with external SMT solvers
 description:           Hasmtlib is a library for generating SMTLib2-problems using a monad.
   It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types.
@@ -28,18 +28,17 @@ library
   default-extensions:  DataKinds, GADTs, TypeFamilies, OverloadedStrings
 
   exposed-modules:     Language.Hasmtlib
-                     , Language.Hasmtlib.Lens
                      , Language.Hasmtlib.Codec
-                     , Language.Hasmtlib.Iteable
                      , Language.Hasmtlib.Boolean
                      , Language.Hasmtlib.Variable
                      , Language.Hasmtlib.Counting
-                     , Language.Hasmtlib.Equatable
-                     , Language.Hasmtlib.Orderable
                      , Language.Hasmtlib.Integraled
                      , Language.Hasmtlib.Internal.Parser
                      , Language.Hasmtlib.Internal.Bitvec
                      , Language.Hasmtlib.Internal.Render
+                     , Language.Hasmtlib.Internal.Sharing
+                     , Language.Hasmtlib.Internal.Uniplate1
+                     , Language.Hasmtlib.Internal.Constraint
                      , Language.Hasmtlib.Solver.Common
                      , Language.Hasmtlib.Solver.Bitwuzla
                      , Language.Hasmtlib.Solver.CVC5
@@ -58,13 +57,11 @@ library
                      , Language.Hasmtlib.Type.Option
                      , Language.Hasmtlib.Type.ArrayMap
 
-  other-modules:       Language.Hasmtlib.Internal.Expr
-                     , Language.Hasmtlib.Internal.Expr.Num
-
   build-depends:       attoparsec                   >= 0.14.4 && < 1
                      , base                         >= 4.17.2 && < 5
                      , bytestring                   >= 0.11.5 && < 1
                      , containers                   >= 0.6.7  && < 1
+                     , unordered-containers         >= 0.2.20 && < 0.3
                      , dependent-map                >= 0.4    && < 1
                      , mtl                          >= 2.2.2  && < 3
                      , text                         >= 2.0.2  && < 3

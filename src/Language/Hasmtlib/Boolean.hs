@@ -89,20 +89,22 @@ any :: (Foldable t, Boolean b) => (a -> b) -> t a -> b
 any p = foldl (\acc b -> acc || p b) false
 
 instance Boolean Bool where
-  bool  = id
-  true  = True
-  false = False
-  (&&)  = (P.&&)
-  (||)  = (P.||)
-  not   = P.not
-  xor   = (/=)
+  bool   = id
+  true   = True
+  false  = False
+  (&&)   = (P.&&)
+  (||)   = (P.||)
+  not    = P.not
+  xor    = (/=)
+  (<==>) = (==)
 
 instance Boolean Bit where
-  bool = Bit
-  (&&) = (.&.)
-  (||) = (.|.)
-  not  = complement
-  xor  = Bits.xor
+  bool     = Bit
+  (&&)     = (.&.)
+  (||)     = (.|.)
+  not      = complement
+  xor      = Bits.xor
+  x <==> y = bool (x == y)
 
 -- | Defined bitwise
 instance KnownNat n => Boolean (V.Vector n Bit) where
@@ -111,3 +113,4 @@ instance KnownNat n => Boolean (V.Vector n Bit) where
   (||) = V.zipWith (||)
   not  = V.map not
   xor  = V.zipWith Bits.xor
+  x <==> y = bool (x == y)

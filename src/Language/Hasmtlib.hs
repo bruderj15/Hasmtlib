@@ -10,12 +10,8 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Type.SMTSort
   , module Language.Hasmtlib.Type.Solution
   , module Language.Hasmtlib.Type.ArrayMap
-  , module Language.Hasmtlib.Lens
   , module Language.Hasmtlib.Integraled
-  , module Language.Hasmtlib.Iteable
   , module Language.Hasmtlib.Boolean
-  , module Language.Hasmtlib.Equatable
-  , module Language.Hasmtlib.Orderable
   , module Language.Hasmtlib.Codec
   , module Language.Hasmtlib.Counting
   , module Language.Hasmtlib.Variable
@@ -39,12 +35,8 @@ import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
-import Language.Hasmtlib.Lens
 import Language.Hasmtlib.Integraled
-import Language.Hasmtlib.Iteable
 import Language.Hasmtlib.Boolean
-import Language.Hasmtlib.Equatable
-import Language.Hasmtlib.Orderable
 import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Counting
 import Language.Hasmtlib.Variable
