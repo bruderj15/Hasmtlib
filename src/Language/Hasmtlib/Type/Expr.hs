@@ -5,7 +5,20 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DerivingStrategies #-}
 
-module Language.Hasmtlib.Type.Expr where
+module Language.Hasmtlib.Type.Expr
+  ( SMTVar(..), varId
+  , Value(..) , unwrapValue, wrapValue
+  , SomeKnownSMTSort
+  , Expr(..), isLeaf
+  , Iteable(..), Equatable(..), Orderable(..), min', max'
+  , equal, distinct
+  , for_all, exists
+  , select, store
+  , bvShL, bvLShR, bvConcat, bvRotL, bvRotR
+  , toRealSort, toIntSort, isIntSort
+  , strLength, strAt, strSubstring, strPrefixOf, strSuffixOf, strContains, strIndexOf, strReplace, strReplaceAll
+  )
+where
 
 import Prelude hiding (not, and, or, any, all, (&&), (||))
 import Language.Hasmtlib.Internal.Render
@@ -35,7 +48,6 @@ import Control.Lens hiding (from, to)
 import GHC.TypeLits hiding (someNatVal)
 import GHC.TypeNats (someNatVal)
 import GHC.Generics
-import Unsafe.Coerce
 
 -- | An internal SMT variable with a phantom-type which holds an 'Int' as it's identifier.
 type role SMTVar phantom
@@ -43,20 +55,6 @@ newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int }
   deriving stock (Show, Generic)
   deriving newtype (Eq, Ord)
 $(makeLenses ''SMTVar)
-
--- | __Caution:__ Ignores phantom types and only compares underlying 'Int'.
---   This means that variables of different 'SMTSort's with the same underlying identifier will be considered equal by this instance
-instance GEq SMTVar where
-  geq (SMTVar x) (SMTVar y) = unsafeCoerce $ -- This is safe as long as SMTVar stays phantom-typed -- TODO: is it really?
-    if x == y then Just Refl else Nothing
-
-instance GCompare SMTVar where
-  gcompare (SMTVar x) (SMTVar y) = unsafeCoerce $ liftOrdering $ compare x y
-
-liftOrdering :: forall {k} {a :: k}. Ordering -> GOrdering a a
-liftOrdering LT = GLT
-liftOrdering EQ = GEQ
-liftOrdering GT = GGT
 
 -- | A wrapper for values of 'SMTSort's.
 data Value (t :: SMTSort) where
@@ -82,6 +80,11 @@ instance GEq Value where
     Just Refl -> if x == y then Just Refl else Nothing
   geq (StringValue x) (StringValue y) = if x == y then Just Refl else Nothing
   geq _ _ = Nothing
+
+liftOrdering :: forall {k} {a :: k}. Ordering -> GOrdering a a
+liftOrdering LT = GLT
+liftOrdering EQ = GEQ
+liftOrdering GT = GGT
 
 instance GCompare Value where
   gcompare (BoolValue x) (BoolValue x')     = liftOrdering $ compare x x'
@@ -145,9 +148,8 @@ type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f
 --   For internal use only.
 --   For building expressions use the corresponding instances (Num, Boolean, ...).
 data Expr (t :: SMTSort) where
-  Var       :: SMTVar t -> Expr t
+  Var       :: KnownSMTSort t => SMTVar t -> Expr t
   Constant  :: Value  t -> Expr t
-
   Plus      :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
   Minus     :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
   Neg       :: Num (HaskellType t) => Expr t -> Expr t
@@ -156,20 +158,17 @@ data Expr (t :: SMTSort) where
   Mod       :: Integral (HaskellType t) => Expr t -> Expr t  -> Expr t
   IDiv      :: Integral (HaskellType t) => Expr t -> Expr t  -> Expr t
   Div       :: Expr RealSort -> Expr RealSort -> Expr RealSort
-
   LTH       :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
   LTHE      :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
   EQU       :: (Eq (HaskellType t), KnownSMTSort t, KnownNat n) => V.Vector (n + 2) (Expr t) -> Expr BoolSort
   Distinct  :: (Eq (HaskellType t), KnownSMTSort t, KnownNat n) => V.Vector (n + 2) (Expr t) -> Expr BoolSort
   GTHE      :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
   GTH       :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
-
   Not       :: Boolean (HaskellType t) => Expr t -> Expr t
   And       :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
   Or        :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
   Impl      :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
   Xor       :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
-
   Pi        :: Expr RealSort
   Sqrt      :: Expr RealSort -> Expr RealSort
   Exp       :: Expr RealSort -> Expr RealSort
@@ -179,13 +178,10 @@ data Expr (t :: SMTSort) where
   Asin      :: Expr RealSort -> Expr RealSort
   Acos      :: Expr RealSort -> Expr RealSort
   Atan      :: Expr RealSort -> Expr RealSort
-
   ToReal    :: Expr IntSort  -> Expr RealSort
   ToInt     :: Expr RealSort -> Expr IntSort
   IsInt     :: Expr RealSort -> Expr BoolSort
-
   Ite       :: Expr BoolSort -> Expr t -> Expr t -> Expr t
-
   BvNand    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvNor     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvShL     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
@@ -193,10 +189,8 @@ data Expr (t :: SMTSort) where
   BvConcat  :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
   BvRotL    :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
   BvRotR    :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
-
   ArrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
   ArrStore  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
-
   StrConcat     :: Expr StringSort -> Expr StringSort -> Expr StringSort
   StrLength     :: Expr StringSort -> Expr IntSort
   StrLT         :: Expr StringSort -> Expr StringSort -> Expr BoolSort
@@ -1256,4 +1250,289 @@ instance Ord (Expr t) where
 instance GEq Expr where
   geq = defaultGeq
 
+gcomparing :: GCompare f => [(f a, f b)] -> GOrdering a b
+gcomparing [] = GLT
+gcomparing ((x,y):xys) = case gcompare x y of
+  GEQ -> gcomparing xys
+  o -> o
+
 instance GCompare Expr where
+  gcompare (Var v) (Var v') = case gcompare (sortSing' v) (sortSing' v') of
+    GLT -> GLT
+    GEQ -> case compare (coerce @_ @Int v) (coerce v') of
+      LT -> GLT
+      EQ -> GEQ
+      GT -> GGT
+    GGT -> GGT
+  gcompare (Var _) _ = GLT
+  gcompare _ (Var _) = GGT
+  gcompare (Constant c) (Constant c') = gcompare c c'
+  gcompare (Constant _) _ = GLT
+  gcompare _ (Constant _) = GGT
+  gcompare (Plus x y) (Plus x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Plus _ _) _ = GLT
+  gcompare _ (Plus _ _) = GGT
+  gcompare (Minus x y) (Minus x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Minus _ _) _ = GLT
+  gcompare _ (Minus _ _) = GGT
+  gcompare (Neg x) (Neg x') = gcompare x x'
+  gcompare (Neg _) _ = GLT
+  gcompare _ (Neg _) = GGT
+  gcompare (Mul x y) (Mul x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Mul _ _) _ = GLT
+  gcompare _ (Mul _ _) = GGT
+  gcompare (Abs x) (Abs x') = gcompare x x'
+  gcompare (Abs _) _ = GLT
+  gcompare _ (Abs _) = GGT
+  gcompare (Mod x y) (Mod x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Mod _ _) _ = GLT
+  gcompare _ (Mod _ _) = GGT
+  gcompare (IDiv x y) (IDiv x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (IDiv _ _) _ = GLT
+  gcompare _ (IDiv _ _) = GGT
+  gcompare (Div x y) (Div x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Div _ _) _ = GLT
+  gcompare _ (Div _ _) = GGT
+  gcompare (LTH x y)               (LTH x' y')             = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (LTH _ _) _ = GLT
+  gcompare _ (LTH _ _) = GGT
+  gcompare (LTHE x y)              (LTHE x' y')            = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (LTHE _ _) _ = GLT
+  gcompare _ (LTHE _ _) = GGT
+  gcompare (EQU (V.toList -> xs))  (EQU (V.toList -> xs')) = case compare (length xs ) (length xs') of
+    LT -> GLT
+    EQ -> case gcomparing $ zip xs xs' of
+      GGT -> GGT
+      GEQ -> GEQ
+      GLT -> GLT
+    GT -> GGT
+  gcompare (EQU _) _ = GLT
+  gcompare _ (EQU _) = GGT
+  gcompare (Distinct (V.toList -> xs)) (Distinct (V.toList -> xs')) = case compare (length xs ) (length xs') of
+    LT -> GLT
+    EQ -> case gcomparing $ zip xs xs' of
+      GGT -> GGT
+      GEQ -> GEQ
+      GLT -> GLT
+    GT -> GGT
+  gcompare (Distinct _) _ = GLT
+  gcompare _ (Distinct _) = GGT
+  gcompare (GTHE x y)              (GTHE x' y')            = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (GTHE _ _) _ = GLT
+  gcompare _ (GTHE _ _) = GGT
+  gcompare (GTH x y)               (GTH x' y')             = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (GTH _ _) _ = GLT
+  gcompare _ (GTH _ _) = GGT
+  gcompare (Not x)                 (Not x')                = gcompare x x'
+  gcompare (Not _) _ = GLT
+  gcompare _ (Not _) = GGT
+  gcompare (And x y)               (And x' y')             = gcomparing [(x,x'), (y,y')]
+  gcompare (And _ _) _ = GLT
+  gcompare _ (And _ _) = GGT
+  gcompare (Or x y)                (Or x' y')              = gcomparing [(x,x'), (y,y')]
+  gcompare (Or _ _) _ = GLT
+  gcompare _ (Or _ _) = GGT
+  gcompare (Impl x y)              (Impl x' y')            = gcomparing [(x,x'), (y,y')]
+  gcompare (Impl _ _) _ = GLT
+  gcompare _ (Impl _ _) = GGT
+  gcompare (Xor x y)               (Xor x' y')             = gcomparing [(x,x'), (y,y')]
+  gcompare (Xor _ _) _ = GLT
+  gcompare _ (Xor _ _) = GGT
+  gcompare Pi                      Pi                      = GEQ
+  gcompare Pi _ = GLT
+  gcompare _ Pi = GGT
+  gcompare (Sqrt x)                (Sqrt x')               = gcompare x x'
+  gcompare (Sqrt _) _ = GLT
+  gcompare _ (Sqrt _) = GGT
+  gcompare (Exp x)                 (Exp x')                = gcompare x x'
+  gcompare (Exp _) _ = GLT
+  gcompare _ (Exp _) = GGT
+  gcompare (Sin x)                 (Sin x')                = gcompare x x'
+  gcompare (Sin _) _ = GLT
+  gcompare _ (Sin _) = GGT
+  gcompare (Cos x)                 (Cos x')                = gcompare x x'
+  gcompare (Cos _) _ = GLT
+  gcompare _ (Cos _) = GGT
+  gcompare (Tan x)                 (Tan x')                = gcompare x x'
+  gcompare (Tan _) _ = GLT
+  gcompare _ (Tan _) = GGT
+  gcompare (Asin x)                (Asin x')               = gcompare x x'
+  gcompare (Asin _) _ = GLT
+  gcompare _ (Asin _) = GGT
+  gcompare (Acos x)                (Acos x')               = gcompare x x'
+  gcompare (Acos _) _ = GLT
+  gcompare _ (Acos _) = GGT
+  gcompare (Atan x)                (Atan x')               = gcompare x x'
+  gcompare (Atan _) _ = GLT
+  gcompare _ (Atan _) = GGT
+  gcompare (ToReal x)              (ToReal x')             = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (ToReal _) _ = GLT
+  gcompare _ (ToReal _) = GGT
+  gcompare (ToInt x)               (ToInt x')              = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (ToInt _) _ = GLT
+  gcompare _ (ToInt _) = GGT
+  gcompare (IsInt x)               (IsInt x')              = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (IsInt _) _ = GLT
+  gcompare _ (IsInt _) = GGT
+  gcompare (Ite p t n)             (Ite p' t' n')          = case gcompare p p' of
+    GLT -> GLT
+    GEQ -> gcomparing [(t,t'), (n,n')]
+    GGT -> GGT
+  gcompare (Ite _ _ _) _ = GLT
+  gcompare _ (Ite _ _ _) = GGT
+  gcompare (BvNand x y)            (BvNand x' y')          = gcomparing [(x,x'), (y,y')]
+  gcompare (BvNand _ _) _ = GLT
+  gcompare _ (BvNand _ _) = GGT
+  gcompare (BvNor x y)             (BvNor x' y')           = gcomparing [(x,x'), (y,y')]
+  gcompare (BvNor _ _) _ = GLT
+  gcompare _ (BvNor _ _) = GGT
+  gcompare (BvShL x y)             (BvShL x' y')           = gcomparing [(x,x'), (y,y')]
+  gcompare (BvShL _ _) _ = GLT
+  gcompare _ (BvShL _ _) = GGT
+  gcompare (BvLShR x y)            (BvLShR x' y')          = gcomparing [(x,x'), (y,y')]
+  gcompare (BvLShR _ _) _ = GLT
+  gcompare _ (BvLShR _ _) = GGT
+  gcompare (BvConcat x y)          (BvConcat x' y')        = case gcompare (sortSing' x) (sortSing' x') of
+    GLT -> GLT
+    GEQ -> case gcompare x x' of
+      GLT -> GLT
+      GEQ -> case gcompare (sortSing' y) (sortSing' y') of
+        GLT -> GLT
+        GEQ -> case gcompare y y' of
+          GLT -> GLT
+          GEQ -> GEQ
+          GGT -> GGT
+        GGT -> GGT
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (BvConcat _ _) _ = GLT
+  gcompare _ (BvConcat _ _) = GGT
+  gcompare (BvRotL i x)            (BvRotL i' x')          = case compare (fromIntegral i :: Integer) (fromIntegral i') of
+    LT -> GLT
+    EQ -> gcompare x x'
+    GT -> GGT
+  gcompare (BvRotL _ _) _ = GLT
+  gcompare _ (BvRotL _ _) = GGT
+  gcompare (BvRotR i x)            (BvRotR i' x')          = case compare (fromIntegral i :: Integer) (fromIntegral i') of
+    LT -> GLT
+    EQ -> gcompare x x'
+    GT -> GGT
+  gcompare (BvRotR _ _) _ = GLT
+  gcompare _ (BvRotR _ _) = GGT
+  gcompare (ArrSelect arr i)       (ArrSelect arr' i')     = case gcompare arr arr' of
+    GLT -> GLT
+    GEQ -> case gcompare i i' of
+      GLT -> GLT
+      GEQ -> GEQ
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (ArrSelect _ _) _ = GLT
+  gcompare _ (ArrSelect _ _) = GGT
+  gcompare (ArrStore arr k v)      (ArrStore arr' k' v')   = case gcompare arr arr' of
+    GLT -> GLT
+    GEQ -> case gcompare k k' of
+      GLT -> GLT
+      GEQ -> case gcompare v v' of
+        GLT -> GLT
+        GEQ -> GEQ
+        GGT -> GGT
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (ArrStore _ _ _) _ = GLT
+  gcompare _ (ArrStore _ _ _) = GGT
+  gcompare (StrConcat x y)         (StrConcat x' y')       = gcomparing [(x,x'), (y,y')]
+  gcompare (StrConcat _ _) _ = GLT
+  gcompare _ (StrConcat _ _) = GGT
+  gcompare (StrLength x)           (StrLength x')          = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrLength _) _ = GLT
+  gcompare _ (StrLength _) = GGT
+  gcompare (StrLT x y)             (StrLT x' y')           = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrLT _ _) _ = GLT
+  gcompare _ (StrLT _ _) = GGT
+  gcompare (StrLTHE x y)           (StrLTHE x' y')         = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrLTHE _ _) _ = GLT
+  gcompare _ (StrLTHE _ _) = GGT
+  gcompare (StrAt x i)             (StrAt x' i')           = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> case gcompare i i' of
+      GLT -> GLT
+      GEQ -> GEQ
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (StrAt _ _) _ = GLT
+  gcompare _ (StrAt _ _) = GGT
+  gcompare (StrSubstring x i j)    (StrSubstring x' i' j') = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> case gcomparing [(i,i'), (j,j')] of
+      GLT -> GLT
+      GEQ -> GEQ
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (StrSubstring _ _ _) _ = GLT
+  gcompare _ (StrSubstring _ _ _) = GGT
+  gcompare (StrPrefixOf x y)       (StrPrefixOf x' y')     = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrPrefixOf _ _) _ = GLT
+  gcompare _ (StrPrefixOf _ _) = GGT
+  gcompare (StrSuffixOf x y)       (StrSuffixOf x' y')     = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrSuffixOf _ _) _ = GLT
+  gcompare _ (StrSuffixOf _ _) = GGT
+  gcompare (StrContains x y)       (StrContains x' y')     = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrContains _ _) _ = GLT
+  gcompare _ (StrContains _ _) = GGT
+  gcompare (StrIndexOf x y i)      (StrIndexOf x' y' i')   = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> gcompare i i'
+    GGT -> GGT
+  gcompare (StrIndexOf _ _ _) _ = GLT
+  gcompare _ (StrIndexOf _ _ _) = GGT
+  gcompare (StrReplace source target replacement)     (StrReplace source' target' replacement')     = gcomparing [(source, source'), (target, target'), (replacement, replacement')]
+  gcompare (StrReplace _ _ _) _ = GLT
+  gcompare _ (StrReplace _ _ _) = GGT
+  gcompare (StrReplaceAll source target replacement)  (StrReplaceAll source' target' replacement')  = gcomparing [(source, source'), (target, target'), (replacement, replacement')]
+  gcompare (StrReplaceAll _ _ _) _ = GLT
+  gcompare _ (StrReplaceAll _ _ _) = GGT
+  gcompare (ForAll _ expr)         (ForAll _ expr')        = gcompare (expr $ Var (SMTVar (-1))) (expr' $ Var (SMTVar (-1)))
+  gcompare (ForAll _ _) _ = GLT
+  gcompare _ (ForAll _ _) = GGT
+  gcompare (Exists _ expr)         (Exists _ expr')        = gcompare (expr $ Var (SMTVar (-1))) (expr' $ Var (SMTVar (-1)))
+  -- gcompare (Exists _ _) _ = GLT
+  -- gcompare _ (Exists _ _) = GGT

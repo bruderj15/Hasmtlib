@@ -151,7 +151,7 @@ parseExpr = var <|> constantExpr <|> ternary "ite" (ite @(Expr BoolSort))
               SStringSort -> binary "str.++" (<>) <|> binary "str.at" strAt <|> ternary "str.substr" StrSubstring
                       <|> ternary "str.replace" strReplace <|> ternary "str.replace_all" strReplaceAll
 
-var :: Parser (Expr t)
+var :: KnownSMTSort t => Parser (Expr t)
 var = do
   _     <- string "var_"
   vId <- decimal @Int
