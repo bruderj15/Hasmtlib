@@ -32,7 +32,6 @@ library
                      , Language.Hasmtlib.Boolean
                      , Language.Hasmtlib.Variable
                      , Language.Hasmtlib.Counting
-                     , Language.Hasmtlib.Integraled
                      , Language.Hasmtlib.Internal.Parser
                      , Language.Hasmtlib.Internal.Bitvec
                      , Language.Hasmtlib.Internal.Render
