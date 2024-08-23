@@ -33,6 +33,7 @@ import Data.Coerce
 import Data.Int
 import Data.Word
 import Data.Void
+import qualified Data.Bits as Bits
 import Data.Sequence (Seq)
 import Data.Tree (Tree)
 import Data.Monoid (Sum, Product, First, Last, Dual)
@@ -808,6 +809,31 @@ instance Bounded (Expr BoolSort) where
 instance KnownNat n => Bounded (Expr (BvSort n)) where
   minBound = Constant $ BvValue minBound
   maxBound = Constant $ BvValue maxBound
+
+-- | This instance is __partial__ for 'testBit' and 'popCount', it's only intended for use with constants ('Constant').
+instance Bits.Bits (Expr BoolSort) where
+  (.&.) = And
+  (.|.) = Or
+  xor = Xor
+  complement = Not
+  zeroBits = false
+  bit _ = true
+  setBit _ _ = true
+  clearBit _ _ = false
+  complementBit b _ = Not b
+  testBit (Constant (BoolValue b)) _ = b
+  testBit sb _ = error $ "Bits#testBit[Expr BoolSort] is only supported for constants. Given: " <> show sb
+  bitSizeMaybe _ = Just 1
+  bitSize _ = 1
+  isSigned _ = False
+  shiftL b 0 = b
+  shiftL _ _ = false
+  shiftR b 0 = b
+  shiftR _ _ = false
+  rotateL b _ = b
+  rotateR b _ = b
+  popCount (Constant (BoolValue b)) = if b then 1 else 0
+  popCount sb = error $ "Bits#popCount[Expr BoolSort] is only supported for constants. Given: " <> show sb
 
 instance Semigroup (Expr StringSort) where
   (<>) = StrConcat
