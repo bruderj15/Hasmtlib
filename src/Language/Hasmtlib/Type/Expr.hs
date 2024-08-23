@@ -7,12 +7,11 @@
 
 module Language.Hasmtlib.Type.Expr where
 
-import Prelude hiding (Integral(..), not, and, or, any, all, (&&), (||))
+import Prelude hiding (not, and, or, any, all, (&&), (||))
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Internal.Uniplate1
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.SMTSort
-import Language.Hasmtlib.Integraled
 import Language.Hasmtlib.Boolean
 import Data.GADT.Compare
 import Data.GADT.DeepSeq
@@ -101,11 +100,12 @@ data Expr (t :: SMTSort) where
   Constant  :: Value  t -> Expr t
 
   Plus      :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
+  Minus     :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
   Neg       :: Num (HaskellType t) => Expr t -> Expr t
   Mul       :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
   Abs       :: Num (HaskellType t) => Expr t -> Expr t
-  Mod       :: Expr IntSort  -> Expr IntSort  -> Expr IntSort
-  IDiv      :: Expr IntSort  -> Expr IntSort  -> Expr IntSort
+  Mod       :: Integral (HaskellType t) => Expr t -> Expr t  -> Expr t
+  IDiv      :: Integral (HaskellType t) => Expr t -> Expr t  -> Expr t
   Div       :: Expr RealSort -> Expr RealSort -> Expr RealSort
 
   LTH       :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
@@ -137,27 +137,13 @@ data Expr (t :: SMTSort) where
 
   Ite       :: Expr BoolSort -> Expr t -> Expr t -> Expr t
 
-  BvNot     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n)
-  BvAnd     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvOr      :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvXor     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvNand    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvNor     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvNeg     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n)
-  BvAdd     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvSub     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvMul     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvuDiv    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvuRem    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvShL     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvLShR    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvConcat  :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
   BvRotL    :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
   BvRotR    :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
-  BvuLT     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
-  BvuLTHE   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
-  BvuGTHE   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
-  BvuGT     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
 
   ArrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
   ArrStore  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
@@ -387,13 +373,13 @@ instance Orderable (Expr RealSort) where
   {-# INLINE (>?) #-}
 
 instance KnownNat n => Orderable (Expr (BvSort n)) where
-  (<?)     = BvuLT
+  (<?)     = LTH
   {-# INLINE (<?) #-}
-  (<=?)    = BvuLTHE
+  (<=?)    = LTHE
   {-# INLINE (<=?) #-}
-  (>=?)    = BvuGTHE
+  (>=?)    = GTHE
   {-# INLINE (>=?) #-}
-  (>?)     = BvuGT
+  (>?)     = GTH
   {-# INLINE (>?) #-}
 
 -- | Lexicographic ordering for '(<?)' and reflexive closure of lexicographic ordering for '(<=?)'
@@ -672,7 +658,7 @@ instance Num (Expr IntSort) where
    {-# INLINE (+) #-}
    x - (Constant (IntValue 0)) = x
    (Constant (IntValue x)) - (Constant (IntValue y)) = Constant (IntValue (x - y))
-   x - y = Plus x (Neg y)
+   x - y = Minus x y
    {-# INLINE (-) #-}
    (Constant (IntValue 0)) * _ = 0
    _ * (Constant (IntValue 0)) = 0
@@ -698,7 +684,7 @@ instance Num (Expr RealSort) where
    {-# INLINE (+) #-}
    x - (Constant (RealValue 0)) = x
    (Constant (RealValue x)) - (Constant (RealValue y)) = Constant (RealValue (x - y))
-   x - y = Plus x (Neg y)
+   x - y = Minus x y
    {-# INLINE (-) #-}
    (Constant (RealValue 0)) * _ = 0
    _ * (Constant (RealValue 0)) = 0
@@ -720,18 +706,18 @@ instance KnownNat n => Num (Expr (BvSort n)) where
    (Constant (BvValue 0)) + y = y
    x + (Constant (BvValue 0)) = x
    (Constant (BvValue x)) + (Constant (BvValue y)) = Constant (BvValue (x + y))
-   x + y = BvAdd x y
+   x + y = Plus x y
    {-# INLINE (+) #-}
    x - (Constant (BvValue 0)) = x
    (Constant (BvValue x)) - (Constant (BvValue y)) = Constant (BvValue (x - y))
-   x - y = BvSub x y
+   x - y = Minus x y
    {-# INLINE (-) #-}
    (Constant (BvValue 0)) * _ = 0
    _ * (Constant (BvValue 0)) = 0
    (Constant (BvValue 1)) * y = y
    x * (Constant (BvValue 1)) = x
    (Constant (BvValue x)) * (Constant (BvValue y)) = Constant (BvValue (x * y))
-   x * y = BvMul x y
+   x * y = Mul x y
    {-# INLINE (*) #-}
    abs         = id
    {-# INLINE abs #-}
@@ -775,7 +761,7 @@ instance Floating (Expr RealSort) where
     acosh = error "SMT-Solvers currently do not support acosh"
     atanh = error "SMT-Solvers currently do not support atanh"
 
-instance Integraled (Expr IntSort) where
+instance Integral (Expr IntSort) where
   quot = IDiv
   {-# INLINE quot #-}
   rem  = Mod
@@ -789,14 +775,14 @@ instance Integraled (Expr IntSort) where
   divMod x y  = (div x y, mod x y)
   {-# INLINE divMod #-}
 
-instance KnownNat n => Integraled (Expr (BvSort n)) where
-  quot        = BvuDiv
+instance KnownNat n => Integral (Expr (BvSort n)) where
+  quot        = IDiv
   {-# INLINE quot #-}
-  rem         = BvuRem
+  rem         = Mod
   {-# INLINE rem #-}
-  div         = BvuDiv
+  div         = IDiv
   {-# INLINE div #-}
-  mod         = BvuRem
+  mod         = Mod
   {-# INLINE mod #-}
   quotRem x y = (quot x y, rem x y)
   {-# INLINE quotRem #-}
@@ -820,13 +806,13 @@ instance Boolean (Expr BoolSort) where
 instance KnownNat n => Boolean (Expr (BvSort n)) where
   bool = Constant . BvValue . bool
   {-# INLINE bool #-}
-  (&&) = BvAnd
+  (&&) = And
   {-# INLINE (&&) #-}
-  (||) = BvOr
+  (||) = Or
   {-# INLINE (||) #-}
-  not  = BvNot
+  not  = Not
   {-# INLINE not #-}
-  xor  = BvXor
+  xor  = Xor
   {-# INLINE xor #-}
 
 instance Bounded (Expr BoolSort) where
@@ -875,26 +861,27 @@ instance KnownSMTSort t => Render (Expr t) where
   render (Var v)      = render v
   render (Constant c) = render c
 
-  render (Plus x y)   = renderBinary "+" x y
-  render (Neg x)      = renderUnary  "-" x
-  render (Mul x y)    = renderBinary "*" x y
+  render (Plus x y)   = renderBinary (case sortSing' x of SBvSort _ -> "bvadd" ; _ -> "+") x y
+  render (Minus x y)  = renderBinary (case sortSing' x of SBvSort _ -> "bvsub" ; _ -> "-") x y
+  render (Neg x)      = renderUnary  (case sortSing' x of SBvSort _ -> "bvneg" ; _ -> "-") x
+  render (Mul x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvmul" ; _ -> "*") x y
   render (Abs x)      = renderUnary  "abs" x
-  render (Mod x y)    = renderBinary "mod" x y
-  render (IDiv x y)   = renderBinary "div" x y
+  render (Mod x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvurem" ; _ -> "mod") x y
+  render (IDiv x y)   = renderBinary (case sortSing' x of SBvSort _ -> "bvudiv" ; _ -> "div") x y
   render (Div x y)    = renderBinary "/" x y
 
-  render (LTH x y)    = renderBinary "<" x y
-  render (LTHE x y)   = renderBinary "<=" x y
+  render (LTH x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvult" ; _ -> "<") x y
+  render (LTHE x y)   = renderBinary (case sortSing' x of SBvSort _ -> "bvule" ; _ -> "<=") x y
   render (EQU xs)     = renderNary "=" $ V.toList xs
   render (Distinct xs)= renderNary "distinct" $ V.toList xs
-  render (GTHE x y)   = renderBinary ">=" x y
-  render (GTH x y)    = renderBinary ">" x y
+  render (GTHE x y)   = renderBinary (case sortSing' x of SBvSort _ -> "bvuge" ; _ -> ">=") x y
+  render (GTH x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvugt" ; _ -> ">") x y
 
-  render (Not x)      = renderUnary  "not" x
-  render (And x y)    = renderBinary "and" x y
-  render (Or x y)     = renderBinary "or" x y
+  render (Not x)      = renderUnary  (case sortSing' x of SBvSort _ -> "bvnot" ; _ -> "not") x
+  render (And x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvand" ; _ -> "and") x y
+  render (Or x y)     = renderBinary (case sortSing' x of SBvSort _ -> "bvor" ; _ -> "or") x y
   render (Impl x y)   = renderBinary "=>" x y
-  render (Xor x y)    = renderBinary "xor" x y
+  render (Xor x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvxor" ; _ -> "xor") x y
 
   render Pi           = "real.pi"
   render (Sqrt x)     = renderUnary "sqrt" x
@@ -912,27 +899,13 @@ instance KnownSMTSort t => Render (Expr t) where
 
   render (Ite p t f)  = renderTernary "ite" p t f
 
-  render (BvNot x)          = renderUnary  "bvnot"  (render x)
-  render (BvAnd x y)        = renderBinary "bvand"  (render x) (render y)
-  render (BvOr x y)         = renderBinary "bvor"   (render x) (render y)
-  render (BvXor x y)        = renderBinary "bvxor"  (render x) (render y)
   render (BvNand x y)       = renderBinary "bvnand" (render x) (render y)
   render (BvNor x y)        = renderBinary "bvnor"  (render x) (render y)
-  render (BvNeg x)          = renderUnary  "bvneg"  (render x)
-  render (BvAdd x y)        = renderBinary "bvadd"  (render x) (render y)
-  render (BvSub x y)        = renderBinary "bvsub"  (render x) (render y)
-  render (BvMul x y)        = renderBinary "bvmul"  (render x) (render y)
-  render (BvuDiv x y)       = renderBinary "bvudiv" (render x) (render y)
-  render (BvuRem x y)       = renderBinary "bvurem" (render x) (render y)
   render (BvShL x y)        = renderBinary "bvshl"  (render x) (render y)
   render (BvLShR x y)       = renderBinary "bvlshr" (render x) (render y)
   render (BvConcat x y)     = renderBinary "concat" (render x) (render y)
   render (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left"  :: Builder) (render (natVal i))) (render x)
   render (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (render (natVal i))) (render x)
-  render (BvuLT x y)        = renderBinary "bvult"  (render x) (render y)
-  render (BvuLTHE x y)      = renderBinary "bvule"  (render x) (render y)
-  render (BvuGTHE x y)      = renderBinary "bvuge"  (render x) (render y)
-  render (BvuGT x y)        = renderBinary "bvugt"  (render x) (render y)
 
   render (ArrSelect a i)    = renderBinary  "select" (render a) (render i)
   render (ArrStore a i v)   = renderTernary "store"  (render a) (render i) (render v)
@@ -1014,6 +987,7 @@ instance Uniplate1 Expr '[KnownSMTSort] where
   uniplate1 _ expr@(Var _)            = pure expr
   uniplate1 _ expr@(Constant _)       = pure expr
   uniplate1 f (Plus x y)              = Plus <$> f x <*> f y
+  uniplate1 f (Minus x y)             = Minus <$> f x <*> f y
   uniplate1 f (Neg x)                 = Neg <$> f x
   uniplate1 f (Mul x y)               = Mul <$> f x <*> f y
   uniplate1 f (Abs x)                 = Abs <$> f x
@@ -1044,27 +1018,13 @@ instance Uniplate1 Expr '[KnownSMTSort] where
   uniplate1 f (ToInt x)               = ToInt <$> f x
   uniplate1 f (IsInt x)               = IsInt <$> f x
   uniplate1 f (Ite p t n)             = Ite <$> f p <*> f t <*> f n
-  uniplate1 f (BvNot x)               = BvNot <$> f x
-  uniplate1 f (BvAnd x y)             = BvAnd <$> f x <*> f y
-  uniplate1 f (BvOr x y)              = BvOr <$> f x <*> f y
-  uniplate1 f (BvXor x y)             = BvXor <$> f x <*> f y
   uniplate1 f (BvNand x y)            = BvNand <$> f x <*> f y
   uniplate1 f (BvNor x y)             = BvNor <$> f x <*> f y
-  uniplate1 f (BvNeg x)               = BvNeg <$> f x
-  uniplate1 f (BvAdd x y)             = BvAdd <$> f x <*> f y
-  uniplate1 f (BvSub x y)             = BvSub <$> f x <*> f y
-  uniplate1 f (BvMul x y)             = BvMul <$> f x <*> f y
-  uniplate1 f (BvuDiv x y)            = BvuDiv <$> f x <*> f y
-  uniplate1 f (BvuRem x y)            = BvuRem <$> f x <*> f y
   uniplate1 f (BvShL x y)             = BvShL <$> f x <*> f y
   uniplate1 f (BvLShR x y)            = BvLShR <$> f x <*> f y
   uniplate1 f (BvConcat x y)          = BvConcat <$> f x <*> f y
   uniplate1 f (BvRotL i x)            = BvRotL i <$> f x
   uniplate1 f (BvRotR i x)            = BvRotR i <$> f x
-  uniplate1 f (BvuLT x y)             = BvuLT <$> f x <*> f y
-  uniplate1 f (BvuLTHE x y)           = BvuLTHE <$> f x <*> f y
-  uniplate1 f (BvuGTHE x y)           = BvuGTHE <$> f x <*> f y
-  uniplate1 f (BvuGT x y)             = BvuGT <$> f x <*> f y
   uniplate1 f (ArrSelect i arr)       = ArrSelect i <$> f arr
   uniplate1 f (ArrStore i x arr)      = ArrStore i <$> f x <*> f arr
   uniplate1 f (StrConcat x y)         = StrConcat <$> f x <*> f y
@@ -1095,6 +1055,7 @@ instance KnownSMTSort t => Plated (Expr t) where
           Var _                -> pure expr
           Constant _           -> pure expr
           Plus x y             -> Plus <$> tryPlate f' x <*> tryPlate f' y
+          Minus x y            -> Minus <$> tryPlate f' x <*> tryPlate f' y
           Neg x                -> Neg  <$> tryPlate f' x
           Mul x y              -> Mul  <$> tryPlate f' x <*> tryPlate f' y
           Abs x                -> Abs  <$> tryPlate f' x
@@ -1125,27 +1086,13 @@ instance KnownSMTSort t => Plated (Expr t) where
           ToInt x              -> ToInt  <$> tryPlate f' x
           IsInt x              -> IsInt  <$> tryPlate f' x
           Ite p t n            -> Ite    <$> tryPlate f' p <*> tryPlate f' t <*> tryPlate f' n
-          BvNot x              -> BvNot  <$> tryPlate f' x
-          BvAnd x y            -> BvAnd  <$> tryPlate f' x <*> tryPlate f' y
-          BvOr x y             -> BvOr   <$> tryPlate f' x <*> tryPlate f' y
-          BvXor x y            -> BvXor  <$> tryPlate f' x <*> tryPlate f' y
           BvNand x y           -> BvNand <$> tryPlate f' x <*> tryPlate f' y
           BvNor x y            -> BvNor  <$> tryPlate f' x <*> tryPlate f' y
-          BvNeg x              -> BvNeg  <$> tryPlate f' x
-          BvAdd x y            -> BvAdd  <$> tryPlate f' x <*> tryPlate f' y
-          BvSub x y            -> BvSub  <$> tryPlate f' x <*> tryPlate f' y
-          BvMul x y            -> BvMul  <$> tryPlate f' x <*> tryPlate f' y
-          BvuDiv x y           -> BvuDiv <$> tryPlate f' x <*> tryPlate f' y
-          BvuRem x y           -> BvuRem <$> tryPlate f' x <*> tryPlate f' y
           BvShL x y            -> BvShL  <$> tryPlate f' x <*> tryPlate f' y
           BvLShR x y           -> BvLShR <$> tryPlate f' x <*> tryPlate f' y
           BvConcat x y         -> BvConcat <$> tryPlate f' x <*> tryPlate f' y
           BvRotL i x           -> BvRotL i <$> tryPlate f' x
           BvRotR i x           -> BvRotR i <$> tryPlate f' x
-          BvuLT x y            -> BvuLT    <$> tryPlate f' x <*> tryPlate f' y
-          BvuLTHE x y          -> BvuLTHE  <$> tryPlate f' x <*> tryPlate f' y
-          BvuGTHE x y          -> BvuGTHE  <$> tryPlate f' x <*> tryPlate f' y
-          BvuGT x y            -> BvuGT    <$> tryPlate f' x <*> tryPlate f' y
           ArrSelect i arr      -> ArrSelect i   <$> tryPlate f' arr
           ArrStore i x arr     -> ArrStore i    <$> tryPlate f' x <*> tryPlate f' arr
           StrConcat x y        -> StrConcat     <$> tryPlate f' x <*> tryPlate f' y
@@ -1170,6 +1117,7 @@ instance GNFData Expr where
     Var (SMTVar vId)     -> vId `seq` ()
     Constant c           -> c `seq` ()
     Plus e1 e2           -> grnf e1 `seq` grnf e2
+    Minus e1 e2          -> grnf e1 `seq` grnf e2
     Neg e                -> grnf e
     Mul e1 e2            -> grnf e1 `seq` grnf e2
     Abs e                -> grnf e
@@ -1200,27 +1148,13 @@ instance GNFData Expr where
     ToInt e              -> grnf e
     IsInt e              -> grnf e
     Ite c e1 e2          -> grnf c `seq` grnf e1 `seq` grnf e2
-    BvNot e              -> grnf e
-    BvAnd e1 e2          -> grnf e1 `seq` grnf e2
-    BvOr e1 e2           -> grnf e1 `seq` grnf e2
-    BvXor e1 e2          -> grnf e1 `seq` grnf e2
     BvNand e1 e2         -> grnf e1 `seq` grnf e2
     BvNor e1 e2          -> grnf e1 `seq` grnf e2
-    BvNeg e              -> grnf e
-    BvAdd e1 e2          -> grnf e1 `seq` grnf e2
-    BvSub e1 e2          -> grnf e1 `seq` grnf e2
-    BvMul e1 e2          -> grnf e1 `seq` grnf e2
-    BvuDiv e1 e2         -> grnf e1 `seq` grnf e2
-    BvuRem e1 e2         -> grnf e1 `seq` grnf e2
     BvShL e1 e2          -> grnf e1 `seq` grnf e2
     BvLShR e1 e2         -> grnf e1 `seq` grnf e2
     BvConcat e1 e2       -> grnf e1 `seq` grnf e2
     BvRotL _ e           -> grnf e
     BvRotR _ e           -> grnf e
-    BvuLT e1 e2          -> grnf e1 `seq` grnf e2
-    BvuLTHE e1 e2        -> grnf e1 `seq` grnf e2
-    BvuGTHE e1 e2        -> grnf e1 `seq` grnf e2
-    BvuGT e1 e2          -> grnf e1 `seq` grnf e2
     ArrSelect e1 e2      -> grnf e1 `seq` grnf e2
     ArrStore e1 e2 e3    -> grnf e1 `seq` grnf e2 `seq` grnf e3
     StrConcat e1 e2      -> grnf e1 `seq` grnf e2

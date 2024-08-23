@@ -144,7 +144,7 @@ parseExpr = var <|> constantExpr <|> ternary "ite" (ite @(Expr BoolSort))
                       <|> binary "bvand" (&&)  <|> binary "bvor" (||) <|> binary "bvxor" xor <|> binary "bvnand" BvNand <|> binary "bvnor" BvNor
                       <|> unary  "bvneg" negate
                       <|> binary "bvadd" (+)  <|> binary "bvsub" (-) <|> binary "bvmul" (*)
-                      <|> binary "bvudiv" BvuDiv <|> binary "bvurem" BvuRem
+                      <|> binary "bvudiv" div <|> binary "bvurem" rem
                       <|> binary "bvshl" BvShL <|> binary "bvlshr" BvLShR
               SArraySort _ _ -> ternary "store" ArrStore
                       -- TODO: Add compare ops for all (?) array-sorts
