@@ -5,6 +5,7 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Type.OMT
   , module Language.Hasmtlib.Type.Pipe
   , module Language.Hasmtlib.Type.Expr
+  , module Language.Hasmtlib.Type.Value
   , module Language.Hasmtlib.Type.Solver
   , module Language.Hasmtlib.Type.Option
   , module Language.Hasmtlib.Type.SMTSort
@@ -29,6 +30,7 @@ import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.OMT
 import Language.Hasmtlib.Type.Pipe
 import Language.Hasmtlib.Type.Expr
+import Language.Hasmtlib.Type.Value
 import Language.Hasmtlib.Type.Solver
 import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.SMTSort

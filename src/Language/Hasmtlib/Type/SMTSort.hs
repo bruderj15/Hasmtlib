@@ -109,6 +109,9 @@ data SomeSMTSort cs f where
 
 deriving instance (forall t. Show (f t)) => Show (SomeSMTSort cs f)
 
+-- | An existential wrapper that hides some known 'SMTSort'.
+type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f
+
 instance Render (SSMTSort t) where
   render SBoolSort   = "Bool"
   render SIntSort    = "Int"

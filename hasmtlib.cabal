@@ -47,6 +47,7 @@ library
                      , Language.Hasmtlib.Solver.Yices
                      , Language.Hasmtlib.Solver.Z3
                      , Language.Hasmtlib.Type.Expr
+                     , Language.Hasmtlib.Type.Value
                      , Language.Hasmtlib.Type.MonadSMT
                      , Language.Hasmtlib.Type.SMT
                      , Language.Hasmtlib.Type.OMT
