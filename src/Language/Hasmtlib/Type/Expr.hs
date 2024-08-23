@@ -55,12 +55,14 @@ newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int }
   deriving newtype (Eq, Ord)
 $(makeLenses ''SMTVar)
 
--- | Am SMT expression.
---   For internal use only.
---   For building expressions use the corresponding instances (Num, Boolean, ...).
+-- | An SMT-Expression.
+--   For building expressions use the corresponding instances: 'Boolean', 'Num', 'Equatable', ...
+--
+--   With a lot of criminal energy you may build invalid expressions regarding the SMTLib Version 2.6 - Specification.
+--   Therefore it is highly recommended to rely on the instances.
 data Expr (t :: SMTSort) where
   Var       :: KnownSMTSort t => SMTVar t -> Expr t
-  Constant  :: Value  t -> Expr t
+  Constant  :: Value t -> Expr t
   Plus      :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
   Minus     :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
   Neg       :: Num (HaskellType t) => Expr t -> Expr t
@@ -715,15 +717,18 @@ instance Floating (Expr RealSort) where
     acosh = error "SMT-Solvers currently do not support acosh"
     atanh = error "SMT-Solvers currently do not support atanh"
 
+-- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
 instance Real (Expr IntSort) where
   toRational (Constant (IntValue x)) = fromIntegral x
   toRational x = error $ "Real#toRational[Expr IntSort] only supported for constants. But given: " <> show x
 
+  -- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
 instance Enum (Expr IntSort) where
   fromEnum (Constant (IntValue x)) = fromIntegral x
   fromEnum x = error $ "Enum#fromEnum[Expr IntSort] only supported for constants. But given: " <> show x
   toEnum = fromInteger . fromIntegral
 
+  -- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
 instance Integral (Expr IntSort) where
   quot = IDiv
   {-# INLINE quot #-}
@@ -741,15 +746,18 @@ instance Integral (Expr IntSort) where
   toInteger x = error $ "Integer#toInteger[Expr IntSort] only supported for constants. But given: " <> show x
   {-# INLINE toInteger #-}
 
+  -- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
 instance KnownNat n => Real (Expr (BvSort n)) where
   toRational (Constant (BvValue x)) = fromIntegral x
   toRational x = error $ "Real#toRational[Expr BvSort] only supported for constants. But given: " <> show x
 
+  -- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
 instance KnownNat n => Enum (Expr (BvSort n)) where
   fromEnum (Constant (BvValue x)) = fromIntegral x
   fromEnum x = error $ "Enum#fromEnum[Expr BvSort] only supported for constants. But given: " <> show x
   toEnum = fromInteger . fromIntegral
 
+  -- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
 instance KnownNat n => Integral (Expr (BvSort n)) where
   quot        = IDiv
   {-# INLINE quot #-}
