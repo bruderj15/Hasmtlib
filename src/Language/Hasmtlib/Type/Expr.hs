@@ -13,7 +13,7 @@ module Language.Hasmtlib.Type.Expr
   , equal, distinct
   , for_all, exists
   , select, store
-  , bvShL, bvLShR, bvConcat, bvRotL, bvRotR
+  , bvShL, bvLShR, bvConcat
   , toRealSort, toIntSort, isIntSort
   , strLength, strAt, strSubstring, strPrefixOf, strSuffixOf, strContains, strIndexOf, strReplace, strReplaceAll
   )
@@ -518,16 +518,6 @@ bvLShR   = BvLShR
 bvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
 bvConcat = BvConcat
 {-# INLINE bvConcat #-}
-
--- | Rotate bitvector left
-bvRotL   :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
-bvRotL   = BvRotL
-{-# INLINE bvRotL #-}
-
--- | Rotate bitvector right
-bvRotR   :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
-bvRotR   = BvRotR
-{-# INLINE bvRotR #-}
 
 -- | Converts an expression of type 'IntSort' to type 'RealSort'.
 toRealSort :: Expr IntSort  -> Expr RealSort
