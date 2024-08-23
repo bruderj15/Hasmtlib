@@ -713,12 +713,15 @@ instance Floating (Expr RealSort) where
 instance Real (Expr IntSort) where
   toRational (Constant (IntValue x)) = fromIntegral x
   toRational x = error $ "Real#toRational[Expr IntSort] only supported for constants. But given: " <> show x
+  {-# INLINE toRational #-}
 
   -- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
 instance Enum (Expr IntSort) where
   fromEnum (Constant (IntValue x)) = fromIntegral x
   fromEnum x = error $ "Enum#fromEnum[Expr IntSort] only supported for constants. But given: " <> show x
+  {-# INLINE fromEnum #-}
   toEnum = fromInteger . fromIntegral
+  {-# INLINE toEnum #-}
 
   -- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
 instance Integral (Expr IntSort) where
@@ -742,12 +745,15 @@ instance Integral (Expr IntSort) where
 instance KnownNat n => Real (Expr (BvSort n)) where
   toRational (Constant (BvValue x)) = fromIntegral x
   toRational x = error $ "Real#toRational[Expr BvSort] only supported for constants. But given: " <> show x
+  {-# INLINE toRational #-}
 
   -- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
 instance KnownNat n => Enum (Expr (BvSort n)) where
   fromEnum (Constant (BvValue x)) = fromIntegral x
   fromEnum x = error $ "Enum#fromEnum[Expr BvSort] only supported for constants. But given: " <> show x
+  {-# INLINE fromEnum #-}
   toEnum = fromInteger . fromIntegral
+  {-# INLINE toEnum #-}
 
   -- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
 instance KnownNat n => Integral (Expr (BvSort n)) where
@@ -795,56 +801,93 @@ instance KnownNat n => Boolean (Expr (BvSort n)) where
 
 instance Bounded (Expr BoolSort) where
   minBound = false
+  {-# INLINE minBound #-}
   maxBound = true
+  {-# INLINE maxBound #-}
 
 instance KnownNat n => Bounded (Expr (BvSort n)) where
   minBound = Constant $ BvValue minBound
+  {-# INLINE minBound #-}
   maxBound = Constant $ BvValue maxBound
+  {-# INLINE maxBound #-}
 
 -- | This instance is __partial__ for 'testBit' and 'popCount', it's only intended for use with constants ('Constant').
 instance Bits.Bits (Expr BoolSort) where
   (.&.) = And
+  {-# INLINE (.&.) #-}
   (.|.) = Or
+  {-# INLINE (.|.) #-}
   xor = Xor
+  {-# INLINE xor #-}
   complement = Not
+  {-# INLINE complement #-}
   zeroBits = false
+  {-# INLINE zeroBits #-}
   bit _ = true
+  {-# INLINE bit #-}
   setBit _ _ = true
+  {-# INLINE setBit #-}
   clearBit _ _ = false
+  {-# INLINE clearBit #-}
   complementBit b _ = Not b
+  {-# INLINE complementBit #-}
   testBit (Constant (BoolValue b)) _ = b
   testBit sb _ = error $ "Bits#testBit[Expr BoolSort] is only supported for constants. Given: " <> show sb
+  {-# INLINE testBit #-}
   bitSizeMaybe _ = Just 1
+  {-# INLINE bitSizeMaybe #-}
   bitSize _ = 1
+  {-# INLINE bitSize #-}
   isSigned _ = False
+  {-# INLINE isSigned #-}
   shiftL b 0 = b
   shiftL _ _ = false
+  {-# INLINE shiftL #-}
   shiftR b 0 = b
   shiftR _ _ = false
+  {-# INLINE shiftR #-}
   rotateL b _ = b
+  {-# INLINE rotateL #-}
   rotateR b _ = b
+  {-# INLINE rotateR #-}
   popCount (Constant (BoolValue b)) = if b then 1 else 0
   popCount sb = error $ "Bits#popCount[Expr BoolSort] is only supported for constants. Given: " <> show sb
+  {-# INLINE popCount #-}
 
 -- | This instance is __partial__ for 'testBit' and 'popCount', it's only intended for use with constants ('Constant').
 instance KnownNat n => Bits.Bits (Expr (BvSort n)) where
   (.&.) = And
+  {-# INLINE (.&.) #-}
   (.|.) = Or
+  {-# INLINE (.|.) #-}
   xor = Xor
+  {-# INLINE xor #-}
   complement = Not
+  {-# INLINE complement #-}
   zeroBits = false
+  {-# INLINE zeroBits #-}
   bit = Constant . BvValue . Bits.bit
+  {-# INLINE bit #-}
   testBit (Constant (BvValue b)) i = Bits.testBit b i
   testBit sb _ = error $ "Bits#testBit[Expr BvSort] is only supported for constants. Given: " <> show sb
+  {-# INLINE testBit #-}
   bitSizeMaybe _ = Just $ fromIntegral $ natVal $ Proxy @n
+  {-# INLINE bitSizeMaybe #-}
   bitSize _ = fromIntegral $ natVal $ Proxy @n
+  {-# INLINE bitSize #-}
   isSigned _ = False
+  {-# INLINE isSigned #-}
   shiftL b i = BvShL b (fromIntegral i)
+  {-# INLINE shiftL #-}
   shiftR b i = BvLShR b (fromIntegral i)
+  {-# INLINE shiftR #-}
   rotateL b i = BvRotL i b
+  {-# INLINE rotateL #-}
   rotateR b i = BvRotR i b
+  {-# INLINE rotateR #-}
   popCount (Constant (BvValue b)) = Bits.popCount b
   popCount sb = error $ "Bits#popCount[Expr BvSort] is only supported for constants. Given: " <> show sb
+  {-# INLINE popCount #-}
 
 instance Semigroup (Expr StringSort) where
   (<>) = StrConcat
