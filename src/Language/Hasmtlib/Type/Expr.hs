@@ -35,6 +35,7 @@ import Control.Lens hiding (from, to)
 import GHC.TypeLits hiding (someNatVal)
 import GHC.TypeNats (someNatVal)
 import GHC.Generics
+import Unsafe.Coerce
 
 -- | An internal SMT variable with a phantom-type which holds an 'Int' as it's identifier.
 type role SMTVar phantom
@@ -43,13 +44,27 @@ newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int }
   deriving newtype (Eq, Ord)
 $(makeLenses ''SMTVar)
 
+-- | __Caution:__ Ignores phantom types and only compares underlying 'Int'.
+--   This means that variables of different 'SMTSort's with the same underlying identifier will be considered equal by this instance
+instance GEq SMTVar where
+  geq (SMTVar x) (SMTVar y) = unsafeCoerce $ -- This is safe as long as SMTVar stays phantom-typed -- TODO: is it really?
+    if x == y then Just Refl else Nothing
+
+instance GCompare SMTVar where
+  gcompare (SMTVar x) (SMTVar y) = unsafeCoerce $ liftOrdering $ compare x y
+
+liftOrdering :: forall {k} {a :: k}. Ordering -> GOrdering a a
+liftOrdering LT = GLT
+liftOrdering EQ = GEQ
+liftOrdering GT = GGT
+
 -- | A wrapper for values of 'SMTSort's.
 data Value (t :: SMTSort) where
   IntValue    :: HaskellType IntSort    -> Value IntSort
   RealValue   :: HaskellType RealSort   -> Value RealSort
   BoolValue   :: HaskellType BoolSort   -> Value BoolSort
   BvValue     :: KnownNat n => HaskellType (BvSort n) -> Value (BvSort n)
-  ArrayValue  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
+  ArrayValue  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
   StringValue :: HaskellType StringSort -> Value StringSort
 
 deriving instance Eq (HaskellType t) => Eq (Value t)
@@ -67,6 +82,40 @@ instance GEq Value where
     Just Refl -> if x == y then Just Refl else Nothing
   geq (StringValue x) (StringValue y) = if x == y then Just Refl else Nothing
   geq _ _ = Nothing
+
+instance GCompare Value where
+  gcompare (BoolValue x) (BoolValue x')     = liftOrdering $ compare x x'
+  gcompare (IntValue x)  (IntValue x')      = liftOrdering $ compare x x'
+  gcompare (RealValue x) (RealValue x')     = liftOrdering $ compare x x'
+  gcompare (BvValue x) (BvValue x')         = case cmpNat x x' of
+    LTI -> GLT
+    EQI -> liftOrdering $ compare x x'
+    GTI -> GGT
+  gcompare (ArrayValue x) (ArrayValue x')   = case gcompare (sortSing' (pk x)) (sortSing' (pk x')) of
+    GLT -> GLT
+    GEQ -> case gcompare (sortSing' (pv x)) (sortSing' (pv x')) of
+      GLT -> GLT
+      GEQ -> liftOrdering $ compare x x'
+      GGT -> GGT
+    GGT -> GGT
+    where
+      pk :: forall k v. HaskellType (ArraySort k v) -> Proxy k
+      pk _ = Proxy @k
+      pv :: forall k v. HaskellType (ArraySort k v) -> Proxy v
+      pv _ = Proxy @v
+  gcompare (StringValue x)(StringValue x')  = liftOrdering $ compare x x'
+  gcompare (BoolValue _) _                  = GLT
+  gcompare _ (BoolValue _)                  = GGT
+  gcompare (IntValue _) _                   = GLT
+  gcompare _ (IntValue _)                   = GGT
+  gcompare (RealValue _) _                  = GLT
+  gcompare _ (RealValue _)                  = GGT
+  gcompare (BvValue _) _                    = GLT
+  gcompare _ (BvValue _)                    = GGT
+  gcompare (ArrayValue _) _                 = GLT
+  gcompare _ (ArrayValue _)                 = GGT
+  -- gcompare (StringValue _) _                = GLT
+  -- gcompare _ (StringValue _)                = GGT
 
 -- | Unwrap a value from 'Value'.
 unwrapValue :: Value t -> HaskellType t
@@ -142,10 +191,10 @@ data Expr (t :: SMTSort) where
   BvShL     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvLShR    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvConcat  :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
-  BvRotL    :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
-  BvRotR    :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
+  BvRotL    :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
+  BvRotR    :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
 
-  ArrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
+  ArrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
   ArrStore  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
 
   StrConcat     :: Expr StringSort -> Expr StringSort -> Expr StringSort
@@ -537,7 +586,7 @@ exists = Exists Nothing
 {-# INLINE exists #-}
 
 -- | Select a value from an array.
-select :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
+select :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
 select = ArrSelect
 {-# INLINE select #-}
 
@@ -562,12 +611,12 @@ bvConcat = BvConcat
 {-# INLINE bvConcat #-}
 
 -- | Rotate bitvector left
-bvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
+bvRotL   :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
 bvRotL   = BvRotL
 {-# INLINE bvRotL #-}
 
 -- | Rotate bitvector right
-bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
+bvRotR   :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
 bvRotR   = BvRotR
 {-# INLINE bvRotR #-}
 
@@ -761,6 +810,15 @@ instance Floating (Expr RealSort) where
     acosh = error "SMT-Solvers currently do not support acosh"
     atanh = error "SMT-Solvers currently do not support atanh"
 
+instance Real (Expr IntSort) where
+  toRational (Constant (IntValue x)) = fromIntegral x
+  toRational x = error $ "Real#toRational[Expr IntSort] only supported for constants. But given: " <> show x
+
+instance Enum (Expr IntSort) where
+  fromEnum (Constant (IntValue x)) = fromIntegral x
+  fromEnum x = error $ "Enum#fromEnum[Expr IntSort] only supported for constants. But given: " <> show x
+  toEnum = fromInteger . fromIntegral
+
 instance Integral (Expr IntSort) where
   quot = IDiv
   {-# INLINE quot #-}
@@ -774,6 +832,18 @@ instance Integral (Expr IntSort) where
   {-# INLINE quotRem #-}
   divMod x y  = (div x y, mod x y)
   {-# INLINE divMod #-}
+  toInteger (Constant (IntValue x)) = x
+  toInteger x = error $ "Integer#toInteger[Expr IntSort] only supported for constants. But given: " <> show x
+  {-# INLINE toInteger #-}
+
+instance KnownNat n => Real (Expr (BvSort n)) where
+  toRational (Constant (BvValue x)) = fromIntegral x
+  toRational x = error $ "Real#toRational[Expr BvSort] only supported for constants. But given: " <> show x
+
+instance KnownNat n => Enum (Expr (BvSort n)) where
+  fromEnum (Constant (BvValue x)) = fromIntegral x
+  fromEnum x = error $ "Enum#fromEnum[Expr BvSort] only supported for constants. But given: " <> show x
+  toEnum = fromInteger . fromIntegral
 
 instance KnownNat n => Integral (Expr (BvSort n)) where
   quot        = IDiv
@@ -788,6 +858,9 @@ instance KnownNat n => Integral (Expr (BvSort n)) where
   {-# INLINE quotRem #-}
   divMod x y  = (div x y, mod x y)
   {-# INLINE divMod #-}
+  toInteger (Constant (BvValue x)) = fromIntegral x
+  toInteger x = error $ "Integer#toInteger[Expr BvSort] only supported for constants. But given: " <> show x
+  {-# INLINE toInteger #-}
 
 instance Boolean (Expr BoolSort) where
   bool = Constant . BoolValue
@@ -853,7 +926,7 @@ instance Render (Value t) where
       | otherwise  -> constRender v
     where
       constRender v = "((as const " <> render (goSing arr) <> ") " <> render (wrapValue v) <> ")"
-      goSing :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => ConstArray (HaskellType k) (HaskellType v) -> SSMTSort (ArraySort k v)
+      goSing :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => ConstArray (HaskellType k) (HaskellType v) -> SSMTSort (ArraySort k v)
       goSing _ = sortSing @(ArraySort k v)
   render (StringValue x) = "\"" <> render x <> "\""
 
@@ -904,8 +977,8 @@ instance KnownSMTSort t => Render (Expr t) where
   render (BvShL x y)        = renderBinary "bvshl"  (render x) (render y)
   render (BvLShR x y)       = renderBinary "bvlshr" (render x) (render y)
   render (BvConcat x y)     = renderBinary "concat" (render x) (render y)
-  render (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left"  :: Builder) (render (natVal i))) (render x)
-  render (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (render (natVal i))) (render x)
+  render (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left"  :: Builder) (render $ toInteger i)) (render x)
+  render (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (render $ toInteger i)) (render x)
 
   render (ArrSelect a i)    = renderBinary  "select" (render a) (render i)
   render (ArrStore a i v)   = renderTernary "store"  (render a) (render i) (render v)
@@ -979,7 +1052,7 @@ instance Snoc (Expr StringSort) (Expr StringSort) (Expr StringSort) (Expr String
 type instance Index   (Expr (ArraySort k v)) = Expr k
 type instance IxValue (Expr (ArraySort k v)) = Expr v
 
-instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Ixed (Expr (ArraySort k v)) where
+instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => Ixed (Expr (ArraySort k v)) where
   ix i f arr = f (select arr i) <&> store arr i
 
 -- | __Caution for quantified expressions:__ 'uniplate1' will only be applied if quantification has taken place already.
@@ -1173,3 +1246,14 @@ instance GNFData Expr where
     ForAll (Just qv) f   -> grnf $ f $ Var qv
     Exists Nothing _     -> ()
     Exists (Just qv) f   -> grnf $ f $ Var qv
+
+instance Eq (Expr t) where
+  (==) = defaultEq
+
+instance Ord (Expr t) where
+  compare = defaultCompare
+
+instance GEq Expr where
+  geq = defaultGeq
+
+instance GCompare Expr where

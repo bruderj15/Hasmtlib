@@ -15,6 +15,7 @@ import Language.Hasmtlib.Boolean
 import Data.Kind
 import Data.Coerce
 import qualified Data.List as List
+import Data.Bits hiding (And, Xor, xor)
 import Data.Map (Map)
 import Data.Sequence (Seq)
 import Data.IntMap as IM hiding (foldl)
@@ -117,8 +118,8 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (BvShL x y)        = join $ bvShL <$> decode sol x <*> decode sol y
   decode sol (BvLShR x y)       = join $ bvLShR <$> decode sol x <*> decode sol y
   decode sol (BvConcat x y)     = bvConcat <$> decode sol x <*> decode sol y
-  decode sol (BvRotL i x)       = bvRotL i <$> decode sol x
-  decode sol (BvRotR i x)       = bvRotR i <$> decode sol x
+  decode sol (BvRotL i x)       = rotateL <$> decode sol x <*> pure (fromIntegral i)
+  decode sol (BvRotR i x)       = rotateR <$> decode sol x <*> pure (fromIntegral i)
   decode sol (ArrSelect i arr)  = arrSelect <$> decode sol i <*> decode sol arr
   decode sol (ArrStore i x arr) = arrStore <$> decode sol i <*> decode sol x <*> decode sol arr
   decode sol (StrConcat x y)         = (<>) <$> decode sol x <*> decode sol y
