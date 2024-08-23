@@ -20,8 +20,8 @@ module Language.Hasmtlib.Type.Expr
 where
 
 import Prelude hiding (not, and, or, any, all, (&&), (||))
-import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Internal.Uniplate1
+import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Value
@@ -30,6 +30,7 @@ import Data.GADT.Compare
 import Data.GADT.DeepSeq
 import Data.Map hiding (toList)
 import Data.Coerce
+import Data.Proxy
 import Data.Int
 import Data.Word
 import Data.Void
@@ -834,6 +835,26 @@ instance Bits.Bits (Expr BoolSort) where
   rotateR b _ = b
   popCount (Constant (BoolValue b)) = if b then 1 else 0
   popCount sb = error $ "Bits#popCount[Expr BoolSort] is only supported for constants. Given: " <> show sb
+
+-- | This instance is __partial__ for 'testBit' and 'popCount', it's only intended for use with constants ('Constant').
+instance KnownNat n => Bits.Bits (Expr (BvSort n)) where
+  (.&.) = And
+  (.|.) = Or
+  xor = Xor
+  complement = Not
+  zeroBits = false
+  bit = Constant . BvValue . Bits.bit
+  testBit (Constant (BvValue b)) i = Bits.testBit b i
+  testBit sb _ = error $ "Bits#testBit[Expr BvSort] is only supported for constants. Given: " <> show sb
+  bitSizeMaybe _ = Just $ fromIntegral $ natVal $ Proxy @n
+  bitSize _ = fromIntegral $ natVal $ Proxy @n
+  isSigned _ = False
+  shiftL b i = BvShL b (fromIntegral i)
+  shiftR b i = BvLShR b (fromIntegral i)
+  rotateL b i = BvRotL i b
+  rotateR b i = BvRotR i b
+  popCount (Constant (BvValue b)) = Bits.popCount b
+  popCount sb = error $ "Bits#popCount[Expr BvSort] is only supported for constants. Given: " <> show sb
 
 instance Semigroup (Expr StringSort) where
   (<>) = StrConcat
