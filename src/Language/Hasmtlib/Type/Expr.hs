@@ -715,7 +715,7 @@ instance Real (Expr IntSort) where
   toRational x = error $ "Real#toRational[Expr IntSort] only supported for constants. But given: " <> show x
   {-# INLINE toRational #-}
 
-  -- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
+-- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
 instance Enum (Expr IntSort) where
   fromEnum (Constant (IntValue x)) = fromIntegral x
   fromEnum x = error $ "Enum#fromEnum[Expr IntSort] only supported for constants. But given: " <> show x
@@ -723,7 +723,7 @@ instance Enum (Expr IntSort) where
   toEnum = fromInteger . fromIntegral
   {-# INLINE toEnum #-}
 
-  -- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
+-- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
 instance Integral (Expr IntSort) where
   quot = IDiv
   {-# INLINE quot #-}
@@ -741,13 +741,27 @@ instance Integral (Expr IntSort) where
   toInteger x = error $ "Integer#toInteger[Expr IntSort] only supported for constants. But given: " <> show x
   {-# INLINE toInteger #-}
 
-  -- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
+-- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
+instance Real (Expr RealSort) where
+  toRational (Constant (RealValue x)) = toRational x
+  toRational x = error $ "Real#toRational[Expr RealSort] only supported for constants. But given: " <> show x
+  {-# INLINE toRational #-}
+
+-- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
+instance Enum (Expr RealSort) where
+  fromEnum (Constant (RealValue x)) = fromEnum x
+  fromEnum x = error $ "Enum#fromEnum[Expr RealSort] only supported for constants. But given: " <> show x
+  {-# INLINE fromEnum #-}
+  toEnum = fromInteger . fromIntegral
+  {-# INLINE toEnum #-}
+
+-- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
 instance KnownNat n => Real (Expr (BvSort n)) where
   toRational (Constant (BvValue x)) = fromIntegral x
   toRational x = error $ "Real#toRational[Expr BvSort] only supported for constants. But given: " <> show x
   {-# INLINE toRational #-}
 
-  -- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
+-- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
 instance KnownNat n => Enum (Expr (BvSort n)) where
   fromEnum (Constant (BvValue x)) = fromIntegral x
   fromEnum x = error $ "Enum#fromEnum[Expr BvSort] only supported for constants. But given: " <> show x
@@ -755,7 +769,7 @@ instance KnownNat n => Enum (Expr (BvSort n)) where
   toEnum = fromInteger . fromIntegral
   {-# INLINE toEnum #-}
 
-  -- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
+-- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
 instance KnownNat n => Integral (Expr (BvSort n)) where
   quot        = IDiv
   {-# INLINE quot #-}
