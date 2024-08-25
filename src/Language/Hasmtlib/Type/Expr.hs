@@ -5,23 +5,36 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DerivingStrategies #-}
 
-module Language.Hasmtlib.Type.Expr where
+module Language.Hasmtlib.Type.Expr
+  ( SMTVar(..), varId
+  , Value(..) , unwrapValue, wrapValue
+  , Expr(..), isLeaf
+  , Iteable(..), Equatable(..), Orderable(..), min', max'
+  , equal, distinct
+  , for_all, exists
+  , select, store
+  , bvShL, bvLShR, bvConcat
+  , toRealSort, toIntSort, isIntSort
+  , strLength, strAt, strSubstring, strPrefixOf, strSuffixOf, strContains, strIndexOf, strReplace, strReplaceAll
+  )
+where
 
-import Prelude hiding (Integral(..), not, and, or, any, all, (&&), (||))
-import Language.Hasmtlib.Internal.Render
+import Prelude hiding (not, and, or, any, all, (&&), (||))
 import Language.Hasmtlib.Internal.Uniplate1
+import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.SMTSort
-import Language.Hasmtlib.Integraled
+import Language.Hasmtlib.Type.Value
 import Language.Hasmtlib.Boolean
 import Data.GADT.Compare
 import Data.GADT.DeepSeq
 import Data.Map hiding (toList)
-import Data.Proxy
 import Data.Coerce
+import Data.Proxy
 import Data.Int
 import Data.Word
 import Data.Void
+import qualified Data.Bits as Bits
 import Data.Sequence (Seq)
 import Data.Tree (Tree)
 import Data.Monoid (Sum, Product, First, Last, Dual)
@@ -44,83 +57,33 @@ newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int }
   deriving newtype (Eq, Ord)
 $(makeLenses ''SMTVar)
 
--- | A wrapper for values of 'SMTSort's.
-data Value (t :: SMTSort) where
-  IntValue    :: HaskellType IntSort    -> Value IntSort
-  RealValue   :: HaskellType RealSort   -> Value RealSort
-  BoolValue   :: HaskellType BoolSort   -> Value BoolSort
-  BvValue     :: KnownNat n => HaskellType (BvSort n) -> Value (BvSort n)
-  ArrayValue  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
-  StringValue :: HaskellType StringSort -> Value StringSort
-
-deriving instance Eq (HaskellType t) => Eq (Value t)
-deriving instance Ord (HaskellType t) => Ord (Value t)
-
-instance GEq Value where
-  geq (BoolValue x) (BoolValue y)   = if x == y then Just Refl else Nothing
-  geq (IntValue x) (IntValue y)     = if x == y then Just Refl else Nothing
-  geq (RealValue x) (RealValue y)   = if x == y then Just Refl else Nothing
-  geq (BvValue x) (BvValue y)       = case cmpNat x y of
-    EQI -> if x == y then Just Refl else Nothing
-    _   -> Nothing
-  geq ax@(ArrayValue x) ay@(ArrayValue y) = case geq (sortSing' ax) (sortSing' ay) of
-    Nothing -> Nothing
-    Just Refl -> if x == y then Just Refl else Nothing
-  geq (StringValue x) (StringValue y) = if x == y then Just Refl else Nothing
-  geq _ _ = Nothing
-
--- | Unwrap a value from 'Value'.
-unwrapValue :: Value t -> HaskellType t
-unwrapValue (IntValue  v)   = v
-unwrapValue (RealValue v)   = v
-unwrapValue (BoolValue v)   = v
-unwrapValue (BvValue   v)   = v
-unwrapValue (ArrayValue v)  = v
-unwrapValue (StringValue v) = v
-{-# INLINEABLE unwrapValue #-}
-
--- | Wrap a value into 'Value'.
-wrapValue :: forall t. KnownSMTSort t => HaskellType t -> Value t
-wrapValue = case sortSing @t of
-  SIntSort       -> IntValue
-  SRealSort      -> RealValue
-  SBoolSort      -> BoolValue
-  SBvSort _      -> BvValue
-  SArraySort _ _ -> ArrayValue
-  SStringSort    -> StringValue
-{-# INLINEABLE wrapValue #-}
-
--- | An existential wrapper that hides some known 'SMTSort'.
-type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f
-
--- | Am SMT expression.
---   For internal use only.
---   For building expressions use the corresponding instances (Num, Boolean, ...).
+-- | An SMT-Expression.
+--   For building expressions use the corresponding instances: 'Boolean', 'Num', 'Equatable', ...
+--
+--   With a lot of criminal energy you may build invalid expressions regarding the SMTLib Version 2.6 - Specification.
+--   Therefore it is highly recommended to rely on the instances.
 data Expr (t :: SMTSort) where
-  Var       :: SMTVar t -> Expr t
-  Constant  :: Value  t -> Expr t
-
+  Var       :: KnownSMTSort t => SMTVar t -> Expr t
+  Constant  :: Value t -> Expr t
   Plus      :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
+  Minus     :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
   Neg       :: Num (HaskellType t) => Expr t -> Expr t
   Mul       :: Num (HaskellType t) => Expr t -> Expr t -> Expr t
   Abs       :: Num (HaskellType t) => Expr t -> Expr t
-  Mod       :: Expr IntSort  -> Expr IntSort  -> Expr IntSort
-  IDiv      :: Expr IntSort  -> Expr IntSort  -> Expr IntSort
+  Mod       :: Integral (HaskellType t) => Expr t -> Expr t  -> Expr t
+  IDiv      :: Integral (HaskellType t) => Expr t -> Expr t  -> Expr t
   Div       :: Expr RealSort -> Expr RealSort -> Expr RealSort
-
   LTH       :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
   LTHE      :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
   EQU       :: (Eq (HaskellType t), KnownSMTSort t, KnownNat n) => V.Vector (n + 2) (Expr t) -> Expr BoolSort
   Distinct  :: (Eq (HaskellType t), KnownSMTSort t, KnownNat n) => V.Vector (n + 2) (Expr t) -> Expr BoolSort
   GTHE      :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
   GTH       :: (Ord (HaskellType t), KnownSMTSort t) => Expr t -> Expr t -> Expr BoolSort
-
   Not       :: Boolean (HaskellType t) => Expr t -> Expr t
   And       :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
   Or        :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
   Impl      :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
   Xor       :: Boolean (HaskellType t) => Expr t -> Expr t -> Expr t
-
   Pi        :: Expr RealSort
   Sqrt      :: Expr RealSort -> Expr RealSort
   Exp       :: Expr RealSort -> Expr RealSort
@@ -130,38 +93,19 @@ data Expr (t :: SMTSort) where
   Asin      :: Expr RealSort -> Expr RealSort
   Acos      :: Expr RealSort -> Expr RealSort
   Atan      :: Expr RealSort -> Expr RealSort
-
   ToReal    :: Expr IntSort  -> Expr RealSort
   ToInt     :: Expr RealSort -> Expr IntSort
   IsInt     :: Expr RealSort -> Expr BoolSort
-
   Ite       :: Expr BoolSort -> Expr t -> Expr t -> Expr t
-
-  BvNot     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n)
-  BvAnd     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvOr      :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvXor     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvNand    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvNor     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvNeg     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n)
-  BvAdd     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvSub     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvMul     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvuDiv    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
-  BvuRem    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvShL     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvLShR    :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr (BvSort n)
   BvConcat  :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
-  BvRotL    :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
-  BvRotR    :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
-  BvuLT     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
-  BvuLTHE   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
-  BvuGTHE   :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
-  BvuGT     :: KnownNat n => Expr (BvSort n) -> Expr (BvSort n) -> Expr BoolSort
-
-  ArrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
+  BvRotL    :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
+  BvRotR    :: (KnownNat n, Integral a) => a -> Expr (BvSort n) -> Expr (BvSort n)
+  ArrSelect :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
   ArrStore  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
-
   StrConcat     :: Expr StringSort -> Expr StringSort -> Expr StringSort
   StrLength     :: Expr StringSort -> Expr IntSort
   StrLT         :: Expr StringSort -> Expr StringSort -> Expr BoolSort
@@ -387,13 +331,13 @@ instance Orderable (Expr RealSort) where
   {-# INLINE (>?) #-}
 
 instance KnownNat n => Orderable (Expr (BvSort n)) where
-  (<?)     = BvuLT
+  (<?)     = LTH
   {-# INLINE (<?) #-}
-  (<=?)    = BvuLTHE
+  (<=?)    = LTHE
   {-# INLINE (<=?) #-}
-  (>=?)    = BvuGTHE
+  (>=?)    = GTHE
   {-# INLINE (>=?) #-}
-  (>?)     = BvuGT
+  (>?)     = GTH
   {-# INLINE (>?) #-}
 
 -- | Lexicographic ordering for '(<?)' and reflexive closure of lexicographic ordering for '(<=?)'
@@ -551,7 +495,7 @@ exists = Exists Nothing
 {-# INLINE exists #-}
 
 -- | Select a value from an array.
-select :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
+select :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => Expr (ArraySort k v) -> Expr k -> Expr v
 select = ArrSelect
 {-# INLINE select #-}
 
@@ -574,16 +518,6 @@ bvLShR   = BvLShR
 bvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
 bvConcat = BvConcat
 {-# INLINE bvConcat #-}
-
--- | Rotate bitvector left
-bvRotL   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
-bvRotL   = BvRotL
-{-# INLINE bvRotL #-}
-
--- | Rotate bitvector right
-bvRotR   :: (KnownNat n, KnownNat i, KnownNat (Mod i n)) => Proxy i -> Expr (BvSort n) -> Expr (BvSort n)
-bvRotR   = BvRotR
-{-# INLINE bvRotR #-}
 
 -- | Converts an expression of type 'IntSort' to type 'RealSort'.
 toRealSort :: Expr IntSort  -> Expr RealSort
@@ -672,7 +606,7 @@ instance Num (Expr IntSort) where
    {-# INLINE (+) #-}
    x - (Constant (IntValue 0)) = x
    (Constant (IntValue x)) - (Constant (IntValue y)) = Constant (IntValue (x - y))
-   x - y = Plus x (Neg y)
+   x - y = Minus x y
    {-# INLINE (-) #-}
    (Constant (IntValue 0)) * _ = 0
    _ * (Constant (IntValue 0)) = 0
@@ -698,7 +632,7 @@ instance Num (Expr RealSort) where
    {-# INLINE (+) #-}
    x - (Constant (RealValue 0)) = x
    (Constant (RealValue x)) - (Constant (RealValue y)) = Constant (RealValue (x - y))
-   x - y = Plus x (Neg y)
+   x - y = Minus x y
    {-# INLINE (-) #-}
    (Constant (RealValue 0)) * _ = 0
    _ * (Constant (RealValue 0)) = 0
@@ -720,18 +654,18 @@ instance KnownNat n => Num (Expr (BvSort n)) where
    (Constant (BvValue 0)) + y = y
    x + (Constant (BvValue 0)) = x
    (Constant (BvValue x)) + (Constant (BvValue y)) = Constant (BvValue (x + y))
-   x + y = BvAdd x y
+   x + y = Plus x y
    {-# INLINE (+) #-}
    x - (Constant (BvValue 0)) = x
    (Constant (BvValue x)) - (Constant (BvValue y)) = Constant (BvValue (x - y))
-   x - y = BvSub x y
+   x - y = Minus x y
    {-# INLINE (-) #-}
    (Constant (BvValue 0)) * _ = 0
    _ * (Constant (BvValue 0)) = 0
    (Constant (BvValue 1)) * y = y
    x * (Constant (BvValue 1)) = x
    (Constant (BvValue x)) * (Constant (BvValue y)) = Constant (BvValue (x * y))
-   x * y = BvMul x y
+   x * y = Mul x y
    {-# INLINE (*) #-}
    abs         = id
    {-# INLINE abs #-}
@@ -775,7 +709,22 @@ instance Floating (Expr RealSort) where
     acosh = error "SMT-Solvers currently do not support acosh"
     atanh = error "SMT-Solvers currently do not support atanh"
 
-instance Integraled (Expr IntSort) where
+-- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
+instance Real (Expr IntSort) where
+  toRational (Constant (IntValue x)) = fromIntegral x
+  toRational x = error $ "Real#toRational[Expr IntSort] only supported for constants. But given: " <> show x
+  {-# INLINE toRational #-}
+
+-- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
+instance Enum (Expr IntSort) where
+  fromEnum (Constant (IntValue x)) = fromIntegral x
+  fromEnum x = error $ "Enum#fromEnum[Expr IntSort] only supported for constants. But given: " <> show x
+  {-# INLINE fromEnum #-}
+  toEnum = fromInteger . fromIntegral
+  {-# INLINE toEnum #-}
+
+-- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
+instance Integral (Expr IntSort) where
   quot = IDiv
   {-# INLINE quot #-}
   rem  = Mod
@@ -788,20 +737,55 @@ instance Integraled (Expr IntSort) where
   {-# INLINE quotRem #-}
   divMod x y  = (div x y, mod x y)
   {-# INLINE divMod #-}
+  toInteger (Constant (IntValue x)) = x
+  toInteger x = error $ "Integer#toInteger[Expr IntSort] only supported for constants. But given: " <> show x
+  {-# INLINE toInteger #-}
 
-instance KnownNat n => Integraled (Expr (BvSort n)) where
-  quot        = BvuDiv
+-- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
+instance Real (Expr RealSort) where
+  toRational (Constant (RealValue x)) = toRational x
+  toRational x = error $ "Real#toRational[Expr RealSort] only supported for constants. But given: " <> show x
+  {-# INLINE toRational #-}
+
+-- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
+instance Enum (Expr RealSort) where
+  fromEnum (Constant (RealValue x)) = fromEnum x
+  fromEnum x = error $ "Enum#fromEnum[Expr RealSort] only supported for constants. But given: " <> show x
+  {-# INLINE fromEnum #-}
+  toEnum = fromInteger . fromIntegral
+  {-# INLINE toEnum #-}
+
+-- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
+instance KnownNat n => Real (Expr (BvSort n)) where
+  toRational (Constant (BvValue x)) = fromIntegral x
+  toRational x = error $ "Real#toRational[Expr BvSort] only supported for constants. But given: " <> show x
+  {-# INLINE toRational #-}
+
+-- | This instance is __partial__ for 'toEnum', it's only intended for use with constants ('Constant').
+instance KnownNat n => Enum (Expr (BvSort n)) where
+  fromEnum (Constant (BvValue x)) = fromIntegral x
+  fromEnum x = error $ "Enum#fromEnum[Expr BvSort] only supported for constants. But given: " <> show x
+  {-# INLINE fromEnum #-}
+  toEnum = fromInteger . fromIntegral
+  {-# INLINE toEnum #-}
+
+-- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
+instance KnownNat n => Integral (Expr (BvSort n)) where
+  quot        = IDiv
   {-# INLINE quot #-}
-  rem         = BvuRem
+  rem         = Mod
   {-# INLINE rem #-}
-  div         = BvuDiv
+  div         = IDiv
   {-# INLINE div #-}
-  mod         = BvuRem
+  mod         = Mod
   {-# INLINE mod #-}
   quotRem x y = (quot x y, rem x y)
   {-# INLINE quotRem #-}
   divMod x y  = (div x y, mod x y)
   {-# INLINE divMod #-}
+  toInteger (Constant (BvValue x)) = fromIntegral x
+  toInteger x = error $ "Integer#toInteger[Expr BvSort] only supported for constants. But given: " <> show x
+  {-# INLINE toInteger #-}
 
 instance Boolean (Expr BoolSort) where
   bool = Constant . BoolValue
@@ -820,22 +804,104 @@ instance Boolean (Expr BoolSort) where
 instance KnownNat n => Boolean (Expr (BvSort n)) where
   bool = Constant . BvValue . bool
   {-# INLINE bool #-}
-  (&&) = BvAnd
+  (&&) = And
   {-# INLINE (&&) #-}
-  (||) = BvOr
+  (||) = Or
   {-# INLINE (||) #-}
-  not  = BvNot
+  not  = Not
   {-# INLINE not #-}
-  xor  = BvXor
+  xor  = Xor
   {-# INLINE xor #-}
 
 instance Bounded (Expr BoolSort) where
   minBound = false
+  {-# INLINE minBound #-}
   maxBound = true
+  {-# INLINE maxBound #-}
 
 instance KnownNat n => Bounded (Expr (BvSort n)) where
   minBound = Constant $ BvValue minBound
+  {-# INLINE minBound #-}
   maxBound = Constant $ BvValue maxBound
+  {-# INLINE maxBound #-}
+
+-- | This instance is __partial__ for 'testBit' and 'popCount', it's only intended for use with constants ('Constant').
+instance Bits.Bits (Expr BoolSort) where
+  (.&.) = And
+  {-# INLINE (.&.) #-}
+  (.|.) = Or
+  {-# INLINE (.|.) #-}
+  xor = Xor
+  {-# INLINE xor #-}
+  complement = Not
+  {-# INLINE complement #-}
+  zeroBits = false
+  {-# INLINE zeroBits #-}
+  bit _ = true
+  {-# INLINE bit #-}
+  setBit _ _ = true
+  {-# INLINE setBit #-}
+  clearBit _ _ = false
+  {-# INLINE clearBit #-}
+  complementBit b _ = Not b
+  {-# INLINE complementBit #-}
+  testBit (Constant (BoolValue b)) _ = b
+  testBit sb _ = error $ "Bits#testBit[Expr BoolSort] is only supported for constants. Given: " <> show sb
+  {-# INLINE testBit #-}
+  bitSizeMaybe _ = Just 1
+  {-# INLINE bitSizeMaybe #-}
+  bitSize _ = 1
+  {-# INLINE bitSize #-}
+  isSigned _ = False
+  {-# INLINE isSigned #-}
+  shiftL b 0 = b
+  shiftL _ _ = false
+  {-# INLINE shiftL #-}
+  shiftR b 0 = b
+  shiftR _ _ = false
+  {-# INLINE shiftR #-}
+  rotateL b _ = b
+  {-# INLINE rotateL #-}
+  rotateR b _ = b
+  {-# INLINE rotateR #-}
+  popCount (Constant (BoolValue b)) = if b then 1 else 0
+  popCount sb = error $ "Bits#popCount[Expr BoolSort] is only supported for constants. Given: " <> show sb
+  {-# INLINE popCount #-}
+
+-- | This instance is __partial__ for 'testBit' and 'popCount', it's only intended for use with constants ('Constant').
+instance KnownNat n => Bits.Bits (Expr (BvSort n)) where
+  (.&.) = And
+  {-# INLINE (.&.) #-}
+  (.|.) = Or
+  {-# INLINE (.|.) #-}
+  xor = Xor
+  {-# INLINE xor #-}
+  complement = Not
+  {-# INLINE complement #-}
+  zeroBits = false
+  {-# INLINE zeroBits #-}
+  bit = Constant . BvValue . Bits.bit
+  {-# INLINE bit #-}
+  testBit (Constant (BvValue b)) i = Bits.testBit b i
+  testBit sb _ = error $ "Bits#testBit[Expr BvSort] is only supported for constants. Given: " <> show sb
+  {-# INLINE testBit #-}
+  bitSizeMaybe _ = Just $ fromIntegral $ natVal $ Proxy @n
+  {-# INLINE bitSizeMaybe #-}
+  bitSize _ = fromIntegral $ natVal $ Proxy @n
+  {-# INLINE bitSize #-}
+  isSigned _ = False
+  {-# INLINE isSigned #-}
+  shiftL b i = BvShL b (fromIntegral i)
+  {-# INLINE shiftL #-}
+  shiftR b i = BvLShR b (fromIntegral i)
+  {-# INLINE shiftR #-}
+  rotateL b i = BvRotL i b
+  {-# INLINE rotateL #-}
+  rotateR b i = BvRotR i b
+  {-# INLINE rotateR #-}
+  popCount (Constant (BvValue b)) = Bits.popCount b
+  popCount sb = error $ "Bits#popCount[Expr BvSort] is only supported for constants. Given: " <> show sb
+  {-# INLINE popCount #-}
 
 instance Semigroup (Expr StringSort) where
   (<>) = StrConcat
@@ -867,7 +933,7 @@ instance Render (Value t) where
       | otherwise  -> constRender v
     where
       constRender v = "((as const " <> render (goSing arr) <> ") " <> render (wrapValue v) <> ")"
-      goSing :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => ConstArray (HaskellType k) (HaskellType v) -> SSMTSort (ArraySort k v)
+      goSing :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => ConstArray (HaskellType k) (HaskellType v) -> SSMTSort (ArraySort k v)
       goSing _ = sortSing @(ArraySort k v)
   render (StringValue x) = "\"" <> render x <> "\""
 
@@ -875,26 +941,27 @@ instance KnownSMTSort t => Render (Expr t) where
   render (Var v)      = render v
   render (Constant c) = render c
 
-  render (Plus x y)   = renderBinary "+" x y
-  render (Neg x)      = renderUnary  "-" x
-  render (Mul x y)    = renderBinary "*" x y
+  render (Plus x y)   = renderBinary (case sortSing' x of SBvSort _ -> "bvadd" ; _ -> "+") x y
+  render (Minus x y)  = renderBinary (case sortSing' x of SBvSort _ -> "bvsub" ; _ -> "-") x y
+  render (Neg x)      = renderUnary  (case sortSing' x of SBvSort _ -> "bvneg" ; _ -> "-") x
+  render (Mul x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvmul" ; _ -> "*") x y
   render (Abs x)      = renderUnary  "abs" x
-  render (Mod x y)    = renderBinary "mod" x y
-  render (IDiv x y)   = renderBinary "div" x y
+  render (Mod x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvurem" ; _ -> "mod") x y
+  render (IDiv x y)   = renderBinary (case sortSing' x of SBvSort _ -> "bvudiv" ; _ -> "div") x y
   render (Div x y)    = renderBinary "/" x y
 
-  render (LTH x y)    = renderBinary "<" x y
-  render (LTHE x y)   = renderBinary "<=" x y
+  render (LTH x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvult" ; _ -> "<") x y
+  render (LTHE x y)   = renderBinary (case sortSing' x of SBvSort _ -> "bvule" ; _ -> "<=") x y
   render (EQU xs)     = renderNary "=" $ V.toList xs
   render (Distinct xs)= renderNary "distinct" $ V.toList xs
-  render (GTHE x y)   = renderBinary ">=" x y
-  render (GTH x y)    = renderBinary ">" x y
+  render (GTHE x y)   = renderBinary (case sortSing' x of SBvSort _ -> "bvuge" ; _ -> ">=") x y
+  render (GTH x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvugt" ; _ -> ">") x y
 
-  render (Not x)      = renderUnary  "not" x
-  render (And x y)    = renderBinary "and" x y
-  render (Or x y)     = renderBinary "or" x y
+  render (Not x)      = renderUnary  (case sortSing' x of SBvSort _ -> "bvnot" ; _ -> "not") x
+  render (And x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvand" ; _ -> "and") x y
+  render (Or x y)     = renderBinary (case sortSing' x of SBvSort _ -> "bvor" ; _ -> "or") x y
   render (Impl x y)   = renderBinary "=>" x y
-  render (Xor x y)    = renderBinary "xor" x y
+  render (Xor x y)    = renderBinary (case sortSing' x of SBvSort _ -> "bvxor" ; _ -> "xor") x y
 
   render Pi           = "real.pi"
   render (Sqrt x)     = renderUnary "sqrt" x
@@ -912,27 +979,13 @@ instance KnownSMTSort t => Render (Expr t) where
 
   render (Ite p t f)  = renderTernary "ite" p t f
 
-  render (BvNot x)          = renderUnary  "bvnot"  (render x)
-  render (BvAnd x y)        = renderBinary "bvand"  (render x) (render y)
-  render (BvOr x y)         = renderBinary "bvor"   (render x) (render y)
-  render (BvXor x y)        = renderBinary "bvxor"  (render x) (render y)
   render (BvNand x y)       = renderBinary "bvnand" (render x) (render y)
   render (BvNor x y)        = renderBinary "bvnor"  (render x) (render y)
-  render (BvNeg x)          = renderUnary  "bvneg"  (render x)
-  render (BvAdd x y)        = renderBinary "bvadd"  (render x) (render y)
-  render (BvSub x y)        = renderBinary "bvsub"  (render x) (render y)
-  render (BvMul x y)        = renderBinary "bvmul"  (render x) (render y)
-  render (BvuDiv x y)       = renderBinary "bvudiv" (render x) (render y)
-  render (BvuRem x y)       = renderBinary "bvurem" (render x) (render y)
   render (BvShL x y)        = renderBinary "bvshl"  (render x) (render y)
   render (BvLShR x y)       = renderBinary "bvlshr" (render x) (render y)
   render (BvConcat x y)     = renderBinary "concat" (render x) (render y)
-  render (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left"  :: Builder) (render (natVal i))) (render x)
-  render (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (render (natVal i))) (render x)
-  render (BvuLT x y)        = renderBinary "bvult"  (render x) (render y)
-  render (BvuLTHE x y)      = renderBinary "bvule"  (render x) (render y)
-  render (BvuGTHE x y)      = renderBinary "bvuge"  (render x) (render y)
-  render (BvuGT x y)        = renderBinary "bvugt"  (render x) (render y)
+  render (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left"  :: Builder) (render $ toInteger i)) (render x)
+  render (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (render $ toInteger i)) (render x)
 
   render (ArrSelect a i)    = renderBinary  "select" (render a) (render i)
   render (ArrStore a i v)   = renderTernary "store"  (render a) (render i) (render v)
@@ -1006,7 +1059,7 @@ instance Snoc (Expr StringSort) (Expr StringSort) (Expr StringSort) (Expr String
 type instance Index   (Expr (ArraySort k v)) = Expr k
 type instance IxValue (Expr (ArraySort k v)) = Expr v
 
-instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Ixed (Expr (ArraySort k v)) where
+instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => Ixed (Expr (ArraySort k v)) where
   ix i f arr = f (select arr i) <&> store arr i
 
 -- | __Caution for quantified expressions:__ 'uniplate1' will only be applied if quantification has taken place already.
@@ -1014,6 +1067,7 @@ instance Uniplate1 Expr '[KnownSMTSort] where
   uniplate1 _ expr@(Var _)            = pure expr
   uniplate1 _ expr@(Constant _)       = pure expr
   uniplate1 f (Plus x y)              = Plus <$> f x <*> f y
+  uniplate1 f (Minus x y)             = Minus <$> f x <*> f y
   uniplate1 f (Neg x)                 = Neg <$> f x
   uniplate1 f (Mul x y)               = Mul <$> f x <*> f y
   uniplate1 f (Abs x)                 = Abs <$> f x
@@ -1044,27 +1098,13 @@ instance Uniplate1 Expr '[KnownSMTSort] where
   uniplate1 f (ToInt x)               = ToInt <$> f x
   uniplate1 f (IsInt x)               = IsInt <$> f x
   uniplate1 f (Ite p t n)             = Ite <$> f p <*> f t <*> f n
-  uniplate1 f (BvNot x)               = BvNot <$> f x
-  uniplate1 f (BvAnd x y)             = BvAnd <$> f x <*> f y
-  uniplate1 f (BvOr x y)              = BvOr <$> f x <*> f y
-  uniplate1 f (BvXor x y)             = BvXor <$> f x <*> f y
   uniplate1 f (BvNand x y)            = BvNand <$> f x <*> f y
   uniplate1 f (BvNor x y)             = BvNor <$> f x <*> f y
-  uniplate1 f (BvNeg x)               = BvNeg <$> f x
-  uniplate1 f (BvAdd x y)             = BvAdd <$> f x <*> f y
-  uniplate1 f (BvSub x y)             = BvSub <$> f x <*> f y
-  uniplate1 f (BvMul x y)             = BvMul <$> f x <*> f y
-  uniplate1 f (BvuDiv x y)            = BvuDiv <$> f x <*> f y
-  uniplate1 f (BvuRem x y)            = BvuRem <$> f x <*> f y
   uniplate1 f (BvShL x y)             = BvShL <$> f x <*> f y
   uniplate1 f (BvLShR x y)            = BvLShR <$> f x <*> f y
   uniplate1 f (BvConcat x y)          = BvConcat <$> f x <*> f y
   uniplate1 f (BvRotL i x)            = BvRotL i <$> f x
   uniplate1 f (BvRotR i x)            = BvRotR i <$> f x
-  uniplate1 f (BvuLT x y)             = BvuLT <$> f x <*> f y
-  uniplate1 f (BvuLTHE x y)           = BvuLTHE <$> f x <*> f y
-  uniplate1 f (BvuGTHE x y)           = BvuGTHE <$> f x <*> f y
-  uniplate1 f (BvuGT x y)             = BvuGT <$> f x <*> f y
   uniplate1 f (ArrSelect i arr)       = ArrSelect i <$> f arr
   uniplate1 f (ArrStore i x arr)      = ArrStore i <$> f x <*> f arr
   uniplate1 f (StrConcat x y)         = StrConcat <$> f x <*> f y
@@ -1095,6 +1135,7 @@ instance KnownSMTSort t => Plated (Expr t) where
           Var _                -> pure expr
           Constant _           -> pure expr
           Plus x y             -> Plus <$> tryPlate f' x <*> tryPlate f' y
+          Minus x y            -> Minus <$> tryPlate f' x <*> tryPlate f' y
           Neg x                -> Neg  <$> tryPlate f' x
           Mul x y              -> Mul  <$> tryPlate f' x <*> tryPlate f' y
           Abs x                -> Abs  <$> tryPlate f' x
@@ -1125,27 +1166,13 @@ instance KnownSMTSort t => Plated (Expr t) where
           ToInt x              -> ToInt  <$> tryPlate f' x
           IsInt x              -> IsInt  <$> tryPlate f' x
           Ite p t n            -> Ite    <$> tryPlate f' p <*> tryPlate f' t <*> tryPlate f' n
-          BvNot x              -> BvNot  <$> tryPlate f' x
-          BvAnd x y            -> BvAnd  <$> tryPlate f' x <*> tryPlate f' y
-          BvOr x y             -> BvOr   <$> tryPlate f' x <*> tryPlate f' y
-          BvXor x y            -> BvXor  <$> tryPlate f' x <*> tryPlate f' y
           BvNand x y           -> BvNand <$> tryPlate f' x <*> tryPlate f' y
           BvNor x y            -> BvNor  <$> tryPlate f' x <*> tryPlate f' y
-          BvNeg x              -> BvNeg  <$> tryPlate f' x
-          BvAdd x y            -> BvAdd  <$> tryPlate f' x <*> tryPlate f' y
-          BvSub x y            -> BvSub  <$> tryPlate f' x <*> tryPlate f' y
-          BvMul x y            -> BvMul  <$> tryPlate f' x <*> tryPlate f' y
-          BvuDiv x y           -> BvuDiv <$> tryPlate f' x <*> tryPlate f' y
-          BvuRem x y           -> BvuRem <$> tryPlate f' x <*> tryPlate f' y
           BvShL x y            -> BvShL  <$> tryPlate f' x <*> tryPlate f' y
           BvLShR x y           -> BvLShR <$> tryPlate f' x <*> tryPlate f' y
           BvConcat x y         -> BvConcat <$> tryPlate f' x <*> tryPlate f' y
           BvRotL i x           -> BvRotL i <$> tryPlate f' x
           BvRotR i x           -> BvRotR i <$> tryPlate f' x
-          BvuLT x y            -> BvuLT    <$> tryPlate f' x <*> tryPlate f' y
-          BvuLTHE x y          -> BvuLTHE  <$> tryPlate f' x <*> tryPlate f' y
-          BvuGTHE x y          -> BvuGTHE  <$> tryPlate f' x <*> tryPlate f' y
-          BvuGT x y            -> BvuGT    <$> tryPlate f' x <*> tryPlate f' y
           ArrSelect i arr      -> ArrSelect i   <$> tryPlate f' arr
           ArrStore i x arr     -> ArrStore i    <$> tryPlate f' x <*> tryPlate f' arr
           StrConcat x y        -> StrConcat     <$> tryPlate f' x <*> tryPlate f' y
@@ -1170,6 +1197,7 @@ instance GNFData Expr where
     Var (SMTVar vId)     -> vId `seq` ()
     Constant c           -> c `seq` ()
     Plus e1 e2           -> grnf e1 `seq` grnf e2
+    Minus e1 e2          -> grnf e1 `seq` grnf e2
     Neg e                -> grnf e
     Mul e1 e2            -> grnf e1 `seq` grnf e2
     Abs e                -> grnf e
@@ -1200,27 +1228,13 @@ instance GNFData Expr where
     ToInt e              -> grnf e
     IsInt e              -> grnf e
     Ite c e1 e2          -> grnf c `seq` grnf e1 `seq` grnf e2
-    BvNot e              -> grnf e
-    BvAnd e1 e2          -> grnf e1 `seq` grnf e2
-    BvOr e1 e2           -> grnf e1 `seq` grnf e2
-    BvXor e1 e2          -> grnf e1 `seq` grnf e2
     BvNand e1 e2         -> grnf e1 `seq` grnf e2
     BvNor e1 e2          -> grnf e1 `seq` grnf e2
-    BvNeg e              -> grnf e
-    BvAdd e1 e2          -> grnf e1 `seq` grnf e2
-    BvSub e1 e2          -> grnf e1 `seq` grnf e2
-    BvMul e1 e2          -> grnf e1 `seq` grnf e2
-    BvuDiv e1 e2         -> grnf e1 `seq` grnf e2
-    BvuRem e1 e2         -> grnf e1 `seq` grnf e2
     BvShL e1 e2          -> grnf e1 `seq` grnf e2
     BvLShR e1 e2         -> grnf e1 `seq` grnf e2
     BvConcat e1 e2       -> grnf e1 `seq` grnf e2
     BvRotL _ e           -> grnf e
     BvRotR _ e           -> grnf e
-    BvuLT e1 e2          -> grnf e1 `seq` grnf e2
-    BvuLTHE e1 e2        -> grnf e1 `seq` grnf e2
-    BvuGTHE e1 e2        -> grnf e1 `seq` grnf e2
-    BvuGT e1 e2          -> grnf e1 `seq` grnf e2
     ArrSelect e1 e2      -> grnf e1 `seq` grnf e2
     ArrStore e1 e2 e3    -> grnf e1 `seq` grnf e2 `seq` grnf e3
     StrConcat e1 e2      -> grnf e1 `seq` grnf e2
@@ -1239,3 +1253,299 @@ instance GNFData Expr where
     ForAll (Just qv) f   -> grnf $ f $ Var qv
     Exists Nothing _     -> ()
     Exists (Just qv) f   -> grnf $ f $ Var qv
+
+instance Eq (Expr t) where
+  (==) = defaultEq
+
+instance Ord (Expr t) where
+  compare = defaultCompare
+
+instance GEq Expr where
+  geq = defaultGeq
+
+gcomparing :: GCompare f => [(f a, f b)] -> GOrdering a b
+gcomparing [] = GLT
+gcomparing ((x,y):xys) = case gcompare x y of
+  GEQ -> gcomparing xys
+  o -> o
+
+instance GCompare Expr where
+  gcompare (Var v) (Var v') = case gcompare (sortSing' v) (sortSing' v') of
+    GLT -> GLT
+    GEQ -> case compare (coerce @_ @Int v) (coerce v') of
+      LT -> GLT
+      EQ -> GEQ
+      GT -> GGT
+    GGT -> GGT
+  gcompare (Var _) _ = GLT
+  gcompare _ (Var _) = GGT
+  gcompare (Constant c) (Constant c') = gcompare c c'
+  gcompare (Constant _) _ = GLT
+  gcompare _ (Constant _) = GGT
+  gcompare (Plus x y) (Plus x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Plus _ _) _ = GLT
+  gcompare _ (Plus _ _) = GGT
+  gcompare (Minus x y) (Minus x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Minus _ _) _ = GLT
+  gcompare _ (Minus _ _) = GGT
+  gcompare (Neg x) (Neg x') = gcompare x x'
+  gcompare (Neg _) _ = GLT
+  gcompare _ (Neg _) = GGT
+  gcompare (Mul x y) (Mul x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Mul _ _) _ = GLT
+  gcompare _ (Mul _ _) = GGT
+  gcompare (Abs x) (Abs x') = gcompare x x'
+  gcompare (Abs _) _ = GLT
+  gcompare _ (Abs _) = GGT
+  gcompare (Mod x y) (Mod x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Mod _ _) _ = GLT
+  gcompare _ (Mod _ _) = GGT
+  gcompare (IDiv x y) (IDiv x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (IDiv _ _) _ = GLT
+  gcompare _ (IDiv _ _) = GGT
+  gcompare (Div x y) (Div x' y') = gcomparing [(x,x'), (y,y')]
+  gcompare (Div _ _) _ = GLT
+  gcompare _ (Div _ _) = GGT
+  gcompare (LTH x y)               (LTH x' y')             = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (LTH _ _) _ = GLT
+  gcompare _ (LTH _ _) = GGT
+  gcompare (LTHE x y)              (LTHE x' y')            = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (LTHE _ _) _ = GLT
+  gcompare _ (LTHE _ _) = GGT
+  gcompare (EQU (V.toList -> xs))  (EQU (V.toList -> xs')) = case compare (length xs ) (length xs') of
+    LT -> GLT
+    EQ -> case gcomparing $ zip xs xs' of
+      GGT -> GGT
+      GEQ -> GEQ
+      GLT -> GLT
+    GT -> GGT
+  gcompare (EQU _) _ = GLT
+  gcompare _ (EQU _) = GGT
+  gcompare (Distinct (V.toList -> xs)) (Distinct (V.toList -> xs')) = case compare (length xs ) (length xs') of
+    LT -> GLT
+    EQ -> case gcomparing $ zip xs xs' of
+      GGT -> GGT
+      GEQ -> GEQ
+      GLT -> GLT
+    GT -> GGT
+  gcompare (Distinct _) _ = GLT
+  gcompare _ (Distinct _) = GGT
+  gcompare (GTHE x y)              (GTHE x' y')            = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (GTHE _ _) _ = GLT
+  gcompare _ (GTHE _ _) = GGT
+  gcompare (GTH x y)               (GTH x' y')             = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (GTH _ _) _ = GLT
+  gcompare _ (GTH _ _) = GGT
+  gcompare (Not x)                 (Not x')                = gcompare x x'
+  gcompare (Not _) _ = GLT
+  gcompare _ (Not _) = GGT
+  gcompare (And x y)               (And x' y')             = gcomparing [(x,x'), (y,y')]
+  gcompare (And _ _) _ = GLT
+  gcompare _ (And _ _) = GGT
+  gcompare (Or x y)                (Or x' y')              = gcomparing [(x,x'), (y,y')]
+  gcompare (Or _ _) _ = GLT
+  gcompare _ (Or _ _) = GGT
+  gcompare (Impl x y)              (Impl x' y')            = gcomparing [(x,x'), (y,y')]
+  gcompare (Impl _ _) _ = GLT
+  gcompare _ (Impl _ _) = GGT
+  gcompare (Xor x y)               (Xor x' y')             = gcomparing [(x,x'), (y,y')]
+  gcompare (Xor _ _) _ = GLT
+  gcompare _ (Xor _ _) = GGT
+  gcompare Pi                      Pi                      = GEQ
+  gcompare Pi _ = GLT
+  gcompare _ Pi = GGT
+  gcompare (Sqrt x)                (Sqrt x')               = gcompare x x'
+  gcompare (Sqrt _) _ = GLT
+  gcompare _ (Sqrt _) = GGT
+  gcompare (Exp x)                 (Exp x')                = gcompare x x'
+  gcompare (Exp _) _ = GLT
+  gcompare _ (Exp _) = GGT
+  gcompare (Sin x)                 (Sin x')                = gcompare x x'
+  gcompare (Sin _) _ = GLT
+  gcompare _ (Sin _) = GGT
+  gcompare (Cos x)                 (Cos x')                = gcompare x x'
+  gcompare (Cos _) _ = GLT
+  gcompare _ (Cos _) = GGT
+  gcompare (Tan x)                 (Tan x')                = gcompare x x'
+  gcompare (Tan _) _ = GLT
+  gcompare _ (Tan _) = GGT
+  gcompare (Asin x)                (Asin x')               = gcompare x x'
+  gcompare (Asin _) _ = GLT
+  gcompare _ (Asin _) = GGT
+  gcompare (Acos x)                (Acos x')               = gcompare x x'
+  gcompare (Acos _) _ = GLT
+  gcompare _ (Acos _) = GGT
+  gcompare (Atan x)                (Atan x')               = gcompare x x'
+  gcompare (Atan _) _ = GLT
+  gcompare _ (Atan _) = GGT
+  gcompare (ToReal x)              (ToReal x')             = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (ToReal _) _ = GLT
+  gcompare _ (ToReal _) = GGT
+  gcompare (ToInt x)               (ToInt x')              = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (ToInt _) _ = GLT
+  gcompare _ (ToInt _) = GGT
+  gcompare (IsInt x)               (IsInt x')              = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (IsInt _) _ = GLT
+  gcompare _ (IsInt _) = GGT
+  gcompare (Ite p t n)             (Ite p' t' n')          = case gcompare p p' of
+    GLT -> GLT
+    GEQ -> gcomparing [(t,t'), (n,n')]
+    GGT -> GGT
+  gcompare (Ite _ _ _) _ = GLT
+  gcompare _ (Ite _ _ _) = GGT
+  gcompare (BvNand x y)            (BvNand x' y')          = gcomparing [(x,x'), (y,y')]
+  gcompare (BvNand _ _) _ = GLT
+  gcompare _ (BvNand _ _) = GGT
+  gcompare (BvNor x y)             (BvNor x' y')           = gcomparing [(x,x'), (y,y')]
+  gcompare (BvNor _ _) _ = GLT
+  gcompare _ (BvNor _ _) = GGT
+  gcompare (BvShL x y)             (BvShL x' y')           = gcomparing [(x,x'), (y,y')]
+  gcompare (BvShL _ _) _ = GLT
+  gcompare _ (BvShL _ _) = GGT
+  gcompare (BvLShR x y)            (BvLShR x' y')          = gcomparing [(x,x'), (y,y')]
+  gcompare (BvLShR _ _) _ = GLT
+  gcompare _ (BvLShR _ _) = GGT
+  gcompare (BvConcat x y)          (BvConcat x' y')        = case gcompare (sortSing' x) (sortSing' x') of
+    GLT -> GLT
+    GEQ -> case gcompare x x' of
+      GLT -> GLT
+      GEQ -> case gcompare (sortSing' y) (sortSing' y') of
+        GLT -> GLT
+        GEQ -> case gcompare y y' of
+          GLT -> GLT
+          GEQ -> GEQ
+          GGT -> GGT
+        GGT -> GGT
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (BvConcat _ _) _ = GLT
+  gcompare _ (BvConcat _ _) = GGT
+  gcompare (BvRotL i x)            (BvRotL i' x')          = case compare (fromIntegral i :: Integer) (fromIntegral i') of
+    LT -> GLT
+    EQ -> gcompare x x'
+    GT -> GGT
+  gcompare (BvRotL _ _) _ = GLT
+  gcompare _ (BvRotL _ _) = GGT
+  gcompare (BvRotR i x)            (BvRotR i' x')          = case compare (fromIntegral i :: Integer) (fromIntegral i') of
+    LT -> GLT
+    EQ -> gcompare x x'
+    GT -> GGT
+  gcompare (BvRotR _ _) _ = GLT
+  gcompare _ (BvRotR _ _) = GGT
+  gcompare (ArrSelect arr i)       (ArrSelect arr' i')     = case gcompare arr arr' of
+    GLT -> GLT
+    GEQ -> case gcompare i i' of
+      GLT -> GLT
+      GEQ -> GEQ
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (ArrSelect _ _) _ = GLT
+  gcompare _ (ArrSelect _ _) = GGT
+  gcompare (ArrStore arr k v)      (ArrStore arr' k' v')   = case gcompare arr arr' of
+    GLT -> GLT
+    GEQ -> case gcompare k k' of
+      GLT -> GLT
+      GEQ -> case gcompare v v' of
+        GLT -> GLT
+        GEQ -> GEQ
+        GGT -> GGT
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (ArrStore _ _ _) _ = GLT
+  gcompare _ (ArrStore _ _ _) = GGT
+  gcompare (StrConcat x y)         (StrConcat x' y')       = gcomparing [(x,x'), (y,y')]
+  gcompare (StrConcat _ _) _ = GLT
+  gcompare _ (StrConcat _ _) = GGT
+  gcompare (StrLength x)           (StrLength x')          = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrLength _) _ = GLT
+  gcompare _ (StrLength _) = GGT
+  gcompare (StrLT x y)             (StrLT x' y')           = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrLT _ _) _ = GLT
+  gcompare _ (StrLT _ _) = GGT
+  gcompare (StrLTHE x y)           (StrLTHE x' y')         = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrLTHE _ _) _ = GLT
+  gcompare _ (StrLTHE _ _) = GGT
+  gcompare (StrAt x i)             (StrAt x' i')           = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> case gcompare i i' of
+      GLT -> GLT
+      GEQ -> GEQ
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (StrAt _ _) _ = GLT
+  gcompare _ (StrAt _ _) = GGT
+  gcompare (StrSubstring x i j)    (StrSubstring x' i' j') = case gcompare x x' of
+    GLT -> GLT
+    GEQ -> case gcomparing [(i,i'), (j,j')] of
+      GLT -> GLT
+      GEQ -> GEQ
+      GGT -> GGT
+    GGT -> GGT
+  gcompare (StrSubstring _ _ _) _ = GLT
+  gcompare _ (StrSubstring _ _ _) = GGT
+  gcompare (StrPrefixOf x y)       (StrPrefixOf x' y')     = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrPrefixOf _ _) _ = GLT
+  gcompare _ (StrPrefixOf _ _) = GGT
+  gcompare (StrSuffixOf x y)       (StrSuffixOf x' y')     = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrSuffixOf _ _) _ = GLT
+  gcompare _ (StrSuffixOf _ _) = GGT
+  gcompare (StrContains x y)       (StrContains x' y')     = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> GEQ
+    GGT -> GGT
+  gcompare (StrContains _ _) _ = GLT
+  gcompare _ (StrContains _ _) = GGT
+  gcompare (StrIndexOf x y i)      (StrIndexOf x' y' i')   = case gcomparing [(x,x'), (y,y')] of
+    GLT -> GLT
+    GEQ -> gcompare i i'
+    GGT -> GGT
+  gcompare (StrIndexOf _ _ _) _ = GLT
+  gcompare _ (StrIndexOf _ _ _) = GGT
+  gcompare (StrReplace source target replacement)     (StrReplace source' target' replacement')     = gcomparing [(source, source'), (target, target'), (replacement, replacement')]
+  gcompare (StrReplace _ _ _) _ = GLT
+  gcompare _ (StrReplace _ _ _) = GGT
+  gcompare (StrReplaceAll source target replacement)  (StrReplaceAll source' target' replacement')  = gcomparing [(source, source'), (target, target'), (replacement, replacement')]
+  gcompare (StrReplaceAll _ _ _) _ = GLT
+  gcompare _ (StrReplaceAll _ _ _) = GGT
+  gcompare (ForAll _ expr)         (ForAll _ expr')        = gcompare (expr $ Var (SMTVar (-1))) (expr' $ Var (SMTVar (-1)))
+  gcompare (ForAll _ _) _ = GLT
+  gcompare _ (ForAll _ _) = GGT
+  gcompare (Exists _ expr)         (Exists _ expr')        = gcompare (expr $ Var (SMTVar (-1))) (expr' $ Var (SMTVar (-1)))
+  -- gcompare (Exists _ _) _ = GLT
+  -- gcompare _ (Exists _ _) = GGT

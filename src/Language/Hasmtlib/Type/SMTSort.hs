@@ -40,7 +40,7 @@ data SSMTSort (t :: SMTSort) where
   SRealSort   :: SSMTSort RealSort
   SBoolSort   :: SSMTSort BoolSort
   SBvSort     :: KnownNat n => Proxy n -> SSMTSort (BvSort n)
-  SArraySort  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => Proxy k -> Proxy v -> SSMTSort (ArraySort k v)
+  SArraySort  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => Proxy k -> Proxy v -> SSMTSort (ArraySort k v)
   SStringSort :: SSMTSort StringSort
 
 deriving instance Show (SSMTSort t)
@@ -95,7 +95,7 @@ instance KnownSMTSort IntSort                  where sortSing = SIntSort
 instance KnownSMTSort RealSort                 where sortSing = SRealSort
 instance KnownSMTSort BoolSort                 where sortSing = SBoolSort
 instance KnownNat n => KnownSMTSort (BvSort n) where sortSing = SBvSort (Proxy @n)
-instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Eq (HaskellType v)) => KnownSMTSort (ArraySort k v) where
+instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => KnownSMTSort (ArraySort k v) where
    sortSing = SArraySort (Proxy @k) (Proxy @v)
 instance KnownSMTSort StringSort                 where sortSing = SStringSort
 
@@ -108,6 +108,9 @@ data SomeSMTSort cs f where
   SomeSMTSort :: forall cs f (t :: SMTSort). AllC cs t => f t -> SomeSMTSort cs f
 
 deriving instance (forall t. Show (f t)) => Show (SomeSMTSort cs f)
+
+-- | An existential wrapper that hides some known 'SMTSort'.
+type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f
 
 instance Render (SSMTSort t) where
   render SBoolSort   = "Bool"

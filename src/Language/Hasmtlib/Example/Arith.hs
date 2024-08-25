@@ -1,6 +1,6 @@
 module Language.Hasmtlib.Example.Arith where
 
-import Prelude hiding (mod, (&&))
+import Prelude hiding ((&&))
 import Language.Hasmtlib
 
 main :: IO ()
