@@ -6,6 +6,23 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.5.0 _(2024-08-25)_
+
+### Added
+- added instances `Eq`, `Ord`, `GEq` and `GCompare` for `Expr t`
+- added instances `Real` and `Enum` for `Expr IntSort`, `Expr RealSort` and `Expr (BvSort n)`
+- added instance `Integral` for `Expr IntSort` and `Expr (BvSort n)`
+- added instance `Bits` for `Expr BoolSort` and `Expr (BvSort n)`
+
+### Changed
+- Removed `Language.Hasmtlib.Integraled`: use the added `Integral` instance instead
+- Removed redundant BitVec constructors from `Expr` and replaced usage in instances with the more generic existing ones.
+For example: Where `BvNot` was used previously, we now use `Not` which is already used for Expr BoolSort.
+Differentiation between such operations now takes place in `Language.Hasmtlib.Internal.Render#render` when rendering expressions,
+e.g. rendering `bvnot` for `BvSort` and `not` for `BoolSort`.
+Therefore there is no behavioral change for the solver.
+- Removed functions `bvRotL` and `bvRotR` from `Language.Hasmtlib.Type.Expr`: use the added `Bits` instance instead with `rotateL` and `rotateR`
+
 ## v2.4.0 _(2024-08-21)_
 
 ### Added

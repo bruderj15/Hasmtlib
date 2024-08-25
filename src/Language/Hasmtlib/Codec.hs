@@ -15,6 +15,7 @@ import Language.Hasmtlib.Boolean
 import Data.Kind
 import Data.Coerce
 import qualified Data.List as List
+import Data.Bits hiding (And, Xor, xor)
 import Data.Map (Map)
 import Data.Sequence (Seq)
 import Data.IntMap as IM hiding (foldl)
@@ -74,6 +75,7 @@ instance KnownSMTSort t => Codec (Expr t) where
     return $ unwrapValue val
   decode _ (Constant v)         = Just $ unwrapValue v
   decode sol (Plus x y)         = (+)   <$> decode sol x <*> decode sol y
+  decode sol (Minus x y)        = (-)   <$> decode sol x <*> decode sol y
   decode sol (Neg x)            = fmap negate  (decode sol x)
   decode sol (Mul x y)          = (*)   <$> decode sol x <*> decode sol y
   decode sol (Abs x)            = fmap abs     (decode sol x)
@@ -111,27 +113,13 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (ToInt x)          = fmap truncate   (decode sol x)
   decode sol (IsInt x)          = fmap ((0 ==) . snd . properFraction) (decode sol x)
   decode sol (Ite p t f)        = (\p' t' f' -> if p' then t' else f') <$> decode sol p <*> decode sol t <*> decode sol f
-  decode sol (BvNot x)          = fmap not (decode sol x)
-  decode sol (BvAnd x y)        = (&&) <$> decode sol x <*> decode sol y
-  decode sol (BvOr x y)         = (||) <$> decode sol x <*> decode sol y
-  decode sol (BvXor x y)        = xor <$> decode sol x <*> decode sol y
   decode sol (BvNand x y)       = nand <$> sequenceA [decode sol x, decode sol y]
   decode sol (BvNor x y)        = nor  <$> sequenceA [decode sol x, decode sol y]
-  decode sol (BvNeg x)          = fmap negate (decode sol x)
-  decode sol (BvAdd x y)        = (+) <$> decode sol x <*> decode sol y
-  decode sol (BvSub x y)        = (-) <$> decode sol x <*> decode sol y
-  decode sol (BvMul x y)        = (*) <$> decode sol x <*> decode sol y
-  decode sol (BvuDiv x y)       = div <$> decode sol x <*> decode sol y
-  decode sol (BvuRem x y)       = rem <$> decode sol x <*> decode sol y
   decode sol (BvShL x y)        = join $ bvShL <$> decode sol x <*> decode sol y
   decode sol (BvLShR x y)       = join $ bvLShR <$> decode sol x <*> decode sol y
   decode sol (BvConcat x y)     = bvConcat <$> decode sol x <*> decode sol y
-  decode sol (BvRotL i x)       = bvRotL i <$> decode sol x
-  decode sol (BvRotR i x)       = bvRotR i <$> decode sol x
-  decode sol (BvuLT x y)        = (<) <$> decode sol x <*> decode sol y
-  decode sol (BvuLTHE x y)      = (<=) <$> decode sol x <*> decode sol y
-  decode sol (BvuGTHE x y)      = (>=) <$> decode sol x <*> decode sol y
-  decode sol (BvuGT x y)        = (>) <$> decode sol x <*> decode sol y
+  decode sol (BvRotL i x)       = rotateL <$> decode sol x <*> pure (fromIntegral i)
+  decode sol (BvRotR i x)       = rotateR <$> decode sol x <*> pure (fromIntegral i)
   decode sol (ArrSelect i arr)  = arrSelect <$> decode sol i <*> decode sol arr
   decode sol (ArrStore i x arr) = arrStore <$> decode sol i <*> decode sol x <*> decode sol arr
   decode sol (StrConcat x y)         = (<>) <$> decode sol x <*> decode sol y

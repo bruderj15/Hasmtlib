@@ -3,13 +3,14 @@
 
 module Language.Hasmtlib.Internal.Bitvec where
 
+import Prelude hiding ((&&), (||), not)
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Internal.Render
 import Data.ByteString.Builder
 import Data.Bit
 import Data.Bits
 import Data.Coerce
-import Data.Finite
+import Data.Finite hiding (shift)
 import Data.Proxy
 import Data.Ratio ((%))
 import Data.Bifunctor
@@ -18,8 +19,21 @@ import GHC.TypeNats
 
 -- | Unsigned and length-indexed bitvector with MSB first.
 newtype Bitvec (n :: Nat) = Bitvec { unBitvec :: V.Vector n Bit }
-  deriving stock (Eq, Ord)
-  deriving newtype (Boolean)
+  deriving newtype (Eq, Ord, Boolean)
+
+instance KnownNat n => Bits (Bitvec n) where
+  (.&.) = (&&)
+  (.|.) = (||)
+  xor = Language.Hasmtlib.Boolean.xor
+  complement = not
+  shift bv i  = coerce $ shift (coerce @_ @(V.Vector n Bit) bv) (negate i)
+  rotate bv i = coerce $ rotate (coerce @_ @(V.Vector n Bit) bv) (negate i)
+  bitSize _ = fromIntegral $ natVal (Proxy @n)
+  bitSizeMaybe _ = Just $ fromIntegral $ natVal (Proxy @n)
+  isSigned _ = false
+  testBit bv = testBit (V.reverse (coerce @_ @(V.Vector n Bit) bv))
+  bit (toInteger -> i) = coerce $ V.reverse $ V.replicate @n (Bit False) V.// [(finite i, Bit True)]
+  popCount = coerce . popCount . coerce @_ @(V.Vector n Bit)
 
 instance Show (Bitvec n) where
   show = V.toList . V.map (\b -> if coerce b then '1' else '0') . coerce @_ @(V.Vector n Bit)
@@ -29,17 +43,17 @@ instance Render (Bitvec n) where
   {-# INLINEABLE render #-}
 
 instance KnownNat n => Num (Bitvec n) where
-   fromInteger x = coerce . V.reverse $ V.generate @n (coerce . testBit x . fromInteger . getFinite) 
+   fromInteger x = coerce . V.reverse $ V.generate @n (coerce . testBit x . fromInteger . getFinite)
    negate        = id
    abs           = id
    signum _      = 0
    (coerce -> x) + (coerce -> y) = coerce @(V.Vector n Bit) $ x + y
    (coerce -> x) - (coerce -> y) = coerce @(V.Vector n Bit) $ x - y
-   (coerce -> x) * (coerce -> y) = coerce @(V.Vector n Bit) $ x * y     
-     
+   (coerce -> x) * (coerce -> y) = coerce @(V.Vector n Bit) $ x * y
+
 instance KnownNat n => Bounded (Bitvec n) where
-  minBound = coerce $ V.replicate @n false     
-  maxBound = coerce $ V.replicate @n true     
+  minBound = coerce $ V.replicate @n false
+  maxBound = coerce $ V.replicate @n true
 
 instance KnownNat n => Enum (Bitvec n) where
   succ x   = x + 1
@@ -87,28 +101,20 @@ bvFromListN = coerce . V.fromListN @n
 bvFromListN' :: forall n. KnownNat n => Proxy n -> [Bit] -> Maybe (Bitvec n)
 bvFromListN' _ = bvFromListN
 
-bvRotL :: forall n i. KnownNat (Mod i n) => Proxy i -> Bitvec n -> Bitvec n
-bvRotL _ (coerce -> x) = coerce $ r V.++ l
-  where
-    (l, r) = V.splitAt' (Proxy @(Mod i n)) x
-
-bvRotR :: forall n i. KnownNat (Mod i n) => Proxy i -> Bitvec n -> Bitvec n
-bvRotR p = bvReverse . bvRotL p . bvReverse
-
 bvShL :: KnownNat n => Bitvec n -> Bitvec n -> Maybe (Bitvec n)
 bvShL x y = bvFromListN $ (++ replicate i false) $ drop i $ bvToList x
-  where 
-    i = fromIntegral y 
-    
+  where
+    i = fromIntegral y
+
 bvLShR :: KnownNat n => Bitvec n -> Bitvec n -> Maybe (Bitvec n)
 bvLShR x y = fmap bvReverse $ bvFromListN $ (++ replicate i false) $ drop i $ bvToList $ bvReverse x
-  where 
-    i = fromIntegral y 
-  
+  where
+    i = fromIntegral y
+
 bvZeroExtend :: KnownNat i => Proxy i -> Bitvec n -> Bitvec (n+i)
-bvZeroExtend p x = bvConcat x $ bvReplicate' p false 
-  
-bvExtract :: forall n i j. 
+bvZeroExtend p x = bvConcat x $ bvReplicate' p false
+
+bvExtract :: forall n i j.
   ( KnownNat i, KnownNat ((j - i) + 1)
   , (i+(n-i)) ~ n
   , (((j - i) + 1) + ((n - i)-((j - i) + 1))) ~ (n - i)
