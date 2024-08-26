@@ -6,6 +6,15 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.5.1 _(2024-08-26)_
+
+### Added
+- Added `SharingMode = None | StableNames` in `Language.Hasmtlib.Internal.Sharing`. Defaults to `StableNames`.
+- Added function `setSharingMode` which allows you to change the `SharingMode`.
+
+### Changed
+- `runSharing` in `Language.Hasmtlib.Internal.Sharing` now differentiates sharing behavior based on newly given argument of type `SharingMode`
+
 ## v2.5.0 _(2024-08-25)_
 
 ### Added
