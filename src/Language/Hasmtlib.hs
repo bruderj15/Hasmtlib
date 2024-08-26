@@ -22,6 +22,7 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Solver.Yices
   , module Language.Hasmtlib.Solver.OpenSMT
   , module Language.Hasmtlib.Solver.MathSAT
+  , SharingMode(..), setSharingMode
   )
   where
 
@@ -47,3 +48,4 @@ import Language.Hasmtlib.Solver.Z3
 import Language.Hasmtlib.Solver.Yices
 import Language.Hasmtlib.Solver.OpenSMT
 import Language.Hasmtlib.Solver.MathSAT
+import Language.Hasmtlib.Internal.Sharing

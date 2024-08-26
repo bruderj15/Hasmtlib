@@ -49,6 +49,7 @@ instance Sharing OMT where
   type SharingMonad OMT = Monad
   stableMap = smt.Language.Hasmtlib.Type.SMT.stableMap
   assertSharedNode _ expr = modifying (smt.formulas) (|> expr)
+  setSharingMode sm = smt.sharingMode .= sm
 
 instance MonadState OMT m => MonadSMT OMT m where
   smtvar' _ = fmap coerce $ (smt.lastVarId) <+= 1
@@ -62,7 +63,7 @@ instance MonadState OMT m => MonadSMT OMT m where
 
   assert expr = do
     omt <- get
-    sExpr <- runSharing expr
+    sExpr <- runSharing (omt^.smt.sharingMode) expr
     qExpr <- case omt^.smt.mlogic of
       Nothing    -> return sExpr
       Just logic -> if "QF" `isPrefixOf` logic then return sExpr else quantify sExpr
@@ -78,13 +79,16 @@ instance MonadState OMT m => MonadSMT OMT m where
 
 instance MonadSMT OMT m => MonadOMT OMT m where
   minimize expr = do
-    sExpr <- runSharing expr
+    sm <- use (smt.sharingMode)
+    sExpr <- runSharing sm expr
     modifying targetMinimize (|> SomeSMTSort (Minimize sExpr))
   maximize expr = do
-    sExpr <- runSharing expr
+    sm <- use (smt.sharingMode)
+    sExpr <- runSharing sm expr
     modifying targetMaximize (|> SomeSMTSort (Maximize sExpr))
   assertSoft expr w gid = do
-    sExpr <- runSharing expr
+    sm <- use (smt.sharingMode)
+    sExpr <- runSharing sm expr
     modifying softFormulas (|> SoftFormula sExpr w gid)
 
 instance Render SoftFormula where
