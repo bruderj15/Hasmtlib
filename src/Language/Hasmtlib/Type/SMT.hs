@@ -27,17 +27,19 @@ data SMT = SMT
   , _formulas  :: !(Seq (Expr BoolSort))                              -- ^ All asserted formulas
   , _mlogic    :: Maybe String                                        -- ^ Logic for the SMT-Solver
   , _options   :: [SMTOption]                                         -- ^ All manually configured SMT-Solver-Options
+  , _sharingMode :: !SharingMode                                       -- ^ How to share common expressions
   , _stableMap :: !(HashMap (StableName ()) (SomeKnownSMTSort Expr))  -- ^ Mapping between a 'StableName' and it's 'Expr' we may share
   }
 $(makeLenses ''SMT)
 
 instance Default SMT where
-  def = SMT 0 mempty mempty mempty [ProduceModels True] mempty
+  def = SMT 0 mempty mempty mempty [ProduceModels True] def mempty
 
 instance Sharing SMT where
   type SharingMonad SMT = Monad
   stableMap = Language.Hasmtlib.Type.SMT.stableMap
   assertSharedNode _ expr = modifying formulas (|> expr)
+  setSharingMode sm = sharingMode .= sm
 
 instance MonadState SMT m => MonadSMT SMT m where
   smtvar' _ = fmap coerce $ lastVarId <+= 1
@@ -51,7 +53,7 @@ instance MonadState SMT m => MonadSMT SMT m where
 
   assert expr = do
     smt <- get
-    sExpr <- runSharing expr
+    sExpr <- runSharing (smt^.sharingMode) expr
     qExpr <- case smt^.mlogic of
       Nothing    -> return sExpr
       Just logic -> if "QF" `isPrefixOf` logic then return sExpr else quantify sExpr
