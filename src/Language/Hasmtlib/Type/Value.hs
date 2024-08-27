@@ -6,8 +6,10 @@ module Language.Hasmtlib.Type.Value
 )
 where
 
+import Prelude hiding (not, (&&), (||))
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Bitvec
+import Language.Hasmtlib.Boolean
 import Data.GADT.Compare
 import Data.Proxy
 import Control.Lens
@@ -84,6 +86,40 @@ instance GCompare Value where
   -- gcompare (StringValue _) _                = GLT
   -- gcompare _ (StringValue _)                = GGT
 
+instance (KnownSMTSort t, Num (HaskellType t)) => Num (Value t) where
+  fromInteger = wrapValue . fromInteger
+  {-# INLINE fromInteger #-}
+  x + y = wrapValue $ unwrapValue x + unwrapValue y
+  {-# INLINE (+) #-}
+  x - y = wrapValue $ unwrapValue x - unwrapValue y
+  {-# INLINE (-) #-}
+  x * y = wrapValue $ unwrapValue x * unwrapValue y
+  {-# INLINE (*) #-}
+  negate = wrapValue . negate . unwrapValue
+  {-# INLINE negate #-}
+  abs = wrapValue . abs . unwrapValue
+  {-# INLINE abs #-}
+  signum = wrapValue . signum . unwrapValue
+  {-# INLINE signum #-}
+
+instance Fractional (Value RealSort) where
+  fromRational = RealValue . fromRational
+  {-# INLINE fromRational #-}
+  (RealValue x) / (RealValue y) = RealValue $ x / y
+  {-# INLINE (/) #-}
+
+instance Boolean (Value BoolSort) where
+  bool = BoolValue
+  {-# INLINE bool #-}
+  (BoolValue x) && (BoolValue y) = BoolValue $ x && y
+  {-# INLINE (&&) #-}
+  (BoolValue x) || (BoolValue y) = BoolValue $ x || y
+  {-# INLINE (||) #-}
+  not (BoolValue x) = BoolValue $ not x
+  {-# INLINE not #-}
+  xor (BoolValue x) (BoolValue y) = BoolValue $ x `xor` y
+  {-# INLINE xor #-}
+
 -- | Unwraps a Haskell-value from the SMT-Context-'Value'.
 unwrapValue :: Value t -> HaskellType t
 unwrapValue (IntValue  v)   = v
@@ -92,7 +128,7 @@ unwrapValue (BoolValue v)   = v
 unwrapValue (BvValue   v)   = v
 unwrapValue (ArrayValue v)  = v
 unwrapValue (StringValue v) = v
-{-# INLINEABLE unwrapValue #-}
+{-# INLINE unwrapValue #-}
 
 -- | Wraps a Haskell-value into the SMT-Context-'Value'.
 wrapValue :: forall t. KnownSMTSort t => HaskellType t -> Value t
@@ -103,4 +139,4 @@ wrapValue = case sortSing @t of
   SBvSort _ _    -> BvValue
   SArraySort _ _ -> ArrayValue
   SStringSort    -> StringValue
-{-# INLINEABLE wrapValue #-}
+{-# INLINE wrapValue #-}

@@ -477,22 +477,22 @@ store :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySor
 store = ArrStore
 {-# INLINE store #-}
 
--- | Bitvector shift left
+-- | Logically shift left the first expression by the second expression.
 bvShL    :: (KnownBvEnc enc, KnownNat n) => Expr (BvSort enc n) -> Expr (BvSort enc n) -> Expr (BvSort enc n)
 bvShL    = BvShL
 {-# INLINE bvShL #-}
 
--- | Bitvector logical shift right
+-- | Logically shift right the first expression by the second expression.
 bvLShR   :: KnownNat n => Expr (BvSort Unsigned n) -> Expr (BvSort Unsigned n) -> Expr (BvSort Unsigned n)
 bvLShR   = BvLShR
 {-# INLINE bvLShR #-}
 
--- | Bitvector arithmetic shift right
+-- | Arithmetically shift right the first expression by the second expression.
 bvAShR   :: KnownNat n => Expr (BvSort Signed n) -> Expr (BvSort Signed n) -> Expr (BvSort Signed n)
 bvAShR   = BvAShR
 {-# INLINE bvAShR #-}
 
--- | Concat two bitvectors
+-- | Concats two bitvectors.
 bvConcat :: (KnownBvEnc enc, KnownNat n, KnownNat m) => Expr (BvSort enc n) -> Expr (BvSort enc m) -> Expr (BvSort enc (n + m))
 bvConcat = BvConcat
 {-# INLINE bvConcat #-}
@@ -574,92 +574,50 @@ strReplaceAll :: Expr StringSort -> Expr StringSort -> Expr StringSort -> Expr S
 strReplaceAll = StrReplaceAll
 {-# INLINE strReplaceAll #-}
 
-instance Num (Expr IntSort) where
-   fromInteger = Constant . IntValue
+instance (KnownSMTSort t, Num (HaskellType t), Ord (HaskellType t)) => Num (Expr t) where
+   fromInteger = Constant . wrapValue . fromInteger
    {-# INLINE fromInteger #-}
-   (Constant (IntValue 0)) + y = y
-   x + (Constant (IntValue 0)) = x
-   (Constant (IntValue x)) + (Constant (IntValue y)) = Constant (IntValue (x + y))
+   (Constant 0) + y = y
+   x + (Constant 0) = x
+   (Constant x) + (Constant y) = Constant (x + y)
    x + y = Plus x y
    {-# INLINE (+) #-}
-   x - (Constant (IntValue 0)) = x
-   (Constant (IntValue x)) - (Constant (IntValue y)) = Constant (IntValue (x - y))
+   x - (Constant 0) = x
+   (Constant x) - (Constant y) = Constant (x - y)
+   (Constant 0) - x = negate x
    x - y = Minus x y
    {-# INLINE (-) #-}
-   (Constant (IntValue 0)) * _ = 0
-   _ * (Constant (IntValue 0)) = 0
-   (Constant (IntValue 1)) * y = y
-   x * (Constant (IntValue 1)) = x
-   (Constant (IntValue x)) * (Constant (IntValue y)) = Constant (IntValue (x * y))
+   (Constant 0) * _ = 0
+   _ * (Constant 0) = 0
+   (Constant 1) * y = y
+   x * (Constant 1) = x
+   (Constant (-1)) * x = negate x
+   x * (Constant (-1)) = negate x
+   (Constant x) * (Constant y) = Constant (x * y)
    x * y = Mul x y
    {-# INLINE (*) #-}
-   negate      = Neg
+   negate (Constant x) = Constant $ negate x
+   negate (Neg x)      = x
+   negate x            = Neg x
    {-# INLINE negate #-}
-   abs         = Abs
+   abs (Constant x) = Constant $ abs x
+   abs x            = Abs x
    {-# INLINE abs #-}
-   signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
-   {-# INLINE signum #-}
-
-instance Num (Expr RealSort) where
-   fromInteger = Constant . RealValue . fromIntegral
-   {-# INLINE fromInteger #-}
-   (Constant (RealValue 0)) + y = y
-   x + (Constant (RealValue 0)) = x
-   (Constant (RealValue x)) + (Constant (RealValue y)) = Constant (RealValue (x + y))
-   x + y = Plus x y
-   {-# INLINE (+) #-}
-   x - (Constant (RealValue 0)) = x
-   (Constant (RealValue x)) - (Constant (RealValue y)) = Constant (RealValue (x - y))
-   x - y = Minus x y
-   {-# INLINE (-) #-}
-   (Constant (RealValue 0)) * _ = 0
-   _ * (Constant (RealValue 0)) = 0
-   (Constant (RealValue 1)) * y = y
-   x * (Constant (RealValue 1)) = x
-   (Constant (RealValue x)) * (Constant (RealValue y)) = Constant (RealValue (x * y))
-   x * y = Mul x y
-   {-# INLINE (*) #-}
-   negate      = Neg
-   {-# INLINE negate #-}
-   abs         = Abs
-   {-# INLINE abs #-}
-   signum x    = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
-   {-# INLINE signum #-}
-
-instance (KnownBvEnc enc, KnownNat n) => Num (Expr (BvSort enc n)) where
-   fromInteger = Constant . BvValue . fromInteger
-   {-# INLINE fromInteger #-}
-   (Constant (BvValue 0)) + y = y
-   x + (Constant (BvValue 0)) = x
-   (Constant (BvValue x)) + (Constant (BvValue y)) = Constant (BvValue (x + y))
-   x + y = Plus x y
-   {-# INLINE (+) #-}
-   x - (Constant (BvValue 0)) = x
-   (Constant (BvValue x)) - (Constant (BvValue y)) = Constant (BvValue (x - y))
-   x - y = Minus x y
-   {-# INLINE (-) #-}
-   (Constant (BvValue 0)) * _ = 0
-   _ * (Constant (BvValue 0)) = 0
-   (Constant (BvValue 1)) * y = y
-   x * (Constant (BvValue 1)) = x
-   (Constant (BvValue x)) * (Constant (BvValue y)) = Constant (BvValue (x * y))
-   x * y = Mul x y
-   {-# INLINE (*) #-}
-   abs         = id
-   {-# INLINE abs #-}
-   signum _    = 0
+   signum (Constant x) = Constant $ signum x
+   signum x            = ite (x === 0) 0 $ ite (x <? 0) (-1) 1
    {-# INLINE signum #-}
 
 instance Fractional (Expr RealSort) where
   fromRational = Constant . RealValue . fromRational
   {-# INLINE fromRational #-}
-  x / (Constant (RealValue 1)) = x
-  (Constant (RealValue 0)) / _ = 0
-  (Constant (RealValue x)) / (Constant (RealValue y)) = Constant (RealValue (x / y))
+  x / (Constant  1) = x
+  (Constant 0) / _ = 0
+  (Constant x) / (Constant y) = Constant (x / y)
   x / y          = Div x y
   {-# INLINE (/) #-}
 
--- | Not in the SMTLib2.6-standard. Solvers like CVC5 and MathSAT support it though.
+-- | Not part of the SMTLib standard Version 2.6.
+--   Some solvers support it. At least valid for CVC5 and MathSAT.
 instance Floating (Expr RealSort) where
     pi    = Pi
     {-# INLINE pi #-}
@@ -687,78 +645,48 @@ instance Floating (Expr RealSort) where
     acosh = error "SMT-Solvers currently do not support acosh"
     atanh = error "SMT-Solvers currently do not support atanh"
 
--- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
-instance Real (Expr IntSort) where
-  toRational (Constant (IntValue x)) = fromIntegral x
-  toRational x = error $ "Real#toRational[Expr IntSort] only supported for constants. But given: " <> show x
+-- | This instance is __partial__ for 'toRational', this method is only intended for use with constants.
+instance (KnownSMTSort t, Real (HaskellType t)) => Real (Expr t) where
+  toRational (Constant x) = toRational $ unwrapValue x
+  toRational x = error $ "Real#toRational[Expr " <> show (sortSing @t) <> "] only supported for constants. But given: " <> show x
   {-# INLINE toRational #-}
 
--- | This instance is __partial__ for 'fromEnum', it's only intended for use with constants ('Constant').
-instance Enum (Expr IntSort) where
-  fromEnum (Constant (IntValue x)) = fromIntegral x
-  fromEnum x = error $ "Enum#fromEnum[Expr IntSort] only supported for constants. But given: " <> show x
+-- | This instance is __partial__ for 'fromEnum', this method is only intended for use with constants.
+instance (KnownSMTSort t, Enum (HaskellType t)) => Enum (Expr t) where
+  fromEnum (Constant x) = fromEnum $ unwrapValue x
+  fromEnum x = error $ "Enum#fromEnum[Expr " <> show (sortSing @t) <> "] only supported for constants. But given: " <> show x
   {-# INLINE fromEnum #-}
-  toEnum = fromInteger . fromIntegral
+  toEnum = Constant . wrapValue . toEnum
   {-# INLINE toEnum #-}
 
--- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
-instance Integral (Expr IntSort) where
+-- | This instance is __partial__ for 'toInteger', this method is only intended for use with constants.
+instance (KnownSMTSort t, Integral (HaskellType t)) => Integral (Expr t) where
   quotRem x y = (IDiv x y, Rem x y)
   {-# INLINE quotRem #-}
   divMod x y  = (IDiv x y, Mod x y)
   {-# INLINE divMod #-}
-  toInteger (Constant (IntValue x)) = x
-  toInteger x = error $ "Integer#toInteger[Expr IntSort] only supported for constants. But given: " <> show x
-  {-# INLINE toInteger #-}
-
--- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
-instance Real (Expr RealSort) where
-  toRational (Constant (RealValue x)) = toRational x
-  toRational x = error $ "Real#toRational[Expr RealSort] only supported for constants. But given: " <> show x
-  {-# INLINE toRational #-}
-
--- | This instance is __partial__ for 'fromEnum', it's only intended for use with constants ('Constant').
-instance Enum (Expr RealSort) where
-  fromEnum (Constant (RealValue x)) = fromEnum x
-  fromEnum x = error $ "Enum#fromEnum[Expr RealSort] only supported for constants. But given: " <> show x
-  {-# INLINE fromEnum #-}
-  toEnum = fromInteger . fromIntegral
-  {-# INLINE toEnum #-}
-
--- | This instance is __partial__ for 'toRational', it's only intended for use with constants ('Constant').
-instance (KnownBvEnc enc, KnownNat n) => Real (Expr (BvSort enc n)) where
-  toRational (Constant (BvValue x)) = fromIntegral x
-  toRational x = error $ "Real#toRational[Expr BvSort] only supported for constants. But given: " <> show x
-  {-# INLINE toRational #-}
-
--- | This instance is __partial__ for 'fromEnum', it's only intended for use with constants ('Constant').
-instance (KnownBvEnc enc, KnownNat n) => Enum (Expr (BvSort enc n)) where
-  fromEnum (Constant (BvValue x)) = fromIntegral x
-  fromEnum x = error $ "Enum#fromEnum[Expr BvSort] only supported for constants. But given: " <> show x
-  {-# INLINE fromEnum #-}
-  toEnum = fromInteger . fromIntegral
-  {-# INLINE toEnum #-}
-
--- | This instance is __partial__ for 'toInteger', it's only intended for use with constants ('Constant').
-instance (KnownBvEnc enc, KnownNat n) => Integral (Expr (BvSort enc n)) where
-  quotRem x y = (IDiv x y, Rem x y)
-  {-# INLINE quotRem #-}
-  divMod x y  = (IDiv x y, Mod x y)
-  {-# INLINE divMod #-}
-  toInteger (Constant (BvValue x)) = fromIntegral x
-  toInteger x = error $ "Integer#toInteger[Expr BvSort] only supported for constants. But given: " <> show x
+  toInteger (Constant x) = toInteger $ unwrapValue x
+  toInteger x = error $ "Integer#toInteger[Expr " <> show (sortSing @t) <> "] only supported for constants. But given: " <> show x
   {-# INLINE toInteger #-}
 
 instance Boolean (Expr BoolSort) where
   bool = Constant . BoolValue
   {-# INLINE bool #-}
-  (&&) = And
+  (Constant (BoolValue x)) && y = if x then y else false
+  x && (Constant (BoolValue y)) = if y then x else false
+  x && y = And x y
   {-# INLINE (&&) #-}
-  (||) = Or
+  (Constant (BoolValue x)) || y = if x then true else y
+  x || (Constant (BoolValue y)) = if y then true else x
+  x || y = Or x y
   {-# INLINE (||) #-}
-  not  = Not
+  not (Constant x) = Constant $ not x
+  not (Not x) = x
+  not x = Not x
   {-# INLINE not #-}
-  xor  = Xor
+  xor (Constant (BoolValue x)) y  = if x then not y else y
+  xor x (Constant (BoolValue y)) = if y then not x else x
+  xor x y = Xor x y
   {-# INLINE xor #-}
   (<==>) = (===)
   {-# INLINE (<==>) #-}
@@ -770,7 +698,8 @@ instance (KnownBvEnc enc, KnownNat n) => Boolean (Expr (BvSort enc n)) where
   {-# INLINE (&&) #-}
   (||) = Or
   {-# INLINE (||) #-}
-  not  = Not
+  not (Not x) = x
+  not x = Not x
   {-# INLINE not #-}
   xor  = Xor
   {-# INLINE xor #-}
