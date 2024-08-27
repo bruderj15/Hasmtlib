@@ -6,6 +6,20 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.6.0 _(2024-08-27)_
+
+### Added
+- Support for signed BitVec operations.
+- Added constructor `Rem` for `Expr t`.
+
+### Changed
+- *(breaking change)* Enhanced the type of `BvSort Nat` to `BvSort BvEnc Nat` where `BvEnc = Unsigned | Signed`.
+  Before, the API only allowed unsigned BitVec, therefore `BvSort n` now becomes `BvSort Unsigned n`.
+  The promoted type `BvEnc` is phantom and only used for differentiating instances for `Num`, ...
+- Moved `Language.Hasmtlib.Internal.Bitvec` to `Language.Hasmtlib.Type.Bitvec`, exported API with `Language.Hasmtlib`
+- Removed constructors `StrLT` and `StrLTHE` from `Expr t`.
+- Fixed wrong implementation of Num for `Bitvec`. `(+)`, `(-)` and `(*)` had invalid definitions.
+
 ## v2.5.1 _(2024-08-26)_
 
 ### Added

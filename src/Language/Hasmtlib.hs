@@ -11,6 +11,7 @@ module Language.Hasmtlib
   , module Language.Hasmtlib.Type.SMTSort
   , module Language.Hasmtlib.Type.Solution
   , module Language.Hasmtlib.Type.ArrayMap
+  , module Language.Hasmtlib.Type.Bitvec
   , module Language.Hasmtlib.Boolean
   , module Language.Hasmtlib.Codec
   , module Language.Hasmtlib.Counting
@@ -37,6 +38,7 @@ import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
+import Language.Hasmtlib.Type.Bitvec
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Counting

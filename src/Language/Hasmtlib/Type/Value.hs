@@ -6,7 +6,10 @@ module Language.Hasmtlib.Type.Value
 )
 where
 
+import Prelude hiding (not, (&&), (||))
 import Language.Hasmtlib.Type.SMTSort
+import Language.Hasmtlib.Type.Bitvec
+import Language.Hasmtlib.Boolean
 import Data.GADT.Compare
 import Data.Proxy
 import Control.Lens
@@ -18,7 +21,7 @@ data Value (t :: SMTSort) where
   IntValue    :: HaskellType IntSort    -> Value IntSort
   RealValue   :: HaskellType RealSort   -> Value RealSort
   BoolValue   :: HaskellType BoolSort   -> Value BoolSort
-  BvValue     :: KnownNat n => HaskellType (BvSort n) -> Value (BvSort n)
+  BvValue     :: (KnownBvEnc enc, KnownNat n) => HaskellType (BvSort enc n) -> Value (BvSort enc n)
   ArrayValue  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
   StringValue :: HaskellType StringSort -> Value StringSort
 
@@ -30,7 +33,9 @@ instance GEq Value where
   geq (IntValue x) (IntValue y)     = if x == y then Just Refl else Nothing
   geq (RealValue x) (RealValue y)   = if x == y then Just Refl else Nothing
   geq (BvValue x) (BvValue y)       = case cmpNat x y of
-    EQI -> if x == y then Just Refl else Nothing
+    EQI -> case geq (bvEncSing'' x) (bvEncSing'' y) of
+      Nothing -> Nothing
+      Just Refl -> if x == y then Just Refl else Nothing
     _   -> Nothing
   geq ax@(ArrayValue x) ay@(ArrayValue y) = case geq (sortSing' ax) (sortSing' ay) of
     Nothing -> Nothing
@@ -50,7 +55,10 @@ instance GCompare Value where
   gcompare (RealValue x) (RealValue x')     = liftOrdering $ compare x x'
   gcompare (BvValue x) (BvValue x')         = case cmpNat x x' of
     LTI -> GLT
-    EQI -> liftOrdering $ compare x x'
+    EQI -> case gcompare (bvEncSing'' x) (bvEncSing'' x') of
+      GLT -> GLT
+      GEQ -> liftOrdering $ compare x x'
+      GGT -> GGT
     GTI -> GGT
   gcompare (ArrayValue x) (ArrayValue x')   = case gcompare (sortSing' (pk x)) (sortSing' (pk x')) of
     GLT -> GLT
@@ -78,6 +86,40 @@ instance GCompare Value where
   -- gcompare (StringValue _) _                = GLT
   -- gcompare _ (StringValue _)                = GGT
 
+instance (KnownSMTSort t, Num (HaskellType t)) => Num (Value t) where
+  fromInteger = wrapValue . fromInteger
+  {-# INLINE fromInteger #-}
+  x + y = wrapValue $ unwrapValue x + unwrapValue y
+  {-# INLINE (+) #-}
+  x - y = wrapValue $ unwrapValue x - unwrapValue y
+  {-# INLINE (-) #-}
+  x * y = wrapValue $ unwrapValue x * unwrapValue y
+  {-# INLINE (*) #-}
+  negate = wrapValue . negate . unwrapValue
+  {-# INLINE negate #-}
+  abs = wrapValue . abs . unwrapValue
+  {-# INLINE abs #-}
+  signum = wrapValue . signum . unwrapValue
+  {-# INLINE signum #-}
+
+instance Fractional (Value RealSort) where
+  fromRational = RealValue . fromRational
+  {-# INLINE fromRational #-}
+  (RealValue x) / (RealValue y) = RealValue $ x / y
+  {-# INLINE (/) #-}
+
+instance Boolean (Value BoolSort) where
+  bool = BoolValue
+  {-# INLINE bool #-}
+  (BoolValue x) && (BoolValue y) = BoolValue $ x && y
+  {-# INLINE (&&) #-}
+  (BoolValue x) || (BoolValue y) = BoolValue $ x || y
+  {-# INLINE (||) #-}
+  not (BoolValue x) = BoolValue $ not x
+  {-# INLINE not #-}
+  xor (BoolValue x) (BoolValue y) = BoolValue $ x `xor` y
+  {-# INLINE xor #-}
+
 -- | Unwraps a Haskell-value from the SMT-Context-'Value'.
 unwrapValue :: Value t -> HaskellType t
 unwrapValue (IntValue  v)   = v
@@ -86,7 +128,7 @@ unwrapValue (BoolValue v)   = v
 unwrapValue (BvValue   v)   = v
 unwrapValue (ArrayValue v)  = v
 unwrapValue (StringValue v) = v
-{-# INLINEABLE unwrapValue #-}
+{-# INLINE unwrapValue #-}
 
 -- | Wraps a Haskell-value into the SMT-Context-'Value'.
 wrapValue :: forall t. KnownSMTSort t => HaskellType t -> Value t
@@ -94,7 +136,7 @@ wrapValue = case sortSing @t of
   SIntSort       -> IntValue
   SRealSort      -> RealValue
   SBoolSort      -> BoolValue
-  SBvSort _      -> BvValue
+  SBvSort _ _    -> BvValue
   SArraySort _ _ -> ArrayValue
   SStringSort    -> StringValue
-{-# INLINEABLE wrapValue #-}
+{-# INLINE wrapValue #-}

@@ -9,7 +9,7 @@ main = do
   res <- solveWith @SMT (debug cvc5 def) $ do
     setLogic "BV"
 
-    z <- var @(BvSort 8)
+    z <- var @(BvSort Signed 8)
 
     assert $ z === 0
 

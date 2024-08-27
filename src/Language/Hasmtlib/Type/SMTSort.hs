@@ -5,7 +5,7 @@
 module Language.Hasmtlib.Type.SMTSort where
 
 import Language.Hasmtlib.Internal.Constraint
-import Language.Hasmtlib.Internal.Bitvec
+import Language.Hasmtlib.Type.Bitvec
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.ArrayMap
 import Data.GADT.Compare
@@ -21,7 +21,7 @@ data SMTSort =
     BoolSort                      -- ^ Sort of Bool
   | IntSort                       -- ^ Sort of Int
   | RealSort                      -- ^ Sort of Real
-  | BvSort Nat                    -- ^ Sort of BitVec with length n
+  | BvSort BvEnc Nat              -- ^ Sort of BitVec with type of encoding enc and length n
   | ArraySort SMTSort SMTSort     -- ^ Sort of Array with indices k and values v
   | StringSort                    -- ^ Sort of String
 
@@ -30,7 +30,7 @@ type family HaskellType (t :: SMTSort) = (r :: Type) | r -> t where
   HaskellType IntSort         = Integer
   HaskellType RealSort        = Double
   HaskellType BoolSort        = Bool
-  HaskellType (BvSort n)      = Bitvec n
+  HaskellType (BvSort enc n)  = Bitvec enc n
   HaskellType (ArraySort k v) = ConstArray (HaskellType k) (HaskellType v)
   HaskellType StringSort      = Text.Text
 
@@ -39,7 +39,7 @@ data SSMTSort (t :: SMTSort) where
   SIntSort    :: SSMTSort IntSort
   SRealSort   :: SSMTSort RealSort
   SBoolSort   :: SSMTSort BoolSort
-  SBvSort     :: KnownNat n => Proxy n -> SSMTSort (BvSort n)
+  SBvSort     :: (KnownBvEnc enc, KnownNat n) => Proxy enc -> Proxy n -> SSMTSort (BvSort enc n)
   SArraySort  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => Proxy k -> Proxy v -> SSMTSort (ArraySort k v)
   SStringSort :: SSMTSort StringSort
 
@@ -51,9 +51,11 @@ instance GEq SSMTSort where
   geq SIntSort SIntSort       = Just Refl
   geq SRealSort SRealSort     = Just Refl
   geq SBoolSort SBoolSort     = Just Refl
-  geq (SBvSort n) (SBvSort m) = case sameNat n m of
+  geq (SBvSort enc n) (SBvSort emc m) = case sameNat n m of
     Nothing   -> Nothing
-    Just Refl -> Just Refl
+    Just Refl -> case geq (bvEncSing' enc) (bvEncSing' emc) of
+      Nothing -> Nothing
+      Just Refl -> Just Refl
   geq (SArraySort k v) (SArraySort k' v') = case geq (sortSing' k) (sortSing' k') of
     Nothing   -> Nothing
     Just Refl -> case geq (sortSing' v) (sortSing' v') of
@@ -66,9 +68,12 @@ instance GCompare SSMTSort where
   gcompare SBoolSort SBoolSort     = GEQ
   gcompare SIntSort SIntSort       = GEQ
   gcompare SRealSort SRealSort     = GEQ
-  gcompare (SBvSort n) (SBvSort m) = case cmpNat n m of
+  gcompare (SBvSort enc n) (SBvSort emc m) = case cmpNat n m of
     LTI -> GLT
-    EQI -> GEQ
+    EQI -> case gcompare (bvEncSing' enc) (bvEncSing' emc) of
+      GLT -> GLT
+      GEQ -> GEQ
+      GGT -> GGT
     GTI -> GGT
   gcompare (SArraySort k v) (SArraySort k' v') = case gcompare (sortSing' k) (sortSing' k') of
     GLT -> GLT
@@ -94,12 +99,12 @@ class    KnownSMTSort (t :: SMTSort)           where sortSing :: SSMTSort t
 instance KnownSMTSort IntSort                  where sortSing = SIntSort
 instance KnownSMTSort RealSort                 where sortSing = SRealSort
 instance KnownSMTSort BoolSort                 where sortSing = SBoolSort
-instance KnownNat n => KnownSMTSort (BvSort n) where sortSing = SBvSort (Proxy @n)
+instance (KnownBvEnc enc, KnownNat n) => KnownSMTSort (BvSort enc n) where sortSing = SBvSort (Proxy @enc) (Proxy @n)
 instance (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => KnownSMTSort (ArraySort k v) where
    sortSing = SArraySort (Proxy @k) (Proxy @v)
 instance KnownSMTSort StringSort                 where sortSing = SStringSort
 
--- | Wrapper for 'sortSing' which takes a 'Proxy'
+-- | Wrapper for 'sortSing' which takes a 'Proxy'.
 sortSing' :: forall prxy t. KnownSMTSort t => prxy t -> SSMTSort t
 sortSing' _ = sortSing @t
 
@@ -116,7 +121,7 @@ instance Render (SSMTSort t) where
   render SBoolSort   = "Bool"
   render SIntSort    = "Int"
   render SRealSort   = "Real"
-  render (SBvSort p) = renderBinary "_" ("BitVec" :: Builder) (natVal p)
+  render (SBvSort _ p) = renderBinary "_" ("BitVec" :: Builder) (natVal p)
   render (SArraySort k v) = renderBinary "Array" (sortSing' k) (sortSing' v)
   render SStringSort   = "String"
   {-# INLINEABLE render #-}

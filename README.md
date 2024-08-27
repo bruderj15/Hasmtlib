@@ -17,7 +17,7 @@ For instance, to define the addition of two `V3` containing Real-SMT-Expressions
 v3Add :: V3 (Expr RealSort) -> V3 (Expr RealSort) -> V3 (Expr RealSort)
 v3Add = liftA2 (+)
 ```
-Even better, the [Expr-GADT](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Internal/Expr.hs) allows a polymorph definition:
+Even better, the [Expr-GADT](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Expr.hs) allows a polymorph definition:
 ```haskell
 v3Add :: Num (Expr t) => V3 (Expr t) -> V3 (Expr t) -> V3 (Expr t)
 v3Add = liftA2 (+)
@@ -63,26 +63,28 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
         BoolSort
       | IntSort
       | RealSort
-      | BvSort Nat
+      | BvSort BvEnc Nat
       | ArraySort SMTSort SMTSort
       | StringSort
     data Expr (t :: SMTSort) where ...
 
     ite :: Expr BoolSort -> Expr t -> Expr t -> Expr t
   ```
-- [x] Full SMTLib 2.6 standard support for Sorts Int, Real, Bool, unsigned BitVec, Array & String
-- [x] Type-level length-indexed Bitvectors for BitVec
+- [x] Full SMTLib 2.6 standard support for Sorts Bool, Int, Real, BitVec, Array & String
+- [x] Type-level length-indexed Bitvectors with type-level encoding (Signed/Unsigned) for BitVec
   ```haskell
-    bvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort n) -> Expr (BvSort m) -> Expr (BvSort (n + m))
+  bvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort enc n) -> Expr (BvSort enc m) -> Expr (BvSort enc (n + m))
+  bvLShR :: KnownNat n => Expr (BvSort Unsigned n) -> Expr (BvSort enc n) -> Expr (BvSort Unsigned n)
+  bvAShR :: KnownNat n => Expr (BvSort Signed n) -> Expr (BvSort enc n) -> Expr (BvSort Signed n)
   ```
-- [x] Pure API with Expression-instances for Num, Floating, Bounded, ...
+- [x] Pure API with plenty common instances: `Num`, `Floating`, `Bounded`, `Bits`, `Ixed` and many more
   ```haskell
     solveWith @SMT (solver yices) $ do
       setLogic "QF_BV"
-      x <- var @(BvSort 16)
-      y <- var
-      assert $ x - (maxBound `mod` 8) === y * y
-      return (x,y)
+      x <- var @(BvSort Signed 16)
+      let f = x >? 42 && (x `div` 84 === maxBound - 100)
+      assert f
+      return x
   ```
 - [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solution.hs)
   ```haskell
@@ -90,11 +92,6 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
     type Solver s m = s -> m (Result, Solution)
   ```
 - [x] Solvers via external processes: CVC5, Z3, Yices2-SMT, MathSAT, OptiMathSAT, OpenSMT & Bitwuzla
-  ```haskell
-    (result, solution) <- solveWith @SMT (solver mathsat) $ do
-      setLogic "QF_LIA"
-      assert $ ...
-  ```
 - [x] Incremental solving
   ```haskell
       cvc5Living <- interactiveSolver cvc5
