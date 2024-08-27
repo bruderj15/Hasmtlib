@@ -6,13 +6,15 @@
 module Language.Hasmtlib.Codec where
 
 import Prelude hiding (not, (&&), (||), all, and)
-import Language.Hasmtlib.Internal.Bitvec
-import Language.Hasmtlib.Type.Expr (Expr(..), SMTVar(..), unwrapValue, wrapValue)
+import Language.Hasmtlib.Type.Bitvec
+import Language.Hasmtlib.Type.Expr (Expr(..), SMTVar(..))
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.SMTSort
+import Language.Hasmtlib.Type.Value
 import Language.Hasmtlib.Boolean
 import Data.Kind
+import Data.Proxy
 import Data.Coerce
 import qualified Data.List as List
 import Data.Bits hiding (And, Xor, xor)
@@ -23,9 +25,9 @@ import Data.Dependent.Map as DMap
 import Data.Tree (Tree)
 import qualified Data.Text as Text
 import Data.Monoid (Sum, Product, First, Last, Dual)
-import Data.Functor.Identity (Identity)
 import qualified Data.Vector.Sized as V
 import Control.Monad
+import Control.Lens hiding (from, to)
 import GHC.Generics
 import GHC.TypeLits
 
@@ -70,7 +72,14 @@ class Codec a where
 instance KnownSMTSort t => Codec (Expr t) where
   type Decoded (Expr t) = HaskellType t
   decode sol (Var var)  = do
-    (IntValueMap m) <- DMap.lookup (sortSing @t) sol
+    let sungSort = sortSing @t
+    (IntValueMap m) <- case sungSort of
+      SBvSort enc n -> case bvEncSing' enc of
+      -- Solution contains all BV as unsigned, if we have a Signed one we check the Unsigned ones and flip BvEnc
+        SUnsigned -> DMap.lookup sungSort sol
+        SSigned -> DMap.lookup (SBvSort (Proxy @Unsigned) n) sol <&>
+          \case (IntValueMap ubvs) -> IntValueMap $ fmap (\case (BvValue ubv) -> BvValue $ asSigned ubv) ubvs
+      _ -> DMap.lookup sungSort sol
     val <- IM.lookup (coerce var) m
     return $ unwrapValue val
   decode _ (Constant v)         = Just $ unwrapValue v
@@ -80,6 +89,7 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (Mul x y)          = (*)   <$> decode sol x <*> decode sol y
   decode sol (Abs x)            = fmap abs     (decode sol x)
   decode sol (Mod x y)          = mod   <$> decode sol x <*> decode sol y
+  decode sol (Rem x y)          = rem   <$> decode sol x <*> decode sol y
   decode sol (IDiv x y)         = div   <$> decode sol x <*> decode sol y
   decode sol (Div x y)          = (/)   <$> decode sol x <*> decode sol y
   decode sol (LTH x y)          = (<)   <$> decode sol x <*> decode sol y
@@ -115,17 +125,25 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (Ite p t f)        = (\p' t' f' -> if p' then t' else f') <$> decode sol p <*> decode sol t <*> decode sol f
   decode sol (BvNand x y)       = nand <$> sequenceA [decode sol x, decode sol y]
   decode sol (BvNor x y)        = nor  <$> sequenceA [decode sol x, decode sol y]
-  decode sol (BvShL x y)        = join $ bvShL <$> decode sol x <*> decode sol y
-  decode sol (BvLShR x y)       = join $ bvLShR <$> decode sol x <*> decode sol y
-  decode sol (BvConcat x y)     = bvConcat <$> decode sol x <*> decode sol y
+  decode sol (BvShL x y)        = do
+    x' <- decode sol x
+    y' <- decode sol y
+    return $ shiftL x' $ fromIntegral (toInteger y')
+  decode sol (BvLShR x y)       = do
+    x' <- decode sol x
+    y' <- decode sol y
+    return $ shiftR x' $ fromIntegral (toInteger y')
+  decode sol (BvAShR x y)       = do
+    x' <- decode sol x
+    y' <- decode sol y
+    return $ shiftR x' $ fromIntegral (toInteger y')
+  decode sol (BvConcat x y)     = bitvecConcat <$> decode sol x <*> decode sol y
   decode sol (BvRotL i x)       = rotateL <$> decode sol x <*> pure (fromIntegral i)
   decode sol (BvRotR i x)       = rotateR <$> decode sol x <*> pure (fromIntegral i)
   decode sol (ArrSelect i arr)  = arrSelect <$> decode sol i <*> decode sol arr
   decode sol (ArrStore i x arr) = arrStore <$> decode sol i <*> decode sol x <*> decode sol arr
   decode sol (StrConcat x y)         = (<>) <$> decode sol x <*> decode sol y
   decode sol (StrLength x)           = toInteger . Text.length <$> decode sol x
-  decode sol (StrLT x y)             = (<) <$> decode sol x <*> decode sol y
-  decode sol (StrLTHE x y)           = (<=) <$> decode sol x <*> decode sol y
   decode sol (StrAt x i)             = (\x' i' -> Text.singleton $ Text.index x' (fromInteger i')) <$> decode sol x <*> decode sol i
   decode sol (StrSubstring x i j)    = (\x' (fromInteger -> i') (fromInteger -> j') -> Text.take (j' - i') $ Text.drop i' x') <$> decode sol x <*> decode sol i <*> decode sol j
   decode sol (StrPrefixOf x y)       = Text.isPrefixOf <$> decode sol x <*> decode sol y

@@ -4,10 +4,10 @@
 module Language.Hasmtlib.Internal.Parser where
 
 import Prelude hiding (not, (&&), (||), and , or)
-import Language.Hasmtlib.Internal.Bitvec
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Codec
+import Language.Hasmtlib.Type.Bitvec
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
@@ -16,7 +16,7 @@ import Data.Bit
 import Data.Coerce
 import Data.Proxy
 import Data.Ratio ((%))
-import Data.ByteString
+import Data.ByteString hiding (filter, foldl)
 import Data.ByteString.Builder
 import Data.Attoparsec.ByteString hiding (Result, skipWhile, takeTill)
 import Data.Attoparsec.ByteString.Char8 hiding (Result)
@@ -91,7 +91,10 @@ parseSomeBitVecSort = do
   n <- decimal
   _ <- skipSpace >> char ')'
   case someNatVal $ fromInteger n of
-    SomeNat pn -> return $ SomeSMTSort $ SBvSort pn
+    -- SMTLib does not differentiate between signed and unsigned BitVec on the type-level
+    -- We do. So we always just put Unsigned here and in Codec (Expr t)
+    -- if (t ~ BvSort Signed _) we retrieve unsigned solution and flip type-level encoding
+    SomeNat pn -> return $ SomeSMTSort $ SBvSort (Proxy @Unsigned) pn
 {-# INLINEABLE parseSomeBitVecSort #-}
 
 parseSomeArraySort :: Parser (SomeKnownOrdSMTSort SSMTSort)
@@ -140,12 +143,13 @@ parseExpr = var <|> constantExpr <|> ternary "ite" (ite @(Expr BoolSort))
                       <|> binary "str.prefixof" strPrefixOf <|> binary "str.suffixof" strSuffixOf
                       <|> binary "str.contains" strContains
                       -- TODO: Add compare ops for all (?) bv-sorts
-              SBvSort _ -> unary "bvnot" not
+              SBvSort enc _ -> unary "bvnot" not
                       <|> binary "bvand" (&&)  <|> binary "bvor" (||) <|> binary "bvxor" xor <|> binary "bvnand" BvNand <|> binary "bvnor" BvNor
                       <|> unary  "bvneg" negate
                       <|> binary "bvadd" (+)  <|> binary "bvsub" (-) <|> binary "bvmul" (*)
                       <|> binary "bvudiv" div <|> binary "bvurem" rem
-                      <|> binary "bvshl" BvShL <|> binary "bvlshr" BvLShR
+                      <|> binary "bvshl" BvShL
+                      <|> case bvEncSing' enc of SUnsigned -> binary "bvlshr" BvLShR ; SSigned -> binary "bvashr" BvAShR
               SArraySort _ _ -> ternary "store" ArrStore
                       -- TODO: Add compare ops for all (?) array-sorts
               SStringSort -> binary "str.++" (<>) <|> binary "str.at" strAt <|> ternary "str.substr" StrSubstring
@@ -160,39 +164,39 @@ var = do
 
 constant :: forall t. KnownSMTSort t => Parser (HaskellType t)
 constant = case sortSing @t of
-  SIntSort  -> anyValue decimal
-  SRealSort -> anyValue parseRatioDouble <|> parseToRealDouble <|> anyValue rational
-  SBoolSort -> parseBool
-  SBvSort p -> anyBitvector p
+  SIntSort       -> anyValue decimal
+  SRealSort      -> anyValue parseRatioDouble <|> parseToRealDouble <|> anyValue rational
+  SBoolSort      -> parseBool
+  SBvSort _ p    -> anyBitvector p
   SArraySort k v -> constArray k v
-  SStringSort -> parseSmtString
+  SStringSort    -> parseSmtString
 {-# INLINEABLE constant #-}
 
 constantExpr :: forall t. KnownSMTSort t => Parser (Expr t)
 constantExpr = Constant . wrapValue <$> constant @t
 {-# INLINE constantExpr #-}
 
-anyBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
+anyBitvector :: (KnownBvEnc enc, KnownNat n) => Proxy n -> Parser (Bitvec enc n)
 anyBitvector p = binBitvector p <|> hexBitvector p <|> literalBitvector p
 {-# INLINE anyBitvector #-}
 
-binBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
+binBitvector :: KnownNat n => Proxy n -> Parser (Bitvec enc n)
 binBitvector p = do
   _  <- string "#b" >> skipSpace
   bs <- many $ char '0' <|> char '1'
   let bs' :: [Bit] = fmap (\b -> ite (b == '1') true false) bs
-  case bvFromListN' p bs' of
+  case bitvecFromListN' p bs' of
     Nothing -> fail $ "Expected BitVector of length" <> show (natVal p) <> ", but got a different one"
     Just v  -> return v
 {-# INLINEABLE binBitvector #-}
 
-hexBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
+hexBitvector :: (KnownBvEnc enc, KnownNat n) => Proxy n -> Parser (Bitvec enc n)
 hexBitvector _ = do
   _ <- string "#x" >> skipSpace
   fromInteger <$> hexadecimal
 {-# INLINE hexBitvector #-}
 
-literalBitvector :: KnownNat n => Proxy n -> Parser (Bitvec n)
+literalBitvector :: (KnownBvEnc enc, KnownNat n) => Proxy n -> Parser (Bitvec enc n)
 literalBitvector _ = do
   _ <- char '(' >> skipSpace
   _ <- char '_' >> skipSpace

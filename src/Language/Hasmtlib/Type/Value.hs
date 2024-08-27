@@ -7,6 +7,7 @@ module Language.Hasmtlib.Type.Value
 where
 
 import Language.Hasmtlib.Type.SMTSort
+import Language.Hasmtlib.Type.Bitvec
 import Data.GADT.Compare
 import Data.Proxy
 import Control.Lens
@@ -18,7 +19,7 @@ data Value (t :: SMTSort) where
   IntValue    :: HaskellType IntSort    -> Value IntSort
   RealValue   :: HaskellType RealSort   -> Value RealSort
   BoolValue   :: HaskellType BoolSort   -> Value BoolSort
-  BvValue     :: KnownNat n => HaskellType (BvSort n) -> Value (BvSort n)
+  BvValue     :: (KnownBvEnc enc, KnownNat n) => HaskellType (BvSort enc n) -> Value (BvSort enc n)
   ArrayValue  :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => HaskellType (ArraySort k v) -> Value (ArraySort k v)
   StringValue :: HaskellType StringSort -> Value StringSort
 
@@ -30,7 +31,9 @@ instance GEq Value where
   geq (IntValue x) (IntValue y)     = if x == y then Just Refl else Nothing
   geq (RealValue x) (RealValue y)   = if x == y then Just Refl else Nothing
   geq (BvValue x) (BvValue y)       = case cmpNat x y of
-    EQI -> if x == y then Just Refl else Nothing
+    EQI -> case geq (bvEncSing'' x) (bvEncSing'' y) of
+      Nothing -> Nothing
+      Just Refl -> if x == y then Just Refl else Nothing
     _   -> Nothing
   geq ax@(ArrayValue x) ay@(ArrayValue y) = case geq (sortSing' ax) (sortSing' ay) of
     Nothing -> Nothing
@@ -50,7 +53,10 @@ instance GCompare Value where
   gcompare (RealValue x) (RealValue x')     = liftOrdering $ compare x x'
   gcompare (BvValue x) (BvValue x')         = case cmpNat x x' of
     LTI -> GLT
-    EQI -> liftOrdering $ compare x x'
+    EQI -> case gcompare (bvEncSing'' x) (bvEncSing'' x') of
+      GLT -> GLT
+      GEQ -> liftOrdering $ compare x x'
+      GGT -> GGT
     GTI -> GGT
   gcompare (ArrayValue x) (ArrayValue x')   = case gcompare (sortSing' (pk x)) (sortSing' (pk x')) of
     GLT -> GLT
@@ -94,7 +100,7 @@ wrapValue = case sortSing @t of
   SIntSort       -> IntValue
   SRealSort      -> RealValue
   SBoolSort      -> BoolValue
-  SBvSort _      -> BvValue
+  SBvSort _ _    -> BvValue
   SArraySort _ _ -> ArrayValue
   SStringSort    -> StringValue
 {-# INLINEABLE wrapValue #-}

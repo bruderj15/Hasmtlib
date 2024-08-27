@@ -33,7 +33,6 @@ library
                      , Language.Hasmtlib.Variable
                      , Language.Hasmtlib.Counting
                      , Language.Hasmtlib.Internal.Parser
-                     , Language.Hasmtlib.Internal.Bitvec
                      , Language.Hasmtlib.Internal.Render
                      , Language.Hasmtlib.Internal.Sharing
                      , Language.Hasmtlib.Internal.Uniplate1
@@ -56,6 +55,7 @@ library
                      , Language.Hasmtlib.Type.Solver
                      , Language.Hasmtlib.Type.Option
                      , Language.Hasmtlib.Type.ArrayMap
+                     , Language.Hasmtlib.Type.Bitvec
 
   build-depends:       attoparsec                   >= 0.14.4 && < 1
                      , base                         >= 4.17.2 && < 5
