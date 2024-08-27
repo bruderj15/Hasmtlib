@@ -14,13 +14,12 @@ import Language.Hasmtlib.Type.Expr
 import Data.GADT.Compare
 import Data.HashMap.Lazy
 import Data.Default
+import Data.Kind
 import Control.Monad.State
 import Control.Lens
 import System.Mem.StableName
 import System.IO.Unsafe
 import Unsafe.Coerce
-
-import Data.Kind
 
 -- | Mode used for sharing.
 data SharingMode =
@@ -60,7 +59,7 @@ runSharing StableNames = lazyParaM1 (
         SBoolSort      -> share origExpr expr
         SIntSort       -> share origExpr expr
         SRealSort      -> share origExpr expr
-        SBvSort _      -> share origExpr expr
+        SBvSort _ _    -> share origExpr expr
         SArraySort _ _ -> share origExpr expr
         SStringSort    -> share origExpr expr)
 
