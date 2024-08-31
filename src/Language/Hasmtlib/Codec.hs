@@ -23,6 +23,7 @@ import Data.Sequence (Seq)
 import Data.IntMap as IM hiding (foldl)
 import Data.Dependent.Map as DMap
 import Data.Tree (Tree)
+import Data.Array (Array, Ix)
 import qualified Data.Text as Text
 import Data.Monoid (Sum, Product, First, Last, Dual)
 import qualified Data.Vector.Sized as V
@@ -182,16 +183,21 @@ instance Codec a => Codec (Dual a)
 instance Codec a => Codec (Identity a)
 
 instance Codec a => Codec (IntMap a) where
-  decode sol = traverse (decode sol)
+  decode = traverse . decode
   encode = fmap encode
 
 instance Codec a => Codec (Seq a) where
-  decode sol = traverse (decode sol)
+  decode = traverse . decode
   encode = fmap encode
 
 instance Codec a => Codec (Map k a) where
   type Decoded (Map k a) = Map k (Decoded a)
-  decode sol = traverse (decode sol)
+  decode = traverse . decode
+  encode = fmap encode
+
+instance (Ix i, Codec e) => Codec (Array i e) where
+  type Decoded (Array i e) = Array i (Decoded e)
+  decode = traverse . decode
   encode = fmap encode
 
 class GCodec f where
