@@ -1,7 +1,23 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Language.Hasmtlib.Type.Relation where
+module Language.Hasmtlib.Type.Relation
+(
+  -- * Relation type
+  Relation(..)
+
+  -- * Construction
+, relation, symmetric_relation, build, buildFrom, buildFromM, identity
+
+  -- * Accessors
+, (!?), (!)
+, bounds, indices, elems, assocs
+, domain, codomain, image, preimage
+
+  -- * Pretty printing
+, table
+)
+where
 
 import Prelude hiding (and, (&&), any)
 import Language.Hasmtlib.Type.MonadSMT
@@ -11,9 +27,10 @@ import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Codec
 import Data.Coerce
 import Data.Array (Array, Ix(..))
+import Data.Maybe
 import qualified Data.Array as A
 import Control.Monad
-import Control.Lens
+import Control.Lens hiding (indices)
 
 -- | @Relation a b@ represents a binary relation \(R \subseteq A \times B \),
 -- where the domain \(A\) is a finite subset of the type @a@,
@@ -73,7 +90,7 @@ symmetric_relation bnd = do
 -- | Constructs a relation \(R \subseteq A \times B \) from a list.
 build :: (Ix a, Ix b)
       => ((a,b),(a,b))
-      -> [ ((a,b), Expr BoolSort) ] -- ^ A list of tuples, where the first element represents an element
+      -> [((a,b), Expr BoolSort)] -- ^ A list of tuples, where the first element represents an element
                            -- \((x,y) \in A \times B \) and the second element is a positive 'Expr' 'BoolSort'
                            -- if \((x,y) \in R \), or a negative 'Expr' 'BoolSort' if \((x,y) \notin R \).
       -> Relation a b
@@ -82,8 +99,7 @@ build bnd pairs = Relation $ A.array bnd pairs
 -- | Constructs a relation \(R \subseteq A \times B \) from a function.
 buildFrom :: (Ix a, Ix b)
           => ((a,b),(a,b))
-          -> ((a,b) -> Expr BoolSort) -- ^ A function that assigns a 'Expr' 'BoolSort'-value
-                            -- to each element \((x,y) \in A \times B \).
+          -> ((a,b) -> Expr BoolSort) -- ^ A function that assigns a 'Expr' 'BoolSort'-value to each element \((x,y) \in A \times B \).
           -> Relation a b
 buildFrom bnd p = build bnd $ flip map (A.range bnd) $ \ i -> (i, p i)
 
@@ -112,26 +128,39 @@ identity ((a,b),(c,d))
 -- | The bounds of the array that correspond to the matrix representation of the given relation.
 bounds :: Relation a b -> ((a,b),(a,b))
 bounds (Relation r) = A.bounds r
+{-# INLINE bounds #-}
 
 -- | The list of indices, where each index represents an element \((x,y) \in A \times B \)
 -- that may be contained in the given relation \(R \subseteq A \times B \).
 indices :: (Ix a, Ix b) => Relation a b -> [(a, b)]
 indices (Relation r) = A.indices r
+{-# INLINE indices #-}
 
 -- | The list of tuples for the given relation \(R \subseteq A \times B \),
 -- where the first element represents an element \((x,y) \in A \times B \)
 -- and the second element indicates via a 'Expr' 'BoolSort' , if \((x,y) \in R \) or not.
 assocs :: (Ix a, Ix b) => Relation a b -> [((a, b), Expr BoolSort)]
 assocs (Relation r) = A.assocs r
+{-# INLINE assocs #-}
 
 -- | The list of elements of the array
 -- that correspond to the matrix representation of the given relation.
 elems :: Relation a b -> [Expr BoolSort]
 elems (Relation r) = A.elems r
+{-# INLINE elems #-}
 
--- | The 'Expr' 'BoolSort'-value for a given element \((x,y) \in A \times B \)
+-- | 'Maybe' ('Expr' 'BoolSort') for a given element \((x,y) \in A \times B \)
 -- and a given relation \(R \subseteq A \times B \) that indicates
 -- if \((x,y) \in R \) or not.
+--
+-- 'Just' if given element is in 'bounds' of the relation.
+-- 'Nothing' otherwise.
+(!?) :: (Ix a, Ix b) => Relation a b -> (a, b) -> Maybe (Expr BoolSort)
+Relation r !? p = r^?ix p
+{-# INLINE (!?) #-}
+
+-- | Unsafe version of '(!?)'.
+-- Produces an array-indexing-error if given element is not within the 'bounds' of the relation.
 (!) :: (Ix a, Ix b) => Relation a b -> (a, b) -> Expr BoolSort
 Relation r ! p = r A.! p
 {-# INLINE (!) #-}
@@ -141,12 +170,30 @@ domain :: Ix a => Relation a b -> [a]
 domain r =
   let ((x,_),(x',_)) = bounds r
   in A.range (x,x')
+{-# INLINE domain #-}
 
 -- | The codomain \(B\) of a relation \(R \subseteq A \times B\).
 codomain :: Ix b => Relation a b -> [b]
 codomain r =
   let ((_,y),(_,y')) = bounds r
   in A.range (y,y')
+{-# INLINE codomain #-}
+
+-- | Returns a list of 'Expr' 'BoolSort' indicating whether the projection on
+-- given element \( x \in A \) holds for every element in the codomain:
+--
+-- \( \{ (x,y) \in R \mid y \in codomain(B) \} \)
+image :: (Ix a, Ix b) => Relation a b -> a -> [Expr BoolSort]
+image r x = mapMaybe ((r !?) . (x,)) (codomain r)
+{-# INLINE image #-}
+
+-- | Returns a list of 'Expr' 'BoolSort' indicating whether the projection on
+-- given element \( y \in B \) holds for every element in the domain:
+--
+-- \( \{ (x,y) \in R \mid x \in domain(A) \} \)
+preimage :: (Ix a, Ix b) => Relation a b -> b -> [Expr BoolSort]
+preimage r y = mapMaybe ((r !?) . (,y)) (domain r)
+{-# INLINE preimage #-}
 
 -- | Print a satisfying assignment from an SMT solver, where the assignment is interpreted as a relation.
 -- @putStrLn $ table \</assignment/\>@ corresponds to the matrix representation of this relation.

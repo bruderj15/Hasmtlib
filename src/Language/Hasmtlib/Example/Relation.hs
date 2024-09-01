@@ -3,6 +3,7 @@ module Language.Hasmtlib.Example.Relation where
 import Prelude hiding (not)
 import Language.Hasmtlib
 import Control.Lens
+import Control.Monad
 
 main :: IO ()
 main = do
@@ -10,10 +11,13 @@ main = do
     setLogic "QF_LIA"
 
     rel <- relation ((0,0), (4,4))
-    assert $ atLeast @IntSort 7 $ elems rel
+
+    forM_ (image rel <$> domain rel) (assert . exactly @IntSort 1)
+    forM_ (preimage rel <$> domain rel) (assert . exactly @IntSort 1)
+
     assertMaybe $ do
       item <- rel^?ix (0,0)
-      return $ item === false
+      return $ item === true
 
     return rel
 
