@@ -3,9 +3,37 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Language.Hasmtlib.Type.Solution where
+{- |
+This module provides the types 'Solution' and 'Result'.
+
+External SMT-Solvers responses are parsed into these types.
+-}
+module Language.Hasmtlib.Type.Solution
+(
+  -- * Solver
+  Solver, Result(..)
+
+  -- * Solution
+, Solution
+, OrdHaskellType
+, SomeKnownOrdSMTSort
+, fromSomeVarSols
+
+  -- ** IntValueMap
+, IntValueMap(..)
+
+  -- ** SMTVarVol
+  -- *** Type
+, SMTVarSol(..)
+
+  -- *** Lens
+, solVar, solVal
+
+)
+where
 
 import Language.Hasmtlib.Type.Expr
+import Language.Hasmtlib.Type.Value
 import Language.Hasmtlib.Type.SMTSort
 import Data.IntMap as IMap hiding (foldl)
 import Data.Dependent.Map as DMap

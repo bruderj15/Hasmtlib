@@ -1,8 +1,21 @@
+{- |
+This module provides functions for having SMT-Problems solved by external solvers.
+-}
 module Language.Hasmtlib.Type.Solver
-  ( WithSolver(..)
+  (
+  -- * WithSolver
+  WithSolver(..)
+
+  -- * Stateful solving
   , solveWith
+
+  -- * Interactive solving
   , interactiveWith, debugInteractiveWith
+
+  -- ** Minimzation
   , solveMinimized, solveMinimizedDebug
+
+  -- ** Maximization
   , solveMaximized, solveMaximizedDebug
   )
 where

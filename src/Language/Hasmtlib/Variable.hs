@@ -1,6 +1,22 @@
 {-# LANGUAGE DefaultSignatures #-}
 
-module Language.Hasmtlib.Variable where
+{- |
+This module provides the class 'Variable' which lets you create symbolical values of a data-type.
+
+A generic default implementation with 'GVariable' is possible.
+-}
+module Language.Hasmtlib.Variable
+(
+  -- * Class
+  Variable(..)
+
+  -- * Other functions
+, variable'
+
+  -- * Generics
+, GVariable(..)
+)
+where
 
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.MonadSMT

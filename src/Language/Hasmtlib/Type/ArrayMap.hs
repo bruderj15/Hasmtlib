@@ -1,7 +1,23 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Language.Hasmtlib.Type.ArrayMap where
+{- |
+This module provides a class 'ArrayMap' and a concrete implementation with 'ConstArray' for
+McCarthy's basic array theory.
+-}
+module Language.Hasmtlib.Type.ArrayMap
+(
+  -- * Class
+  ArrayMap(..)
+, asConst
+
+  -- * Type
+, ConstArray(..)
+
+  -- * Lens
+, arrConst, stored
+)
+where
 
 import Data.Proxy
 import qualified Data.Map as Map
@@ -15,16 +31,25 @@ import Control.Lens
 --
 --   Therefore the following axioms must hold:
 --
--- 1. forall A i x: arrSelect (store A i x) == x
+-- 1. forall A i x: arrSelect (arrStore i x) == x
 --
--- 2. forall A i j x: i /= j ==> (arrSelect (arrStore A i x) j === arrSelect A j)
+-- 2. forall A i j x: i /= j ==> (arrSelect (arrStore i x) j === arrSelect A j)
 class ArrayMap f k v where
+  -- | Construct an 'ArrayMap' via it's const value.
   asConst'   :: Proxy f -> Proxy k -> v -> f k v
-  viewConst  :: f k v -> v
-  arrSelect  :: f k v -> k -> v
-  arrStore   :: f k v -> k -> v -> f k v
 
--- | Wrapper for 'asConst'' which hides the 'Proxy'
+  -- | View the const value of the 'ArrayMap'.
+  viewConst  :: f k v -> v
+
+  -- | Select a value from the 'ArrayMap'.
+  --
+  -- Returns the specific value for given key if there is one. Returns the const value otherwise.
+  arrSelect :: f k v -> k -> v
+
+  -- | Store a specific value at a given key in an 'ArrayMap'.
+  arrStore :: f k v -> k -> v -> f k v
+
+-- | Wrapper for 'asConst'' which hides the 'Proxy'.
 asConst :: forall f k v. ArrayMap f k v => v -> f k v
 asConst = asConst' (Proxy @f) (Proxy @k)
 

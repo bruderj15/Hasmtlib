@@ -2,12 +2,33 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RoleAnnotations #-}
 
+{- |
+This module provides the type-level length-indexed and MSB-first bitvector 'Bitvec'
+built on top of the package @bitvec@ and 'V.Vector'.
+
+It also holds it's type of encoding as a phantom-type via 'BvEnc'.
+-}
 module Language.Hasmtlib.Type.Bitvec
-( BvEnc(..), SBvEnc(..), KnownBvEnc(..)
+(
+  -- * Bitvector encoding
+  BvEnc(..), SBvEnc(..), KnownBvEnc(..)
 , bvEncSing', bvEncSing''
+
+  -- * Bitvec type
 , Bitvec(..)
+
+  -- * Construction
+, bitvecConcat
+
+  -- * Conversion
+  -- ** Sign
 , asUnsigned, asSigned
-, bitvecConcat, bitvecFromListN, bitvecFromListN'
+
+  -- ** Lists
+, bitvecFromListN, bitvecFromListN'
+
+  -- * Lens
+, _signBit
 )
 where
 
@@ -24,6 +45,7 @@ import Data.Proxy
 import Data.Bifunctor
 import Data.Type.Equality
 import qualified Data.Vector.Unboxed.Sized as V
+import Control.Lens
 import GHC.TypeNats
 
 -- | Type of Bitvector encoding - used as promoted type (data-kind).
@@ -66,6 +88,7 @@ instance GCompare SBvEnc where
   -- gcompare _ SSigned  = GGT
 
 -- | Length-indexed bitvector ('V.Vector') carrying a phantom type-level 'BvEnc'.
+--
 --   Most significant bit is first (index 0) for unsigned bitvectors.
 --   Signed bitvectors have their sign bit first (index 0) and their most significant bit second (index 1).
 type role Bitvec phantom phantom
@@ -140,11 +163,21 @@ instance (KnownBvEnc enc, KnownNat n) => Integral (Bitvec enc n) where
   toInteger = fromIntegral . fromEnum
   quotRem x y = bimap fromInteger fromInteger $ quotRem (toInteger x) (toInteger y)
 
+-- | A Lens on the sign-bit of a signed bitvector.
+_signBit :: KnownNat (n + 1) => Lens' (Bitvec Signed (n + 1)) Bit
+_signBit = lens (\bv -> Bit $ testBit bv 0 )$
+  \bv b -> case b of
+    Bit False -> clearBit bv 0
+    Bit True  -> setBit   bv 0
+
+-- | Concatenation of two bitvectors.
 bitvecConcat :: Bitvec enc n -> Bitvec enc m -> Bitvec enc (n + m)
 bitvecConcat (coerce -> x) (coerce -> y) = coerce $ x V.++ y
 
+-- | Constructing a bitvector from a list.
 bitvecFromListN :: forall n enc. KnownNat n => [Bit] -> Maybe (Bitvec enc n)
 bitvecFromListN = coerce . V.fromListN @n
 
+-- | Constructing a bitvector from a list with length given as 'Proxy'.
 bitvecFromListN' :: KnownNat n => Proxy n -> [Bit] -> Maybe (Bitvec enc n)
 bitvecFromListN' _ = bitvecFromListN

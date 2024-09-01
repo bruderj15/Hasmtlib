@@ -1,8 +1,35 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Language.Hasmtlib.Type.MonadSMT where
+{- |
+This module provides MTL-Style-classes for building SMT-problems.
+
+The following three classes form the core of this module:
+
+1. 'MonadSMT' for plain SMT-problems. Create variables using 'var' and assert formulas via 'assert'.
+
+2. 'MonadIncrSMT' for plain SMT-problems with addtional access to the external solvers incremental stack and it's operations.
+
+3. 'MonadOMT' for SMT-problems with optimization. Optimize via 'minimize' and 'maximize' and softly assert formulas via 'assertSoft'.
+-}
+module Language.Hasmtlib.Type.MonadSMT
+(
+  -- * MonadSMT
+  MonadSMT(..)
+, var, smtvar
+, constant, assertMaybe, quantify
+
+  -- * MonadIncrSMT
+, MonadIncrSMT(..)
+, solve
+
+  -- * MonadOMT
+, MonadOMT(..)
+, assertSoftWeighted
+)
+where
 
 import Language.Hasmtlib.Type.Expr
+import Language.Hasmtlib.Type.Value
 import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution

@@ -5,17 +5,73 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DerivingStrategies #-}
 
+{- |
+This module provides the data-type 'Expr'.
+
+It represents SMTLib-expressions via an abstract syntax tree (AST), implemented as GADT.
+
+Variables are just 'Int's wrapped in a newtype 'SMTVar' with a phantom-type 'SMTSort'.
+
+Usually the end user of this library does not need to deal with this representation.
+Instead he should rely on the provided instances for building expressions.
+Some of the main classes of these include:
+
+1. 'Equatable' and 'Orderable' for symbolic comparisons,
+
+2. 'Iteable' for symbolic branching via 'ite',
+
+3. 'Boolean' for symbolic bool operations,
+
+4. Prelude classics like: 'Num', 'Floating', 'Integral', 'Bounded', ...
+
+5. 'Bits.Bits' for BitVec-operations
+
+Besides that, there are also some operations defined by the SMTLib-Standard Version 2.6 that do not fit into any classes
+and therefore are exported als plain functions like 'for_all' or 'bvConcat'.
+-}
 module Language.Hasmtlib.Type.Expr
-  ( SMTVar(..), varId
-  , Value(..) , unwrapValue, wrapValue
+  (
+  -- * SMTVar
+    SMTVar(..), varId
+
+  -- * Expr type
   , Expr(..), isLeaf
-  , Iteable(..), Equatable(..), Orderable(..), min', max'
+
+  -- * Compare
+  -- ** Equatable
+  -- *** Class
+  , Equatable(..)
   , equal, distinct
+
+  -- *** Generic
+  , GEquatable(..)
+
+  -- ** Orderable
+  -- *** Class
+  , Orderable(..)
+  , min', max'
+
+  -- *** Generic
+  , GOrderable(..)
+
+  -- ** Iteable
+  , Iteable(..)
+
+  -- * Non-class functions
+  -- ** Quantifier
   , for_all, exists
+
+  -- ** BitVec
+  , bvConcat
+
+  -- ** Array
   , select, store
-  , bvShL, bvLShR, bvAShR, bvConcat
-  , toRealSort, toIntSort, isIntSort
+
+  -- ** String
   , strLength, strAt, strSubstring, strPrefixOf, strSuffixOf, strContains, strIndexOf, strReplace, strReplaceAll
+
+  -- ** Conversion
+  , toRealSort, toIntSort, isIntSort
   )
 where
 
@@ -59,9 +115,9 @@ newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int }
 $(makeLenses ''SMTVar)
 
 -- | An SMT-Expression.
---   For building expressions use the corresponding instances: 'Boolean', 'Num', 'Equatable', ...
+--   For building expressions use the corresponding instances.
 --
---   With a lot of criminal energy you may build invalid expressions regarding the SMTLib Version 2.6 - Specification.
+--   With a lot of criminal energy you may build invalid expressions regarding the SMTLib Version 2.6 - specification.
 --   Therefore it is highly recommended to rely on the instances.
 data Expr (t :: SMTSort) where
   Var       :: KnownSMTSort t => SMTVar t -> Expr t
@@ -477,21 +533,6 @@ store :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySor
 store = ArrStore
 {-# INLINE store #-}
 
--- | Logically shift left the first expression by the second expression.
-bvShL    :: (KnownBvEnc enc, KnownNat n) => Expr (BvSort enc n) -> Expr (BvSort enc n) -> Expr (BvSort enc n)
-bvShL    = BvShL
-{-# INLINE bvShL #-}
-
--- | Logically shift right the first expression by the second expression.
-bvLShR   :: KnownNat n => Expr (BvSort Unsigned n) -> Expr (BvSort Unsigned n) -> Expr (BvSort Unsigned n)
-bvLShR   = BvLShR
-{-# INLINE bvLShR #-}
-
--- | Arithmetically shift right the first expression by the second expression.
-bvAShR   :: KnownNat n => Expr (BvSort Signed n) -> Expr (BvSort Signed n) -> Expr (BvSort Signed n)
-bvAShR   = BvAShR
-{-# INLINE bvAShR #-}
-
 -- | Concats two bitvectors.
 bvConcat :: (KnownBvEnc enc, KnownNat n, KnownNat m) => Expr (BvSort enc n) -> Expr (BvSort enc m) -> Expr (BvSort enc (n + m))
 bvConcat = BvConcat
@@ -533,25 +574,25 @@ strSubstring = StrSubstring
 {-# INLINE strSubstring #-}
 
 -- | First string is a prefix of second one.
---   @(str.prefixof s t)@ is @true@ iff @s@ is a prefix of @t@.
+--   @(strPrefixof s t)@ is @true@ iff @s@ is a prefix of @t@.
 strPrefixOf :: Expr StringSort -> Expr StringSort -> Expr BoolSort
 strPrefixOf = StrPrefixOf
 {-# INLINE strPrefixOf #-}
 
 -- | First string is a suffix of second one.
---   @(str.suffixof s t)@ is @true@ iff @s@ is a suffix of @t@.
+--   @(strSuffixof s t)@ is @true@ iff @s@ is a suffix of @t@.
 strSuffixOf :: Expr StringSort -> Expr StringSort -> Expr BoolSort
 strSuffixOf = StrSuffixOf
 {-# INLINE strSuffixOf #-}
 
 -- | First string contains second one
---   @(str.contains s t)@ iff @s@ contains @t@.
+--   @(strContains s t)@ iff @s@ contains @t@.
 strContains :: Expr StringSort -> Expr StringSort -> Expr BoolSort
 strContains = StrContains
 {-# INLINE strContains #-}
 
 -- | Index of first occurrence of second string in first one starting at the position specified by the third argument.
---   @(str.indexof s t i)@, with @0 <= i <= |s|@ is the position of the first
+--   @(strIndexof s t i)@, with @0 <= i <= |s|@ is the position of the first
 --   occurrence of @t@ in @s@ at or after position @i@, if any.
 --   Otherwise, it is @-1@. Note that the result is @i@ whenever @i@ is within
 --   the range @[0, |s|]@ and @t@ is empty.
@@ -559,7 +600,7 @@ strIndexOf :: Expr StringSort -> Expr StringSort -> Expr IntSort -> Expr IntSort
 strIndexOf = StrIndexOf
 {-# INLINE strIndexOf #-}
 
--- | @(str.replace s t t')@ is the string obtained by replacing the first
+-- | @(strReplace s t t')@ is the string obtained by replacing the first
 --   occurrence of @t@ in @s@, if any, by @t'@. Note that if @t@ is empty, the
 --   result is to prepend @t'@ to @s@; also, if @t@ does not occur in @s@ then
 --   the result is @s@.
@@ -567,7 +608,7 @@ strReplace :: Expr StringSort -> Expr StringSort -> Expr StringSort -> Expr Stri
 strReplace = StrReplace
 {-# INLINE strReplace #-}
 
--- | @(str.replace_all s t t’)@ is @s@ if @t@ is the empty string. Otherwise, it
+-- | @(strReplaceAll s t t’)@ is @s@ if @t@ is the empty string. Otherwise, it
 --   is the string obtained from @s@ by replacing all occurrences of @t@ in @s@
 --   by @t’@, starting with the first occurrence and proceeding in left-to-right order.
 strReplaceAll :: Expr StringSort -> Expr StringSort -> Expr StringSort -> Expr StringSort

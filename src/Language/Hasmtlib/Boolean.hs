@@ -1,13 +1,30 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Language.Hasmtlib.Boolean where
+{- |
+This module provides a more generic version of bool-like algebras than what the Prelude does for 'Bool'.
+
+The class 'Boolean' therefore overloads most of the Preludes operators like '(&&)'.
+
+However, as 'Bool' also features an instance of 'Boolean', you can simply hide the Prelude ones - not having to import either qualified.
+-}
+module Language.Hasmtlib.Boolean
+(
+  -- * Class
+  Boolean(..)
+
+  -- * Operators
+, and, or
+, nand, nor
+, all, any
+)
+where
 
 import Prelude (Bool(..), (.), id, Eq(..))
 import qualified Prelude as P
 import Data.Bit
 import Data.Coerce
 import Data.Bits as Bits
-import Data.Foldable hiding (and, or)
+import Data.Foldable hiding (and, or, all, any)
 import qualified Data.Vector.Unboxed.Sized as V
 import GHC.TypeNats
 

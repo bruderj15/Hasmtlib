@@ -1,9 +1,12 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{- |
+This module provides the data-type 'Relation' for encoding binary relations as SMT-problems.
+-}
 module Language.Hasmtlib.Type.Relation
 (
-  -- * Relation type
+  -- * Type
   Relation(..)
 
   -- * Construction

@@ -2,7 +2,26 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
-module Language.Hasmtlib.Type.SMTSort where
+{- |
+This module provides the data-type 'SMTSort' and some singleton-operations for it.
+
+The type 'SMT-Sort' is only used as promoted type (data-kind) in dependent-like contexts such as GADTs.
+-}
+module Language.Hasmtlib.Type.SMTSort
+(
+  -- * Type
+  SMTSort(..)
+, HaskellType
+
+  -- * Singleton
+, SSMTSort(..)
+, KnownSMTSort(..), sortSing'
+
+  -- * Existential
+, SomeSMTSort(..)
+, SomeKnownSMTSort
+)
+where
 
 import Language.Hasmtlib.Internal.Constraint
 import Language.Hasmtlib.Type.Bitvec
