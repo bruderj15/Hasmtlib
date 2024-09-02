@@ -2,7 +2,25 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Language.Hasmtlib.Type.OMT where
+{- |
+This module provides a concrete implementation for 'MonadOMT' with it's state 'OMT'.
+-}
+module Language.Hasmtlib.Type.OMT
+(
+  -- * SoftFormula
+  SoftFormula(..)
+
+  -- * Optimization targets
+, Minimize(..), Maximize(..)
+
+  -- * OMT
+  -- ** Type
+, OMT(..)
+
+  -- ** Lens
+, smt, targetMinimize, targetMaximize, softFormulas
+)
+where
 
 import Language.Hasmtlib.Internal.Sharing
 import Language.Hasmtlib.Internal.Render

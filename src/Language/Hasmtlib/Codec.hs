@@ -3,7 +3,31 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Language.Hasmtlib.Codec where
+{- |
+This module provides the class 'Codec' which takes care of marshalling data to and from external SMT-Solvers.
+
+A generic default implementation with 'GCodec' is possible.
+
+==== __Example__
+
+@
+data V3 a = V3 a a a deriving Generic
+instance Codec a => Codec (V3 a)
+
+constantV3 :: V3 (Expr RealSort)
+constantV3 = encode $ V3 7 69 42
+@
+-}
+module Language.Hasmtlib.Codec
+(
+  -- * Class
+  Codec(..)
+
+  -- * Generics
+, GCodec(..)
+, DefaultDecoded
+)
+where
 
 import Prelude hiding (not, (&&), (||), all, and)
 import Language.Hasmtlib.Type.Bitvec
@@ -32,7 +56,7 @@ import Control.Lens hiding (from, to)
 import GHC.Generics
 import GHC.TypeLits
 
--- | Computes a default 'Decoded' 'Type' by distributing 'Decoded' to it's type arguments.
+-- | Computes a default 'Decoded' 'Type' by distributing 'Decoded' over it's type arguments.
 type family DefaultDecoded a :: Type where
   DefaultDecoded (t a b c d e f g h) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f) (Decoded g) (Decoded h)
   DefaultDecoded (t a b c d e f g) = t (Decoded a) (Decoded b) (Decoded c) (Decoded d) (Decoded e) (Decoded f) (Decoded g)

@@ -2,7 +2,22 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Language.Hasmtlib.Type.Pipe where
+{- |
+This module provides an IO-'Pipe' to external SMT-Solvers and ships with implementations for 'MonadSMT', 'MonadOMT' and 'MonadIncrSMT'.
+
+The 'Pipe' is based on a 'B.Solver' from Tweag's package @smtlib-backends@ and in reality is just an IO-Handle.
+-}
+module Language.Hasmtlib.Type.Pipe
+(
+  -- * Type
+  Pipe(..)
+
+  -- * Lens
+, lastPipeVarId, mPipeLogic
+, pipeSharingMode, pipeStableMap, incrSharedAuxs
+, pipeSolver, isDebugging
+)
+where
 
 import Language.Hasmtlib.Internal.Sharing
 import Language.Hasmtlib.Internal.Render

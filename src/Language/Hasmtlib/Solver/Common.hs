@@ -1,4 +1,24 @@
-module Language.Hasmtlib.Solver.Common where
+{- |
+This module handles common IO interaction with external SMT-Solvers via external processes.
+
+It is built on top of Tweag's package @smtlib-backends@.
+
+Although there already are several concrete solvers like @Z3@ in @Language.Hasmtlib.Solver.Z3@,
+you may use this module to create your own solver bindings.
+-}
+module Language.Hasmtlib.Solver.Common
+(
+  -- * Construction
+  processSolver
+, solver
+, interactiveSolver
+
+  -- * Debugging
+, Debugger(..)
+, debug
+, def
+)
+where
 
 import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.OMT
@@ -67,14 +87,15 @@ instance Default (Debugger OMT) where
 --
 -- 1. Encode the 'SMT'-problem,
 --
--- 2. Start a new external process for the SMT-Solver,
+-- 2. start a new external process for the SMT-Solver,
 --
--- 3. Send the problem to the SMT-Solver,
+-- 3. send the problem to the SMT-Solver,
 --
--- 4. Wait for an answer and parse it and
+-- 4. wait for an answer and parse it,
 --
--- 5. close the process and clean up all resources.
+-- 5. close the process and clean up all resources and
 --
+-- 6. return the decoded solution.
 processSolver :: (RenderSeq s, MonadIO m) => Process.Config -> Maybe (Debugger s) -> Solver s m
 processSolver cfg debugger s = do
   liftIO $ Process.with cfg $ \handle -> do

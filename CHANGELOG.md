@@ -6,6 +6,12 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.6.1 _(2024-09-02)_
+
+### Added
+- Added module 'Language.Hasmtlib.Type.Relation' for encoding binary relations
+- Added rich documentation and usage examples for all public modules
+
 ## v2.6.0 _(2024-08-27)_
 
 ### Added

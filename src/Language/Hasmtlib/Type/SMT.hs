@@ -1,7 +1,23 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Language.Hasmtlib.Type.SMT where
+{- |
+This module provides a concrete implementation for 'MonadSMT' with it's state 'SMT'.
+-}
+module Language.Hasmtlib.Type.SMT
+(
+  -- * Type
+  SMT(..)
+
+  -- * Lens
+, lastVarId, vars, formulas
+, mlogic, options
+, sharingMode, Language.Hasmtlib.Type.SMT.stableMap
+
+  -- * Rendering
+, renderSetLogic, renderDeclareVar, renderAssert, renderVars
+)
+where
 
 import Language.Hasmtlib.Internal.Sharing
 import Language.Hasmtlib.Internal.Render

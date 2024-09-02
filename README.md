@@ -2,7 +2,7 @@
 
 # Hasmtlib - Haskell SMTLib MTL Library
 
-Hasmtlib is a library for generating SMTLib2-problems using a monad.
+Hasmtlib is a library with high-level-abstraction for generating SMTLib2-problems using a monad.
 It takes care of encoding your problem, marshaling the data to an external solver and parsing and interpreting the result into Haskell types.
 It is highly inspired by [ekmett/ersatz](https://github.com/ekmett/ersatz) which does the same for QSAT. Communication with external solvers is handled by [tweag/smtlib-backends](https://github.com/tweag/smtlib-backends).
 
@@ -57,7 +57,7 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 
 ## Features
 
-- [x] SMTLib2-Sorts in the Haskell-Type
+- [x] SMTLib2-Sorts in the Haskell-Type to guarantee well-typed expressions
   ```haskell
     data SMTSort =
         BoolSort
@@ -72,43 +72,10 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
   ```
 - [x] Full SMTLib 2.6 standard support for Sorts Bool, Int, Real, BitVec, Array & String
 - [x] Type-level length-indexed Bitvectors with type-level encoding (Signed/Unsigned) for BitVec
-  ```haskell
-  bvConcat :: (KnownNat n, KnownNat m) => Expr (BvSort enc n) -> Expr (BvSort enc m) -> Expr (BvSort enc (n + m))
-  bvLShR :: KnownNat n => Expr (BvSort Unsigned n) -> Expr (BvSort enc n) -> Expr (BvSort Unsigned n)
-  bvAShR :: KnownNat n => Expr (BvSort Signed n) -> Expr (BvSort enc n) -> Expr (BvSort Signed n)
-  ```
 - [x] Pure API with plenty common instances: `Num`, `Floating`, `Bounded`, `Bits`, `Ixed` and many more
-  ```haskell
-    solveWith @SMT (solver yices) $ do
-      setLogic "QF_BV"
-      x <- var @(BvSort Signed 16)
-      let f = x >? 42 && (x `div` 84 === maxBound - 100)
-      assert f
-      return x
-  ```
 - [x] Add your own solvers via the [Solver type](https://github.com/bruderj15/Hasmtlib/blob/master/src/Language/Hasmtlib/Type/Solution.hs)
-  ```haskell
-    -- | Function that turns a state (usually SMT or OMT) into a result and a solution
-    type Solver s m = s -> m (Result, Solution)
-  ```
 - [x] Solvers via external processes: CVC5, Z3, Yices2-SMT, MathSAT, OptiMathSAT, OpenSMT & Bitwuzla
-- [x] Incremental solving
-  ```haskell
-      cvc5Living <- interactiveSolver cvc5
-      interactiveWith @Pipe cvc5Living $ do
-        setLogic "QF_LIA"
-        setOption $ Incremental True
-        setOption $ ProduceModels True
-        x <- var @IntSort
-        assert $ x === 42
-        result <- checkSat
-        push
-        assert $ x <? 0
-        (result, solution) <- solve
-        case result of
-          Sat   -> return solution
-          Unsat -> pop >> ...
-  ```
+- [x] Support for incremental solving
 - [x] Pure quantifiers `for_all` and `exists`
   ```haskell
     solveWith @SMT (solver z3) $ do
@@ -133,6 +100,30 @@ May print: `(Sat,Just (V3 (-2.0) (-1.0) 0.0,V3 (-2.0) (-1.0) 0.0))`
 
       return x
   ```
+
+## Related work
+- [ekmett/ersatz](https://hackage.haskell.org/package/ersatz):
+Huge inspiration for this library (some code stolen).
+We do for `SMT` what they do for `SAT`.
+- [hgoes/smtlib2](https://hackage.haskell.org/package/smtlib2):
+Their eDSL is highly expressive and focuses on well-typed SMT-expressions.
+But their approach is a little verbose and makes usage feel quite heavy.
+Their eDSL is also entirely monadic and therefore formula construction is painful.
+- [yav/simple-smt](https://hackage.haskell.org/package/simple-smt):
+They are lightweight but their types are weak and their API is barely embedded into Haskell.
+- [LevantErkok/sbv](https://hackage.haskell.org/package/sbv):
+While they "express properties about Haskell programs and automatically prove them using SMT",
+we instead use Haskell to simplify the encoding of SMT-Problems.
+They can do a whole lot (C-Code-Gen, Crypto-Stuff,...), which is cool, but adds weight.
+
+If you want highly specific implementations for different solvers, all their individual configurations and swallow the awkward typing,
+then use [hgoes/smtlib2](https://hackage.haskell.org/package/smtlib2).
+
+If you want to express properties about Haskell programs and automatically prove them using SMT,
+then use [LevantErkok/sbv](https://hackage.haskell.org/package/sbv).
+
+If you want to encode SMT-problems as lightweight and close to Haskell as possible, then use this library.
+I personally use it for scheduling/resource-allocation-problems.
 
 ## Examples
 There are some examples in [here](https://github.com/bruderj15/Hasmtlib/tree/master/src/Language/Hasmtlib/Example).

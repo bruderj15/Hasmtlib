@@ -5,17 +5,73 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DerivingStrategies #-}
 
+{- |
+This module provides the data-type 'Expr'.
+
+It represents SMTLib-expressions via an abstract syntax tree (AST), implemented as GADT.
+
+Variables are just 'Int's wrapped in a newtype 'SMTVar' with a phantom-type 'SMTSort'.
+
+Usually the end user of this library does not need to deal with this representation.
+Instead he should rely on the provided instances for building expressions.
+Some of the main classes of these include:
+
+1. 'Equatable' and 'Orderable' for symbolic comparisons,
+
+2. 'Iteable' for symbolic branching via 'ite',
+
+3. 'Boolean' for symbolic bool operations,
+
+4. Prelude classics like: 'Num', 'Floating', 'Integral', 'Bounded', ... for arithmetics
+
+5. 'Bits.Bits' for BitVec-operations
+
+Besides that, there are also some operations defined by the SMTLib-Standard Version 2.6 that do not fit into any classes
+and therefore are exported as plain functions, like 'for_all' or 'bvConcat'.
+-}
 module Language.Hasmtlib.Type.Expr
-  ( SMTVar(..), varId
-  , Value(..) , unwrapValue, wrapValue
+  (
+  -- * SMTVar
+    SMTVar(..), varId
+
+  -- * Expr type
   , Expr(..), isLeaf
-  , Iteable(..), Equatable(..), Orderable(..), min', max'
+
+  -- * Compare
+  -- ** Equatable
+  -- *** Class
+  , Equatable(..)
   , equal, distinct
+
+  -- *** Generic
+  , GEquatable(..)
+
+  -- ** Orderable
+  -- *** Class
+  , Orderable(..)
+  , min', max'
+
+  -- *** Generic
+  , GOrderable(..)
+
+  -- ** Iteable
+  , Iteable(..)
+
+  -- * Non-class functions
+  -- ** Quantifier
   , for_all, exists
+
+  -- ** BitVec
+  , bvConcat
+
+  -- ** Array
   , select, store
-  , bvShL, bvLShR, bvAShR, bvConcat
-  , toRealSort, toIntSort, isIntSort
+
+  -- ** String
   , strLength, strAt, strSubstring, strPrefixOf, strSuffixOf, strContains, strIndexOf, strReplace, strReplaceAll
+
+  -- ** Conversion
+  , toRealSort, toIntSort, isIntSort
   )
 where
 
@@ -59,9 +115,9 @@ newtype SMTVar (t :: SMTSort) = SMTVar { _varId :: Int }
 $(makeLenses ''SMTVar)
 
 -- | An SMT-Expression.
---   For building expressions use the corresponding instances: 'Boolean', 'Num', 'Equatable', ...
+--   For building expressions use the corresponding instances.
 --
---   With a lot of criminal energy you may build invalid expressions regarding the SMTLib Version 2.6 - Specification.
+--   With a lot of criminal energy you may build invalid expressions regarding the SMTLib Version 2.6 - specification.
 --   Therefore it is highly recommended to rely on the instances.
 data Expr (t :: SMTSort) where
   Var       :: KnownSMTSort t => SMTVar t -> Expr t
@@ -125,7 +181,7 @@ data Expr (t :: SMTSort) where
   Exists    :: KnownSMTSort t => Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Expr BoolSort
 
 -- | Indicates whether an expression is a leaf.
---   All non-recursive contructors form leafs.
+--   All non-recursive contructors are leafs.
 isLeaf :: Expr t -> Bool
 isLeaf (Var _) = True
 isLeaf (Constant _) = True
@@ -133,11 +189,17 @@ isLeaf Pi = True
 isLeaf _ = False
 {-# INLINE isLeaf #-}
 
--- | If condition (p :: b) then (t :: a) else (f :: a)
+-- | Class that allows branching on predicates of type @b@ on branches of type @a@.
 --
---    >>> ite true "1" "2"
+--   If predicate (p :: b) then (t :: a) else (f :: a).
+--
+--   There is a default implementation if your type is an 'Applicative'.
+--
+-- ==== __Examples__
+--
+--    >>> ite True "1" "2"
 --        "1"
---    >>> ite false 100 42
+--    >>> ite False 100 42
 --        42
 class Iteable b a where
   ite :: b -> a -> a -> a
@@ -187,16 +249,17 @@ instance (Iteable (Expr BoolSort) a, Iteable (Expr BoolSort) b, Iteable (Expr Bo
 instance (Iteable (Expr BoolSort) a, Iteable (Expr BoolSort) b, Iteable (Expr BoolSort) c, Iteable (Expr BoolSort) d, Iteable (Expr BoolSort) e, Iteable (Expr BoolSort) f, Iteable (Expr BoolSort) g, Iteable (Expr BoolSort) h) => Iteable (Expr BoolSort) (a,b,c,d,e,f,g,h) where
   ite p (a,b,c,d,e,f,g,h) (a',b',c',d',e',f',g',h') = (ite p a a', ite p b b', ite p c c', ite p d d', ite p e e', ite p f f', ite p g g', ite p h h')
 
--- | Test two as on equality as SMT-Expression.
+-- | Symbolically test two values on equality.
 --
---   You can derive an instance of this class if your type is 'Generic'.
+-- A generic default implementation with 'GEquatable' is possible.
+--
+-- ==== __Example__
 --
 -- @
---     x <- var @RealType
---     y <- var
---     assert $ y === x && not (y /== x)
+-- x <- var @RealType
+-- y <- var
+-- assert $ y === x && not (y /== x) && x === 42
 -- @
---
 class Equatable a where
   -- | Test whether two values are equal in the SMT-Problem.
   (===) :: a -> a -> Expr BoolSort
@@ -275,9 +338,11 @@ instance Equatable a => Equatable (Last a)
 instance Equatable a => Equatable (Dual a)
 instance Equatable a => Equatable (Identity a)
 
--- | Compare two as as SMT-Expression.
+-- | Symbolically compare two values.
 --
---   You can derive an instance of this class if your type is 'Generic'.
+-- A generic default implementation with 'GOrderable' is possible.
+--
+-- ==== __Example__
 --
 -- @
 -- x <- var @RealSort
@@ -302,11 +367,11 @@ class Equatable a => Orderable a where
 
 infix 4 <?, <=?, >=?, >?
 
--- | Minimum of two as SMT-Expression.
+-- | Symbolic evaluation of the minimum of two symbolic values.
 min' :: (Orderable a, Iteable (Expr BoolSort) a) => a -> a -> a
 min' x y = ite (x <=? y) x y
 
--- | Maximum of two as SMT-Expression.
+-- | Symbolic evaluation of the maximum of two symbolic values.
 max' :: (Orderable a, Iteable (Expr BoolSort) a) => a -> a -> a
 max' x y = ite (y <=? x) x y
 
@@ -356,7 +421,6 @@ instance Orderable a => GOrderable (K1 i a) where
   K1 a <=?# K1 b = a <=? b
 
 -- Boring instances that end up being useful when deriving Orderable with Generics
-
 instance Orderable ()       where _ <?  _ = false
                                   _ <=? _ = true
 instance Orderable Void     where x <?  y = x `seq` y `seq` error "Orderable[Void].<?"
@@ -414,7 +478,9 @@ instance Orderable a => Orderable (Last a)
 instance Orderable a => Orderable (Dual a)
 instance Orderable a => Orderable (Identity a)
 
--- | Test multiple expressions on equality within in the 'SMT'-Problem.
+-- | Symbolically test multiple expressions on equality.
+--
+--   Returns 'true' if given less than two arguments.
 equal :: (Eq (HaskellType t), KnownSMTSort t, Foldable f) => f (Expr t) -> Expr BoolSort
 equal (toList -> (a:b:xs)) = case someNatVal (genericLength xs) of
   SomeNat n -> case V.fromListN' n xs of
@@ -422,7 +488,9 @@ equal (toList -> (a:b:xs)) = case someNatVal (genericLength xs) of
     Just xs' -> EQU $ xs' V.++ V.fromTuple (a,b)
 equal (toList -> _)        = true
 
--- | Test multiple expressions on distinctness within in the 'SMT'-Problem.
+-- | Symbolically test multiple expressions on distinctness.
+--
+--   Returns 'true' if given less than two arguments.
 distinct :: (Eq (HaskellType t), KnownSMTSort t, Foldable f) => f (Expr t) -> Expr BoolSort
 distinct (toList -> (a:b:xs)) = case someNatVal (genericLength xs) of
   SomeNat n -> case V.fromListN' n xs of
@@ -430,11 +498,9 @@ distinct (toList -> (a:b:xs)) = case someNatVal (genericLength xs) of
     Just xs' -> Distinct $ xs' V.++ V.fromTuple (a,b)
 distinct (toList -> _)        = true
 
--- | A universal quantification for any specific 'SMTSort'.
---   If the type cannot be inferred, apply a type-annotation.
---   Nested quantifiers are also supported.
+-- | Universal quantification for any specific 'SMTSort'.
 --
---   Usage:
+-- ==== __Example__
 --
 --   @
 --   assert $
@@ -448,15 +514,13 @@ for_all :: forall t. KnownSMTSort t => (Expr t -> Expr BoolSort) -> Expr BoolSor
 for_all = ForAll Nothing
 {-# INLINE for_all #-}
 
--- | An existential quantification for any specific 'SMTSort'
---   If the type cannot be inferred, apply a type-annotation.
---   Nested quantifiers are also supported.
+-- | Existential quantification for any specific 'SMTSort'
 --
---   Usage:
+-- ==== __Example__
 --
 --   @
 --   assert $
---      for_all @(BvSort 8) $ \x ->
+--      for_all @(BvSort Unsigned 8) $ \x ->
 --          exists $ \y ->
 --            x - y === 0
 --   @
@@ -476,21 +540,6 @@ select = ArrSelect
 store :: (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k)) => Expr (ArraySort k v) -> Expr k -> Expr v -> Expr (ArraySort k v)
 store = ArrStore
 {-# INLINE store #-}
-
--- | Logically shift left the first expression by the second expression.
-bvShL    :: (KnownBvEnc enc, KnownNat n) => Expr (BvSort enc n) -> Expr (BvSort enc n) -> Expr (BvSort enc n)
-bvShL    = BvShL
-{-# INLINE bvShL #-}
-
--- | Logically shift right the first expression by the second expression.
-bvLShR   :: KnownNat n => Expr (BvSort Unsigned n) -> Expr (BvSort Unsigned n) -> Expr (BvSort Unsigned n)
-bvLShR   = BvLShR
-{-# INLINE bvLShR #-}
-
--- | Arithmetically shift right the first expression by the second expression.
-bvAShR   :: KnownNat n => Expr (BvSort Signed n) -> Expr (BvSort Signed n) -> Expr (BvSort Signed n)
-bvAShR   = BvAShR
-{-# INLINE bvAShR #-}
 
 -- | Concats two bitvectors.
 bvConcat :: (KnownBvEnc enc, KnownNat n, KnownNat m) => Expr (BvSort enc n) -> Expr (BvSort enc m) -> Expr (BvSort enc (n + m))
@@ -533,25 +582,25 @@ strSubstring = StrSubstring
 {-# INLINE strSubstring #-}
 
 -- | First string is a prefix of second one.
---   @(str.prefixof s t)@ is @true@ iff @s@ is a prefix of @t@.
+--   @(strPrefixof s t)@ is @true@ iff @s@ is a prefix of @t@.
 strPrefixOf :: Expr StringSort -> Expr StringSort -> Expr BoolSort
 strPrefixOf = StrPrefixOf
 {-# INLINE strPrefixOf #-}
 
 -- | First string is a suffix of second one.
---   @(str.suffixof s t)@ is @true@ iff @s@ is a suffix of @t@.
+--   @(strSuffixof s t)@ is @true@ iff @s@ is a suffix of @t@.
 strSuffixOf :: Expr StringSort -> Expr StringSort -> Expr BoolSort
 strSuffixOf = StrSuffixOf
 {-# INLINE strSuffixOf #-}
 
 -- | First string contains second one
---   @(str.contains s t)@ iff @s@ contains @t@.
+--   @(strContains s t)@ iff @s@ contains @t@.
 strContains :: Expr StringSort -> Expr StringSort -> Expr BoolSort
 strContains = StrContains
 {-# INLINE strContains #-}
 
 -- | Index of first occurrence of second string in first one starting at the position specified by the third argument.
---   @(str.indexof s t i)@, with @0 <= i <= |s|@ is the position of the first
+--   @(strIndexof s t i)@, with @0 <= i <= |s|@ is the position of the first
 --   occurrence of @t@ in @s@ at or after position @i@, if any.
 --   Otherwise, it is @-1@. Note that the result is @i@ whenever @i@ is within
 --   the range @[0, |s|]@ and @t@ is empty.
@@ -559,7 +608,7 @@ strIndexOf :: Expr StringSort -> Expr StringSort -> Expr IntSort -> Expr IntSort
 strIndexOf = StrIndexOf
 {-# INLINE strIndexOf #-}
 
--- | @(str.replace s t t')@ is the string obtained by replacing the first
+-- | @(strReplace s t t')@ is the string obtained by replacing the first
 --   occurrence of @t@ in @s@, if any, by @t'@. Note that if @t@ is empty, the
 --   result is to prepend @t'@ to @s@; also, if @t@ does not occur in @s@ then
 --   the result is @s@.
@@ -567,7 +616,7 @@ strReplace :: Expr StringSort -> Expr StringSort -> Expr StringSort -> Expr Stri
 strReplace = StrReplace
 {-# INLINE strReplace #-}
 
--- | @(str.replace_all s t t’)@ is @s@ if @t@ is the empty string. Otherwise, it
+-- | @(strReplaceAll s t t’)@ is @s@ if @t@ is the empty string. Otherwise, it
 --   is the string obtained from @s@ by replacing all occurrences of @t@ in @s@
 --   by @t’@, starting with the first occurrence and proceeding in left-to-right order.
 strReplaceAll :: Expr StringSort -> Expr StringSort -> Expr StringSort -> Expr StringSort

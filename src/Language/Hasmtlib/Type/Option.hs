@@ -1,3 +1,6 @@
+{- |
+This module provides the data-type 'SMTOption' for adjusting a SMT-Solvers options.
+-}
 module Language.Hasmtlib.Type.Option where
 
 import Language.Hasmtlib.Internal.Render
