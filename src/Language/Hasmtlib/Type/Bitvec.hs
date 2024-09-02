@@ -7,6 +7,17 @@ This module provides the type-level length-indexed and MSB-first bitvector 'Bitv
 built on top of the package @bitvec@ and 'V.Vector'.
 
 It also holds it's type of encoding as a phantom-type via 'BvEnc'.
+
+==== __Examples__
+
+>>> minBound @(Bitvec Unsigned 8)
+00000000
+
+>>> maxBound @(Bitvec Signed 8)
+01111111
+
+>>> (5 :: Bitvec Unsigned 4) + 10
+1111
 -}
 module Language.Hasmtlib.Type.Bitvec
 (

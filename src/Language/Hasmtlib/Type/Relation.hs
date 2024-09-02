@@ -3,6 +3,24 @@
 
 {- |
 This module provides the data-type 'Relation' for encoding binary relations as SMT-problems.
+
+==== __Example__
+
+@
+problem :: MonadSMT s m => StateT s m (Relation Int Int)
+    setLogic \"QF_LIA\"
+
+    r <- relation ((2,1), (6,5))
+
+    forM_ (image r \<$\> domain r) (assert . exactly \@IntSort 1)
+    forM_ (preimage r \<$\> codomain r) (assert . exactly \@IntSort 1)
+
+    assertMaybe $ do
+      item <- r^?ix (3,3)
+      return $ item === true
+
+    return r
+@
 -}
 module Language.Hasmtlib.Type.Relation
 (

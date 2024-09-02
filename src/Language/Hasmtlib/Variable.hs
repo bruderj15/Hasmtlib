@@ -4,6 +4,21 @@
 This module provides the class 'Variable' which lets you create symbolical values of a data-type.
 
 A generic default implementation with 'GVariable' is possible.
+
+==== __Example__
+
+@
+data V3 a = V3 a a a deriving Generic
+instance Codec a => Codec (V3 a)
+instance Equatable a => Codec (V3 a)
+
+problem :: MonadSMT s m => StateT s m (V3 (Expr RealSort))
+problem = do
+  let constantV3 = encode $ V3 7 69 42
+  symbolicV3 <- variable \@(V3 (Expr RealSort))
+  assert $ symbolicV3 /== constantV3
+  return symbolicV3
+@
 -}
 module Language.Hasmtlib.Variable
 (
@@ -31,14 +46,6 @@ import GHC.Generics
 -- | Construct a variable datum of a data-type by creating variables for all its fields.
 --
 --   You can derive an instance of this class if your type is 'Generic' and has exactly one constructor.
---
--- @
---    data V3 a = V3 a a a deriving Generic
---    instance Variable a => V3 a
--- @
---
---    >>> varV3 :: V3 (Expr RealType) <- variable ; varV3
---        V3 (Expr RealType) (Expr RealType) (Expr RealType)
 class Variable a where
   variable :: MonadSMT s m => m a
   default variable :: (MonadSMT s m, Generic a, GVariable (Rep a)) => m a

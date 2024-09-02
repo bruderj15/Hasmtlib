@@ -5,7 +5,7 @@
 {- |
 This module provides the data-type 'SMTSort' and some singleton-operations for it.
 
-The type 'SMT-Sort' is only used as promoted type (data-kind) in dependent-like contexts such as GADTs.
+The type 'SMTSort' is only used as promoted type (data-kind) in dependent-like contexts such as GADTs.
 -}
 module Language.Hasmtlib.Type.SMTSort
 (

@@ -46,7 +46,6 @@ type Solver s m = s -> m (Result, Solution)
 -- | Results of check-sat commands.
 data Result = Unsat | Unknown | Sat deriving (Show, Eq, Ord)
 
--- | A Solution is a dependent map 'DMap' from 'SSMTSort's t to 'IntMap' t.
 type Solution = DMap SSMTSort IntValueMap
 
 -- | Newtype for 'IntMap' 'Value' so we can use it as right-hand-side of 'DMap'.

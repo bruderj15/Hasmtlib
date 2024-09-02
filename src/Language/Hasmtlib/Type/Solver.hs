@@ -34,7 +34,7 @@ import Control.Monad.State
 
 -- | Data that can have a 'Backend.Solver' which may be debugged.
 class WithSolver a where
-  -- | Create a datum with a 'Backend.Solver' and a 'Bool for whether to debug the 'Backend.Solver'.
+  -- | Create a value with a 'Backend.Solver' and a 'Bool' for whether to debug the 'Backend.Solver'.
   withSolver :: Backend.Solver -> Bool -> a
 
 instance WithSolver Pipe where
@@ -51,7 +51,7 @@ instance WithSolver Pipe where
 --    that this answer is only meaningful if the 'Result' is 'Sat' or 'Unknown' and
 --    the answer value is in a 'Just'.
 --
--- Here is a small example of how to use 'solveWith':
+-- ==== __Example__
 --
 -- @
 -- import Language.Hasmtlib
@@ -61,7 +61,7 @@ instance WithSolver Pipe where
 --   res <- solveWith @SMT (solver cvc5) $ do
 --     setLogic \"QF_LIA\"
 --
---     x <- var @IntSort
+--     x <- var \@IntSort
 --
 --     assert $ x >? 0
 --
@@ -69,6 +69,8 @@ instance WithSolver Pipe where
 --
 --   print res
 -- @
+--
+-- The solver will probably answer with @x := 1@.
 solveWith :: (Default s, Monad m, Codec a) => Solver s m -> StateT s m a -> m (Result, Maybe (Decoded a))
 solveWith solver m = do
   (a, problem) <- runStateT m def
@@ -77,8 +79,8 @@ solveWith solver m = do
   return (result, decode solution a)
 
 -- | Pipes an SMT-problem interactively to the solver.
---   Enables incremental solving by default.
---   Here is a small example of how to use it for solving a problem utilizing the solvers incremental stack:
+--
+-- ==== __Example__
 --
 -- @
 -- import Language.Hasmtlib
@@ -90,9 +92,9 @@ solveWith solver m = do
 --   interactiveWith @Pipe cvc5Living $ do
 --     setOption $ Incremental True
 --     setOption $ ProduceModels True
---     setLogic \"QF_LIA\"
+--     setLogic \"QF_LRA\"
 --
---     x <- var @IntSort
+--     x <- var \@RealSort
 --
 --     assert $ x >? 0
 --
@@ -101,7 +103,7 @@ solveWith solver m = do
 --     liftIO $ print $ decode sol x
 --
 --     push
---     y <- var @IntSort
+--     y <- var \@IntSort
 --
 --     assert $ y <? 0
 --     assert $ x === y
@@ -128,8 +130,7 @@ debugInteractiveWith (solver, handle) m = do
 
 -- | Solves the current problem with respect to a minimal solution for a given numerical expression.
 --
---   Does not rely on MaxSMT/OMT.
---   Instead uses iterative refinement.
+--   Uses iterative refinement.
 --
 --   If you want access to intermediate results, use 'solveMinimizedDebug' instead.
 solveMinimized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))
@@ -146,8 +147,7 @@ solveMinimizedDebug debug = solveOptimized (Just debug) (<?)
 
 -- | Solves the current problem with respect to a maximal solution for a given numerical expression.
 --
---   Does not rely on MaxSMT/OMT.
---   Instead uses iterative refinement.
+--   Uses iterative refinement.
 --
 --   If you want access to intermediate results, use 'solveMaximizedDebug' instead.
 solveMaximized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))

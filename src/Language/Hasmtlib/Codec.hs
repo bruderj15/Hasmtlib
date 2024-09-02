@@ -7,6 +7,16 @@
 This module provides the class 'Codec' which takes care of marshalling data to and from external SMT-Solvers.
 
 A generic default implementation with 'GCodec' is possible.
+
+==== __Example__
+
+@
+data V3 a = V3 a a a deriving Generic
+instance Codec a => Codec (V3 a)
+
+constantV3 :: V3 (Expr RealSort)
+constantV3 = encode $ V3 7 69 42
+@
 -}
 module Language.Hasmtlib.Codec
 (

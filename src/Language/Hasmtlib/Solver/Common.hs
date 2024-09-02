@@ -5,8 +5,6 @@ It is built on top of Tweag's package @smtlib-backends@.
 
 Although there already are several concrete solvers like @Z3@ in @Language.Hasmtlib.Solver.Z3@,
 you may use this module to create your own solver bindings.
-
-Just supply a 'Process.Config' for function 'solver'.
 -}
 module Language.Hasmtlib.Solver.Common
 (

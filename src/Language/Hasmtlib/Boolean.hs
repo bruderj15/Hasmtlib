@@ -6,6 +6,21 @@ This module provides a more generic version of bool-like algebras than what the 
 The class 'Boolean' therefore overloads most of the Preludes operators like '(&&)'.
 
 However, as 'Bool' also features an instance of 'Boolean', you can simply hide the Prelude ones - not having to import either qualified.
+
+==== __Example__
+
+@
+import Prelude hiding (not, any, all, (&&), (||), and, or)
+import Language.Hasmtlib
+
+problem :: MonadSMT s m => StateT s m (Expr BoolSort, Expr BoolSort)
+problem = do
+  x <- var \@BoolSort
+  y <- var
+  let b = False || True
+  assert $ x && y \<==\> and [x, y, true] && encode b ==> x && y
+  return (x,y)
+@
 -}
 module Language.Hasmtlib.Boolean
 (

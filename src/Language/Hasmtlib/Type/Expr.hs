@@ -22,12 +22,12 @@ Some of the main classes of these include:
 
 3. 'Boolean' for symbolic bool operations,
 
-4. Prelude classics like: 'Num', 'Floating', 'Integral', 'Bounded', ...
+4. Prelude classics like: 'Num', 'Floating', 'Integral', 'Bounded', ... for arithmetics
 
 5. 'Bits.Bits' for BitVec-operations
 
 Besides that, there are also some operations defined by the SMTLib-Standard Version 2.6 that do not fit into any classes
-and therefore are exported als plain functions like 'for_all' or 'bvConcat'.
+and therefore are exported as plain functions, like 'for_all' or 'bvConcat'.
 -}
 module Language.Hasmtlib.Type.Expr
   (
@@ -181,7 +181,7 @@ data Expr (t :: SMTSort) where
   Exists    :: KnownSMTSort t => Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Expr BoolSort
 
 -- | Indicates whether an expression is a leaf.
---   All non-recursive contructors form leafs.
+--   All non-recursive contructors are leafs.
 isLeaf :: Expr t -> Bool
 isLeaf (Var _) = True
 isLeaf (Constant _) = True
@@ -189,11 +189,17 @@ isLeaf Pi = True
 isLeaf _ = False
 {-# INLINE isLeaf #-}
 
--- | If condition (p :: b) then (t :: a) else (f :: a)
+-- | Class that allows branching on predicates of type @b@ on branches of type @a@.
 --
---    >>> ite true "1" "2"
+--   If predicate (p :: b) then (t :: a) else (f :: a).
+--
+--   There is a default implementation if your type is an 'Applicative'.
+--
+-- ==== __Examples__
+--
+--    >>> ite True "1" "2"
 --        "1"
---    >>> ite false 100 42
+--    >>> ite False 100 42
 --        42
 class Iteable b a where
   ite :: b -> a -> a -> a
@@ -243,16 +249,17 @@ instance (Iteable (Expr BoolSort) a, Iteable (Expr BoolSort) b, Iteable (Expr Bo
 instance (Iteable (Expr BoolSort) a, Iteable (Expr BoolSort) b, Iteable (Expr BoolSort) c, Iteable (Expr BoolSort) d, Iteable (Expr BoolSort) e, Iteable (Expr BoolSort) f, Iteable (Expr BoolSort) g, Iteable (Expr BoolSort) h) => Iteable (Expr BoolSort) (a,b,c,d,e,f,g,h) where
   ite p (a,b,c,d,e,f,g,h) (a',b',c',d',e',f',g',h') = (ite p a a', ite p b b', ite p c c', ite p d d', ite p e e', ite p f f', ite p g g', ite p h h')
 
--- | Test two as on equality as SMT-Expression.
+-- | Symbolically test two values on equality.
 --
---   You can derive an instance of this class if your type is 'Generic'.
+-- A generic default implementation with 'GEquatable' is possible.
+--
+-- ==== __Example__
 --
 -- @
---     x <- var @RealType
---     y <- var
---     assert $ y === x && not (y /== x)
+-- x <- var @RealType
+-- y <- var
+-- assert $ y === x && not (y /== x) && x === 42
 -- @
---
 class Equatable a where
   -- | Test whether two values are equal in the SMT-Problem.
   (===) :: a -> a -> Expr BoolSort
@@ -331,9 +338,11 @@ instance Equatable a => Equatable (Last a)
 instance Equatable a => Equatable (Dual a)
 instance Equatable a => Equatable (Identity a)
 
--- | Compare two as as SMT-Expression.
+-- | Symbolically compare two values.
 --
---   You can derive an instance of this class if your type is 'Generic'.
+-- A generic default implementation with 'GOrderable' is possible.
+--
+-- ==== __Example__
 --
 -- @
 -- x <- var @RealSort
@@ -358,11 +367,11 @@ class Equatable a => Orderable a where
 
 infix 4 <?, <=?, >=?, >?
 
--- | Minimum of two as SMT-Expression.
+-- | Symbolic evaluation of the minimum of two symbolic values.
 min' :: (Orderable a, Iteable (Expr BoolSort) a) => a -> a -> a
 min' x y = ite (x <=? y) x y
 
--- | Maximum of two as SMT-Expression.
+-- | Symbolic evaluation of the maximum of two symbolic values.
 max' :: (Orderable a, Iteable (Expr BoolSort) a) => a -> a -> a
 max' x y = ite (y <=? x) x y
 
@@ -412,7 +421,6 @@ instance Orderable a => GOrderable (K1 i a) where
   K1 a <=?# K1 b = a <=? b
 
 -- Boring instances that end up being useful when deriving Orderable with Generics
-
 instance Orderable ()       where _ <?  _ = false
                                   _ <=? _ = true
 instance Orderable Void     where x <?  y = x `seq` y `seq` error "Orderable[Void].<?"
@@ -470,7 +478,9 @@ instance Orderable a => Orderable (Last a)
 instance Orderable a => Orderable (Dual a)
 instance Orderable a => Orderable (Identity a)
 
--- | Test multiple expressions on equality within in the 'SMT'-Problem.
+-- | Symbolically test multiple expressions on equality.
+--
+--   Returns 'true' if given less than two arguments.
 equal :: (Eq (HaskellType t), KnownSMTSort t, Foldable f) => f (Expr t) -> Expr BoolSort
 equal (toList -> (a:b:xs)) = case someNatVal (genericLength xs) of
   SomeNat n -> case V.fromListN' n xs of
@@ -478,7 +488,9 @@ equal (toList -> (a:b:xs)) = case someNatVal (genericLength xs) of
     Just xs' -> EQU $ xs' V.++ V.fromTuple (a,b)
 equal (toList -> _)        = true
 
--- | Test multiple expressions on distinctness within in the 'SMT'-Problem.
+-- | Symbolically test multiple expressions on distinctness.
+--
+--   Returns 'true' if given less than two arguments.
 distinct :: (Eq (HaskellType t), KnownSMTSort t, Foldable f) => f (Expr t) -> Expr BoolSort
 distinct (toList -> (a:b:xs)) = case someNatVal (genericLength xs) of
   SomeNat n -> case V.fromListN' n xs of
@@ -486,11 +498,9 @@ distinct (toList -> (a:b:xs)) = case someNatVal (genericLength xs) of
     Just xs' -> Distinct $ xs' V.++ V.fromTuple (a,b)
 distinct (toList -> _)        = true
 
--- | A universal quantification for any specific 'SMTSort'.
---   If the type cannot be inferred, apply a type-annotation.
---   Nested quantifiers are also supported.
+-- | Universal quantification for any specific 'SMTSort'.
 --
---   Usage:
+-- ==== __Example__
 --
 --   @
 --   assert $
@@ -504,15 +514,13 @@ for_all :: forall t. KnownSMTSort t => (Expr t -> Expr BoolSort) -> Expr BoolSor
 for_all = ForAll Nothing
 {-# INLINE for_all #-}
 
--- | An existential quantification for any specific 'SMTSort'
---   If the type cannot be inferred, apply a type-annotation.
---   Nested quantifiers are also supported.
+-- | Existential quantification for any specific 'SMTSort'
 --
---   Usage:
+-- ==== __Example__
 --
 --   @
 --   assert $
---      for_all @(BvSort 8) $ \x ->
+--      for_all @(BvSort Unsigned 8) $ \x ->
 --          exists $ \y ->
 --            x - y === 0
 --   @
