@@ -7,6 +7,7 @@ import Prelude hiding (not, (&&), (||), and , or)
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Codec
+import Language.Hasmtlib.Type.Value
 import Language.Hasmtlib.Type.Bitvec
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution

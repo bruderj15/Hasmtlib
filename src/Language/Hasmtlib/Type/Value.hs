@@ -1,7 +1,18 @@
 {-# LANGUAGE UndecidableInstances #-}
 
+{- |
+This module provides the wrapper 'Value' for embedding Haskell-Values into the SMT-Context.
+
+The Direction @Haskell-Value => SMT-Value@ is the creation of a constant in the SMT-Problem.
+
+The other way around @SMT-Value => Haskell-Value@ is mainly used when decoding a solvers solutions for variables.
+-}
 module Language.Hasmtlib.Type.Value
-( Value(..)
+(
+  -- * Type
+  Value(..)
+
+  -- * Conversion
 , wrapValue, unwrapValue
 )
 where

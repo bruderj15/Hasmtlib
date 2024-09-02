@@ -1,4 +1,32 @@
-module Language.Hasmtlib.Counting where
+{- |
+This module provides functions for counting symbolic formulas and creating cardinality-constraints.
+
+Internally this converts each given 'Expr' 'BoolSort' into a numerical 'Expr' using 'ite', then sums them up:
+
+@
+  count :: forall t f. (Functor f, Foldable f, Num (Expr t)) => f (Expr BoolSort) -> Expr t
+  count = sum . fmap (\\b -> ite b 1 0)
+@
+
+Therefore additional information for the temporal summation may need to be provided.
+
+E.g. if your logic is \"QF_LIA\" you would want @count \@IntSort $ ...@
+-}
+module Language.Hasmtlib.Counting
+(
+  -- * Count
+  count, count'
+
+  -- * At-Least
+, atLeast
+
+  -- * Exactly
+, exactly
+
+  -- * At-Most
+, atMost
+)
+where
 
 import Prelude hiding (not, (&&), (||), or)
 import Language.Hasmtlib.Type.SMTSort
