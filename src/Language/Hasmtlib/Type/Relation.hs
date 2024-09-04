@@ -203,7 +203,7 @@ codomain r =
 -- | Returns a list of 'Expr' 'BoolSort' indicating whether the projection on
 -- given element \( x \in A \) holds for every element in the codomain:
 --
--- \( \{ (x,y) \in R \mid y \in codomain(B) \} \)
+-- \( \{ (x,y) \in R \mid y \in codomain(R) \} \)
 image :: (Ix a, Ix b) => Relation a b -> a -> [Expr BoolSort]
 image r x = mapMaybe ((r !?) . (x,)) (codomain r)
 {-# INLINE image #-}
@@ -211,7 +211,7 @@ image r x = mapMaybe ((r !?) . (x,)) (codomain r)
 -- | Returns a list of 'Expr' 'BoolSort' indicating whether the projection on
 -- given element \( y \in B \) holds for every element in the domain:
 --
--- \( \{ (x,y) \in R \mid x \in domain(A) \} \)
+-- \( \{ (x,y) \in R \mid x \in domain(R) \} \)
 preimage :: (Ix a, Ix b) => Relation a b -> b -> [Expr BoolSort]
 preimage r y = mapMaybe ((r !?) . (,y)) (domain r)
 {-# INLINE preimage #-}
