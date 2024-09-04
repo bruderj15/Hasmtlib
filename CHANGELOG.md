@@ -6,6 +6,11 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.6.2 _(2024-09-04)_
+
+### Changed
+- Functions for enconding cardinality-constraints in `Language.Hasmtlib.Counting` now use specialized encodings for some cardinalities - improving solvers efficiency.
+
 ## v2.6.1 _(2024-09-02)_
 
 ### Added
