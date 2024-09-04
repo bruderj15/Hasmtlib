@@ -737,6 +737,9 @@ instance Boolean (Expr BoolSort) where
   xor x (Constant (BoolValue y)) = if y then not x else x
   xor x y = Xor x y
   {-# INLINE xor #-}
+  (Constant (BoolValue False)) ==> _ = true
+  x ==> y  = Impl x y
+  {-# INLINE (==>) #-}
   (<==>) = (===)
   {-# INLINE (<==>) #-}
 
