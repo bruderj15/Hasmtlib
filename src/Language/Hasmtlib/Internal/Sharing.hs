@@ -28,7 +28,7 @@ data SharingMode =
   deriving Show
 
 instance Default SharingMode where
-  def = StableNames
+  def = None
 
 -- | States that can share expressions by comparing their 'StableName's.
 class Sharing s where

@@ -6,6 +6,20 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.6.3 _(2024-09-07)_
+
+### Added
+- Added a solver configuration `bitwuzlaKissat` for `Bitwuzla` with underlying SAT-Solver `Kissat`.
+
+### Changed
+- Removed `solveMinimizedDebug` & `solveMaximizedDebug`. Use the modified `solveMinimized` & `solveMaximized` instead.
+You can also provide a step-size now.
+- Fixed a bug where `MonadOMT#solve` would run `get-model` although the solver did not necessarily respond with `Sat`.
+- `SharingMode` for sharing common (sub-)expressions now defaults to `None`.
+The previous default `StableNames` in general is only worth using, when your program can benefit a lot from sharing.
+Otherwise it may drastically downgrade solver performance due to abundance of sharing-variables.
+If you still want to use it, run `setSharingMode StableNames` within the problems monad.
+
 ## v2.6.2 _(2024-09-04)_
 
 ### Changed

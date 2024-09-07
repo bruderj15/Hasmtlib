@@ -5,19 +5,16 @@ import Control.Monad.IO.Class
 
 main :: IO ()
 main = do
-  iSolver <- interactiveSolver z3
-  interactiveWith @Pipe iSolver $ do
+  iz3 <- interactiveSolver z3
+  debugInteractiveWith @Pipe iz3 $ do
     setOption $ ProduceModels True
     setLogic "QF_LIA"
 
     x <- var @IntSort
 
-    assert $ x >? -2
-    assertSoftWeighted (x >? -1) 5.0
+    assert $ x <? 10
+    assert $ x >? 0
 
-    minimize x
-
-    (_, sol) <- solve
+    (res, sol) <- solveMaximized x (Just (+2)) Nothing
+    liftIO $ print res
     liftIO $ print $ decode sol x
-
-    return ()

@@ -36,7 +36,6 @@ import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Codec
 import Data.Proxy
 import Control.Lens
-import Control.Monad
 import Control.Monad.State
 
 -- | A 'MonadState' that holds an SMT-Problem.
@@ -235,12 +234,17 @@ class MonadSMT s m => MonadIncrSMT s m where
 -- (res, sol) <- solve
 -- case res of
 --   Sat -> do
---     x' <- getValue x
 --     liftIO $ print $ decode sol x
 --   r -> print r
 -- @
 solve :: (MonadIncrSMT s m, MonadIO m) => m (Result, Solution)
-solve = liftM2 (,) checkSat getModel
+solve = do
+  res <- checkSat
+  case res of
+    Sat -> do
+      sol <- getModel
+      return (Sat, sol)
+    r -> return (r, mempty)
 
 -- | A 'MonadSMT' that addtionally allows optimization targets.
 --

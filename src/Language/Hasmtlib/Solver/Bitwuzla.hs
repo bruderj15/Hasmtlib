@@ -9,3 +9,13 @@ import SMTLIB.Backends.Process
 --   Make sure it's default SAT-Solver binary - probably @cadical@ - is in path too.
 bitwuzla :: Config
 bitwuzla = defaultConfig { exe = "bitwuzla", args = [] }
+
+
+-- | A 'Config' for Bitwuzla with Kissat as underlying sat-solver.
+--
+--   Requires binary @bitwuzla@ and to be in path.
+--   Will use the @kissat@ shipped with @bitwuzla@.
+--
+--   It is recommended to build @bitwuzla@ from source for this to work as expected.
+bitwuzlaKissat :: Config
+bitwuzlaKissat = defaultConfig { exe = "bitwuzla", args = ["--sat-solver=kissat"] }
