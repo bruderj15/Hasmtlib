@@ -20,7 +20,6 @@ module Language.Hasmtlib.Type.Solver
   )
 where
 
-import Language.Hasmtlib.Internal.Sharing
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMTSort
@@ -38,7 +37,7 @@ class WithSolver a where
   withSolver :: Backend.Solver -> Bool -> a
 
 instance WithSolver Pipe where
-  withSolver = Pipe 0 Nothing StableNames mempty mempty
+  withSolver = Pipe 0 Nothing def mempty mempty
 
 -- | @'solveWith' solver prob@ solves a SMT problem @prob@ with the given
 -- @solver@. It returns a pair consisting of:
