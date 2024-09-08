@@ -13,14 +13,13 @@ module Language.Hasmtlib.Type.Solver
   , interactiveWith, debugInteractiveWith
 
   -- ** Minimzation
-  , solveMinimized, solveMinimizedDebug
+  , solveMinimized
 
   -- ** Maximization
-  , solveMaximized, solveMaximizedDebug
+  , solveMaximized
   )
 where
 
-import Language.Hasmtlib.Internal.Sharing
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMTSort
@@ -30,6 +29,7 @@ import Language.Hasmtlib.Codec
 import qualified SMTLIB.Backends as Backend
 import qualified SMTLIB.Backends.Process as Process
 import Data.Default
+import Data.Maybe
 import Control.Monad.State
 
 -- | Data that can have a 'Backend.Solver' which may be debugged.
@@ -38,7 +38,7 @@ class WithSolver a where
   withSolver :: Backend.Solver -> Bool -> a
 
 instance WithSolver Pipe where
-  withSolver = Pipe 0 Nothing StableNames mempty mempty
+  withSolver = Pipe 0 Nothing def mempty mempty
 
 -- | @'solveWith' solver prob@ solves a SMT problem @prob@ with the given
 -- @solver@. It returns a pair consisting of:
@@ -130,56 +130,111 @@ debugInteractiveWith (solver, handle) m = do
 
 -- | Solves the current problem with respect to a minimal solution for a given numerical expression.
 --
---   Uses iterative refinement.
+--   This is done by incrementally refining the upper bound for a given target.
+--   Terminates, when setting the last intermediate result as new upper bound results in 'Unsat'.
+--   Then removes that last assertion and returns the previous (now confirmed minimal) result.
 --
---   If you want access to intermediate results, use 'solveMinimizedDebug' instead.
+--   You can also provide a step-size. You do not have to worry about stepping over the optimal result.
+--   This implementation takes care of it.
+--
+--   Access to intermediate results is also possible via an 'IO'-Action.
+--
+-- ==== __Examples__
+--
+-- @
+-- x <- var \@IntSort
+-- assert $ x >? 4
+-- solveMinimized x Nothing Nothing
+-- @
+--
+-- The solver will return @x := 5@.
+--
+-- The first 'Nothing' indicates that each intermediate result will be set as next upper bound.
+-- The second 'Nothing' shows that we do not care about intermediate, but only the final (minimal) result.
+--
+-- @
+-- x <- var \@IntSort
+-- assert $ x >? 4
+-- solveMinimized x (Just (\\r -> r-1)) (Just print)
+-- @
+--
+-- The solver will still return @x := 5@.
+--
+-- However, here we want the next bound of each refinement to be @lastResult - 1@.
+-- Also, every intermediate result is printed.
 solveMinimized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))
-  => Expr t
+  => Expr t                             -- ^ Target to minimize
+  -> Maybe (Expr t -> Expr t)           -- ^ Step-size: Lambda is given last result as argument, producing the next upper bound
+  -> Maybe (Solution -> IO ())          -- ^ Accessor to intermediate results
   -> m (Result, Solution)
-solveMinimized = solveOptimized Nothing (<?)
-
--- | Like 'solveMinimized' but with access to intermediate results.
-solveMinimizedDebug :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))
-  => (Solution -> IO ())
-  -> Expr t
-  -> m (Result, Solution)
-solveMinimizedDebug debug = solveOptimized (Just debug) (<?)
+solveMinimized = solveOptimized (<?)
 
 -- | Solves the current problem with respect to a maximal solution for a given numerical expression.
 --
---   Uses iterative refinement.
+--   This is done by incrementally refining the lower bound for a given target.
+--   Terminates, when setting the last intermediate result as new lower bound results in 'Unsat'.
+--   Then removes that last assertion and returns the previous (now confirmed maximal) result.
 --
---   If you want access to intermediate results, use 'solveMaximizedDebug' instead.
+--   You can also provide a step-size. You do not have to worry about stepping over the optimal result.
+--   This implementation takes care of it.
+--
+--   Access to intermediate results is also possible via an 'IO'-Action.
+--
+-- ==== __Examples__
+--
+-- @
+-- x <- var \@IntSort
+-- assert $ x <? 4
+-- solveMaximized x Nothing Nothing
+-- @
+--
+-- The solver will return @x := 3@.
+--
+-- The first 'Nothing' indicates that each intermediate result will be set as next lower bound.
+-- The second 'Nothing' shows that we do not care about intermediate, but only the final (maximal) result.
+--
+-- @
+-- x <- var \@IntSort
+-- assert $ x <? 4
+-- solveMinimized x (Just (+1)) (Just print)
+-- @
+--
+-- The solver will still return @x := 3@.
+--
+-- However, here we want the next bound of each refinement to be @lastResult + 1@.
+-- Also, every intermediate result is printed.
 solveMaximized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))
-  => Expr t
+  => Expr t                             -- ^ Target to maximize
+  -> Maybe (Expr t -> Expr t)           -- ^ Step-size: Lambda is given last result as argument, producing the next lower bound
+  -> Maybe (Solution -> IO ())          -- ^ Accessor to intermediate results
   -> m (Result, Solution)
-solveMaximized = solveOptimized Nothing (>?)
-
--- | Like 'solveMaximized' but with access to intermediate results.
-solveMaximizedDebug :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t, Orderable (Expr t))
-  => (Solution -> IO ())
-  -> Expr t
-  -> m (Result, Solution)
-solveMaximizedDebug debug = solveOptimized (Just debug) (>?)
+solveMaximized = solveOptimized (>?)
 
 solveOptimized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t)
-  => Maybe (Solution -> IO ())
-  -> (Expr t -> Expr t -> Expr BoolSort)
+  => (Expr t -> Expr t -> Expr BoolSort)
   -> Expr t
+  -> Maybe (Expr t -> Expr t)
+  -> Maybe (Solution -> IO ())
   -> m (Result, Solution)
-solveOptimized mDebug op = go Unknown mempty
+solveOptimized op goal mStep mDebug = refine Unknown mempty goal
   where
-    go oldRes oldSol target = do
-      push
-      (res, sol) <- solve
+    refine oldRes oldSol target = do
+      res <- checkSat
       case res of
         Sat   -> do
+          sol <- getModel
           case decode sol target of
             Nothing        -> return (Sat, mempty)
             Just targetSol -> do
               case mDebug of
                 Nothing    -> pure ()
                 Just debug -> liftIO $ debug sol
-              assert $ target `op` encode targetSol
-              go res sol target
-        _ -> pop >> return (oldRes, oldSol)
+              push
+              let step = fromMaybe id mStep
+              assert $ target `op` step (encode targetSol)
+              refine res sol target
+        _ -> do
+          pop
+          case mStep of
+            Nothing -> return (oldRes, oldSol)
+            Just _  -> solveOptimized op goal Nothing mDebug -- make sure the very last step did not skip the optimal result
