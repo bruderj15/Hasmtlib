@@ -1,16 +1,29 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 {- |
 This module provides functions for having SMT-Problems solved by external solvers.
 -}
 module Language.Hasmtlib.Type.Solver
   (
-  -- * WithSolver
-  WithSolver(..)
+  -- * Solver configuration
+
+  -- ** Type
+  SolverConfig(..)
+
+  -- ** Decoration
+  , debugging, timingout
+
+  -- ** Lens
+  , processConfig, mTimeout, mDebugger
+
+  -- ** Debugger
+  , Debugger, StateDebugger(..), PipeDebugger(..)
 
   -- * Stateful solving
-  , solveWith
+  , Solver, solver, solveWith
 
   -- * Interactive solving
-  , interactiveWith, debugInteractiveWith
+  , interactiveWith
 
   -- ** Minimzation
   , solveMinimized
@@ -20,25 +33,134 @@ module Language.Hasmtlib.Type.Solver
   )
 where
 
+import Language.Hasmtlib.Internal.Render
+import Language.Hasmtlib.Internal.Parser
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
+import Language.Hasmtlib.Type.SMT
+import Language.Hasmtlib.Type.OMT
 import Language.Hasmtlib.Type.Pipe
 import Language.Hasmtlib.Codec
+import Data.Sequence as Seq hiding ((|>), filter)
+import Data.ByteString.Lazy hiding (singleton)
+import Data.ByteString.Lazy.UTF8 (toString)
+import Data.ByteString.Builder
+import qualified Data.ByteString.Lazy.Char8 as ByteString.Char8
 import qualified SMTLIB.Backends as Backend
 import qualified SMTLIB.Backends.Process as Process
 import Data.Default
 import Data.Maybe
+import Data.Kind
+import Data.Attoparsec.ByteString (parseOnly)
+import Control.Lens hiding (op)
+import Control.Monad
 import Control.Monad.State
+import Control.Monad.Trans.Control
+import System.Timeout.Lifted
 
--- | Data that can have a 'Backend.Solver' which may be debugged.
-class WithSolver a where
-  -- | Create a value with a 'Backend.Solver' and a 'Bool' for whether to debug the 'Backend.Solver'.
-  withSolver :: Backend.Solver -> Bool -> a
+-- | Function that turns a state into a 'Result' and a 'Solution'.
+type Solver s m = s -> m (Result, Solution)
 
-instance WithSolver Pipe where
-  withSolver = Pipe 0 Nothing def mempty mempty
+-- | Computes a debugger from a state.
+type family Debugger s :: Type
+type instance Debugger SMT = StateDebugger SMT
+type instance Debugger OMT = StateDebugger OMT
+type instance Debugger Pipe = PipeDebugger
+
+-- | A type holding actions for debugging states holding SMT-Problems.
+data StateDebugger s = StateDebugger
+  { debugState          :: s -> IO ()               -- ^ Debug the entire state
+  , debugProblem        :: Seq Builder -> IO ()     -- ^ Debug the linewise-rendered problem
+  , debugResultResponse :: ByteString -> IO ()      -- ^ Debug the solvers raw response for @(check-sat)@
+  , debugModelResponse  :: ByteString -> IO ()      -- ^ Debug the solvers raw response for @(get-model)@
+  }
+
+instance Default (StateDebugger SMT) where
+  def = StateDebugger
+    { debugState            = \s -> liftIO $ do
+        putStrLn $ "Vars: "       ++ show (Seq.length (s^.vars))
+        putStrLn $ "Assertions: " ++ show (Seq.length (s^.formulas))
+    , debugProblem        = liftIO . mapM_ (ByteString.Char8.putStrLn . toLazyByteString)
+    , debugResultResponse = liftIO . putStrLn . (\s -> "\n" ++ s ++ "\n") . toString
+    , debugModelResponse  = liftIO . mapM_ ByteString.Char8.putStrLn . split 13
+    }
+
+instance Default (StateDebugger OMT) where
+  def = StateDebugger
+    { debugState          = \omt -> liftIO $ do
+        putStrLn $ "Vars: "                 ++ show (Seq.length (omt^.smt.vars))
+        putStrLn $ "Hard assertions: "      ++ show (Seq.length (omt^.smt.formulas))
+        putStrLn $ "Soft assertions: "      ++ show (Seq.length (omt^.softFormulas))
+        putStrLn $ "Optimization targets: " ++ show (Seq.length (omt^.targetMinimize) + Seq.length (omt^.targetMaximize))
+    , debugProblem        = liftIO . mapM_ (ByteString.Char8.putStrLn . toLazyByteString)
+    , debugResultResponse = liftIO . putStrLn . (\s -> "\n" ++ s ++ "\n") . toString
+    , debugModelResponse  = liftIO . mapM_ ByteString.Char8.putStrLn . split 13
+    }
+
+-- | Configuration for solver processes.
+data SolverConfig s = SolverConfig
+  { _processConfig  :: Process.Config         -- ^ The underlying config of the process
+  , _mTimeout       :: Maybe Int              -- ^ Timeout in microseconds
+  , _mDebugger      :: Maybe (Debugger s)     -- ^ Debugger for communication with external solver
+  }
+$(makeLenses ''SolverConfig)
+
+-- | Creates a 'Solver' which holds an external process with a SMT-Solver.
+--
+--   This will:
+--
+-- 1. Encode the SMT-problem,
+--
+-- 2. start a new external process for the SMT-Solver,
+--
+-- 3. send the problem to the SMT-Solver,
+--
+-- 4. wait for an answer and parse it,
+--
+-- 5. close the process and clean up all resources and
+--
+-- 6. return the decoded solution.
+solver :: (RenderSeq s, MonadIO m, Debugger s ~ StateDebugger s) => SolverConfig s -> Solver s m
+solver (SolverConfig cfg mTO debugger) s = do
+  liftIO $ Process.with cfg $ \handle -> do
+    maybe mempty (`debugState` s) debugger
+    pSolver <- Backend.initSolver Backend.Queuing $ Process.toBackend handle
+
+    let problem = renderSeq s
+    maybe mempty (`debugProblem` problem) debugger
+    forM_ problem (Backend.command_ pSolver)
+
+    let timingOut io = case mTO of
+          Nothing -> io
+          Just t -> fromMaybe "unknown" <$> timeout t io
+    resultResponse <- timingOut $ Backend.command pSolver "(check-sat)"
+    maybe mempty (`debugResultResponse` resultResponse) debugger
+
+    modelResponse <- Backend.command pSolver "(get-model)"
+    maybe mempty (`debugModelResponse` modelResponse) debugger
+
+    case parseOnly resultParser (toStrict resultResponse) of
+      Left e    -> fail e
+      Right res -> case res of
+        Unsat -> return (res, mempty)
+        _     -> case parseOnly anyModelParser (toStrict modelResponse) of
+          Left e    -> fail e
+          Right sol -> return (res, sol)
+
+-- | Decorates a 'SolverConfig' with a timeout. The timeout is given as an 'Int' which specifies
+--   after how many __microseconds__ the external solver process shall time out on @(check-sat)@.
+--
+--   When timing out, the 'Result' will always be 'Unknown'.
+--
+--   This uses 'timeout' internally.
+timingout :: Int -> SolverConfig s -> SolverConfig s
+timingout t cfg = cfg & mTimeout ?~ t
+
+-- | Decorates a 'SolverConfig' with a 'Debugger'.
+debugging :: Debugger s -> SolverConfig s -> SolverConfig s
+debugging debugger cfg = cfg & mDebugger ?~ debugger
 
 -- | @'solveWith' solver prob@ solves a SMT problem @prob@ with the given
 -- @solver@. It returns a pair consisting of:
@@ -72,9 +194,9 @@ instance WithSolver Pipe where
 --
 -- The solver will probably answer with @x := 1@.
 solveWith :: (Default s, Monad m, Codec a) => Solver s m -> StateT s m a -> m (Result, Maybe (Decoded a))
-solveWith solver m = do
+solveWith solving m = do
   (a, problem) <- runStateT m def
-  (result, solution) <- solver problem
+  (result, solution) <- solving problem
 
   return (result, decode solution a)
 
@@ -88,8 +210,7 @@ solveWith solver m = do
 --
 -- main :: IO ()
 -- main = do
---   cvc5Living <- interactiveSolver cvc5
---   interactiveWith @Pipe cvc5Living $ do
+--   interactiveWith (solver z3) $ do
 --     setOption $ Incremental True
 --     setOption $ ProduceModels True
 --     setLogic \"QF_LRA\"
@@ -117,16 +238,16 @@ solveWith solver m = do
 --
 --   return ()
 -- @
-interactiveWith :: (WithSolver s, MonadIO m) => (Backend.Solver, Process.Handle) -> StateT s m () -> m ()
-interactiveWith (solver, handle) m = do
-  _ <- runStateT m $ withSolver solver False
+interactiveWith :: (MonadIO m, MonadBaseControl IO m) => SolverConfig Pipe -> StateT Pipe m a -> m (Maybe a)
+interactiveWith cfg m = do
+  handle <- liftIO $ Process.new $ cfg^.processConfig
+  processSolver <- liftIO $ Backend.initSolver Backend.Queuing $ Process.toBackend handle
+  let timingOut io = case cfg^.mTimeout of
+        Nothing -> Just <$> io
+        Just t -> timeout t io
+  ma <- timingOut $ runStateT m $ Pipe 0 Nothing def mempty mempty processSolver (cfg^.mDebugger)
   liftIO $ Process.close handle
-
--- | Like 'interactiveWith' but it prints all communication with the solver to console.
-debugInteractiveWith :: (WithSolver s, MonadIO m) => (Backend.Solver, Process.Handle) -> StateT s m () -> m ()
-debugInteractiveWith (solver, handle) m = do
-  _ <- runStateT m $ withSolver solver True
-  liftIO $ Process.close handle
+  return $ fmap fst ma
 
 -- | Solves the current problem with respect to a minimal solution for a given numerical expression.
 --

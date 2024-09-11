@@ -10,8 +10,8 @@ External SMT-Solvers responses are parsed into these types.
 -}
 module Language.Hasmtlib.Type.Solution
 (
-  -- * Solver
-  Solver, Result(..)
+  -- * Result
+  Result(..)
 
   -- * Solution
 , Solution
@@ -39,9 +39,6 @@ import Data.IntMap as IMap hiding (foldl)
 import Data.Dependent.Map as DMap
 import Data.Dependent.Map.Lens
 import Control.Lens
-
--- | Function that turns a state into a result and a solution.
-type Solver s m = s -> m (Result, Solution)
 
 -- | Results of check-sat commands.
 data Result = Unsat | Unknown | Sat deriving (Show, Eq, Ord)

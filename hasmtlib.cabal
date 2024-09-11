@@ -37,7 +37,6 @@ library
                      , Language.Hasmtlib.Internal.Sharing
                      , Language.Hasmtlib.Internal.Uniplate1
                      , Language.Hasmtlib.Internal.Constraint
-                     , Language.Hasmtlib.Solver.Common
                      , Language.Hasmtlib.Solver.Bitwuzla
                      , Language.Hasmtlib.Solver.CVC5
                      , Language.Hasmtlib.Solver.MathSAT
@@ -61,6 +60,8 @@ library
   build-depends:       array                        >= 0.5    && < 1
                      , attoparsec                   >= 0.14.4 && < 1
                      , base                         >= 4.17.2 && < 5
+                     , lifted-base
+                     , monad-control
                      , bytestring                   >= 0.11.5 && < 1
                      , containers                   >= 0.6.7  && < 1
                      , unordered-containers         >= 0.2.20 && < 0.3
