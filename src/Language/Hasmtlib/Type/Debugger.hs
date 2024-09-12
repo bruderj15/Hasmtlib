@@ -4,13 +4,13 @@ This module provides debugging capabilites for the problem definition and commun
 module Language.Hasmtlib.Type.Debugger
   (
     -- * Type
-    Debugger(..)
+    Debugger(..), StateDebugger(..)
 
     -- * Construction
     -- ** Volume
   , silently
+  , noisy
   , verbosely
-  , statisticallySMT, statisticallyOMT
 
     -- ** Information
   , optionish
@@ -77,6 +77,27 @@ silently = Debugger
   (const mempty)
   (const mempty)
 
+-- | The noisy 'Debugger'.
+--
+--   Debugs the entire problem definition.
+noisy :: Debugger s
+noisy = Debugger
+  (const mempty)
+  printer
+  printer
+  printer
+  printer
+  printer
+  printer
+  printer
+  printer
+  printer
+  printer
+  printer
+  printer
+  (const mempty)
+  (const mempty)
+
 -- | The verbose 'Debugger'.
 --
 --   Debugs all communication between Haskell and the external solver.
@@ -97,28 +118,6 @@ verbosely = Debugger
   printer
   (ByteString.Char8.putStrLn . (\s -> "\n" <> s <> "\n"))
   (mapM_ (putStrLn . toString) . split 13)
-
--- | A statistical 'Debugger' for 'SMT'.
---
---   Debugs information about the problem like the amount of variables and assertions.
-statisticallySMT :: Debugger SMT
-statisticallySMT = silently
-  { debugState = \s -> do
-          putStrLn $ "Variables:  " ++ show (Seq.length (s^.vars))
-          putStrLn $ "Assertions: " ++ show (Seq.length (s^.formulas))
-  }
-
--- | A statistical 'Debugger' for 'OMT'.
---
---   Debugs information about the problem like the amount of variables and assertions.
-statisticallyOMT :: Debugger OMT
-statisticallyOMT = silently
-  { debugState = \omt -> do
-        putStrLn $ "Variables:       " ++ show (Seq.length (omt^.smt.vars))
-        putStrLn $ "Hard assertions: " ++ show (Seq.length (omt^.smt.formulas))
-        putStrLn $ "Soft assertions: " ++ show (Seq.length (omt^.softFormulas))
-        putStrLn $ "Optimizations:   " ++ show (Seq.length (omt^.targetMinimize) + Seq.length (omt^.targetMaximize))
-  }
 
 -- | A 'Debugger' for debugging all rendered options that have been set.
 optionish :: Debugger s
@@ -150,3 +149,24 @@ responseish = silently
   { debugResultResponse = ByteString.Char8.putStrLn . (\s -> "\n" <> s <> "\n")
   , debugModelResponse = mapM_ (putStrLn . toString) . split 13
   }
+
+-- | A class that allows debugging states.
+class StateDebugger s where
+  -- | Debugs information about the problem like the amount of variables and assertions.
+  statistically :: Debugger s
+
+instance StateDebugger SMT where
+  statistically = silently
+    { debugState = \s -> do
+      putStrLn $ "Variables:  " ++ show (Seq.length (s^.vars))
+      putStrLn $ "Assertions: " ++ show (Seq.length (s^.formulas))
+    }
+
+instance StateDebugger OMT where
+  statistically = silently
+    { debugState = \omt -> do
+      putStrLn $ "Variables:       " ++ show (Seq.length (omt^.smt.vars))
+      putStrLn $ "Hard assertions: " ++ show (Seq.length (omt^.smt.formulas))
+      putStrLn $ "Soft assertions: " ++ show (Seq.length (omt^.softFormulas))
+      putStrLn $ "Optimizations:   " ++ show (Seq.length (omt^.targetMinimize) + Seq.length (omt^.targetMaximize))
+    }
