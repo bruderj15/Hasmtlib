@@ -15,14 +15,14 @@ module Language.Hasmtlib.Type.Pipe
   -- * Lens
 , lastPipeVarId, mPipeLogic
 , pipeSharingMode, pipeStableMap, incrSharedAuxs
-, pipeSolver, isDebugging
+, pipeSolver
 )
 where
 
 import Language.Hasmtlib.Internal.Sharing
 import Language.Hasmtlib.Internal.Render
+import Language.Hasmtlib.Type.Debugger
 import Language.Hasmtlib.Type.Expr
-import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.OMT (SoftFormula(..), Minimize(..), Maximize(..))
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
@@ -36,12 +36,10 @@ import Data.List (isPrefixOf)
 import Data.IntMap as IntMap (singleton)
 import Data.Dependent.Map as DMap
 import Data.Coerce
-import qualified Data.ByteString.Lazy.Char8 as ByteString.Char8
 import Data.ByteString.Builder
 import Data.ByteString.Lazy hiding (filter, singleton, isPrefixOf)
 import Data.Attoparsec.ByteString hiding (Result)
 import Control.Monad.State
-import Control.Monad
 import Control.Lens hiding (List)
 import System.Mem.StableName
 
@@ -52,11 +50,11 @@ import System.Mem.StableName
 data Pipe = Pipe
   { _lastPipeVarId     :: {-# UNPACK #-} !Int                                 -- ^ Last Id assigned to a new var
   , _mPipeLogic        :: Maybe String                                        -- ^ Logic for the SMT-Solver
-  , _pipeSharingMode   :: !SharingMode                                         -- ^ How to share common expressions
+  , _pipeSharingMode   :: !SharingMode                                        -- ^ How to share common expressions
   , _pipeStableMap     :: !(HashMap (StableName ()) (SomeKnownSMTSort Expr))  -- ^ Mapping between a 'StableName' and it's 'Expr' we may share
   , _incrSharedAuxs    :: !(Seq (Seq (StableName ())))                        -- ^ Index of each 'Seq' ('StableName' ()) is incremental stack height where 'StableName' representing auxiliary var that has been shared
   , _pipeSolver        :: !B.Solver                                           -- ^ Active pipe to the backend
-  , _isDebugging       :: !Bool                                               -- ^ Flag if pipe shall debug
+  , _mPipeDebugger      :: Maybe (Debugger Pipe)                                 -- ^ Debugger for communication with the external solver
   }
 $(makeLenses ''Pipe)
 
@@ -67,7 +65,7 @@ instance Sharing Pipe where
     pipe <- get
     modifying (incrSharedAuxs._last) (|> sn)
     let cmd = renderAssert expr
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ maybe (return ()) (`debugAssert` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
   setSharingMode sm = pipeSharingMode .= sm
 
@@ -79,7 +77,7 @@ instance (MonadState Pipe m, MonadIO m) => MonadSMT Pipe m where
     pipe <- get
     newVar <- smtvar' p
     let cmd = renderDeclareVar newVar
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ maybe (return ()) (`debugVar` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
     return $ Var newVar
   {-# INLINEABLE var' #-}
@@ -91,45 +89,45 @@ instance (MonadState Pipe m, MonadIO m) => MonadSMT Pipe m where
       Nothing    -> return sExpr
       Just logic -> if "QF" `isPrefixOf` logic then return sExpr else quantify sExpr
     let cmd = renderAssert qExpr
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ maybe (return ()) (`debugAssert` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
   {-# INLINEABLE assert #-}
 
   setOption opt = do
     pipe <- get
     let cmd = render opt
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ maybe (return ()) (`debugOption` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
 
   setLogic l = do
     mPipeLogic ?= l
     pipe <- get
     let cmd = renderSetLogic (stringUtf8 l)
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ maybe (return ()) (`debugLogic` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
 
 instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
   push = do
     pipe <- get
-    let cmd = "(push 1)"
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    let cmd = renderPush 1
+    liftIO $ maybe (return ()) (`debugPush` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
     incrSharedAuxs <>= mempty
 
   pop = do
     pipe <- get
-    let cmd = "(pop 1)"
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    let cmd = renderPop 1
+    liftIO $ maybe (return ()) (`debugPop` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
     forMOf_ (incrSharedAuxs._last.folded) pipe (\sn -> pipeStableMap.at sn .= Nothing)
     modifying incrSharedAuxs $ \case (auxs:>_) -> auxs ; auxs -> auxs
 
   checkSat = do
     pipe <- get
-    let cmd = "(check-sat)"
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    let cmd = renderCheckSat
+    liftIO $ maybe (return ()) (`debugCheckSat` cmd) (pipe^.mPipeDebugger)
     result <- liftIO $ B.command (pipe^.pipeSolver) cmd
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn result
+    liftIO $ maybe (return ()) (`debugResultResponse` result) (pipe^.mPipeDebugger)
     case parseOnly resultParser (toStrict result) of
       Left e    -> liftIO $ do
         print result
@@ -138,10 +136,10 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
 
   getModel = do
     pipe   <- get
-    let cmd = "(get-model)"
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    let cmd = renderGetModel
+    liftIO $ maybe (return ()) (`debugGetModel` cmd) (pipe^.mPipeDebugger)
     model <- liftIO $ B.command (pipe^.pipeSolver) cmd
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn model
+    liftIO $ maybe (return ()) (`debugModelResponse` model) (pipe^.mPipeDebugger)
     case parseOnly anyModelParser (toStrict model) of
       Left e    -> liftIO $ do
         print model
@@ -151,10 +149,10 @@ instance (MonadState Pipe m, MonadIO m) => MonadIncrSMT Pipe m where
   getValue :: forall t. KnownSMTSort t => Expr t -> m (Maybe (Decoded (Expr t)))
   getValue v@(Var x) = do
     pipe   <- get
-    let cmd = renderUnary "get-value" $ "(" <> render x <> ")"
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    let cmd = renderGetValue x
+    liftIO $ maybe (return ()) (`debugGetValue` cmd) (pipe^.mPipeDebugger)
     model <- liftIO $ B.command (pipe^.pipeSolver) cmd
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn model
+    liftIO $ maybe (return ()) (`debugModelResponse` model) (pipe^.mPipeDebugger)
     case parseOnly (getValueParser @t x) (toStrict model) of
       Left e    -> liftIO $ do
         print model
@@ -175,7 +173,7 @@ instance (MonadSMT Pipe m, MonadIO m) => MonadOMT Pipe m where
     pipe <- get
     sExpr <- runSharing (pipe^.pipeSharingMode) expr
     let cmd = render $ Minimize sExpr
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ maybe (return ()) (`debugMinimize` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
   {-# INLINEABLE minimize #-}
 
@@ -183,7 +181,7 @@ instance (MonadSMT Pipe m, MonadIO m) => MonadOMT Pipe m where
     pipe <- get
     sExpr <- runSharing (pipe^.pipeSharingMode) expr
     let cmd = render $ Maximize sExpr
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ maybe (return ()) (`debugMaximize` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
   {-# INLINEABLE maximize #-}
 
@@ -191,6 +189,6 @@ instance (MonadSMT Pipe m, MonadIO m) => MonadOMT Pipe m where
     pipe <- get
     sExpr <- runSharing (pipe^.pipeSharingMode) expr
     let cmd = render $ SoftFormula sExpr w gid
-    when (pipe^.isDebugging) $ liftIO $ ByteString.Char8.putStrLn $ toLazyByteString cmd
+    liftIO $ maybe (return ()) (`debugAssertSoft` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd
   {-# INLINEABLE assertSoft #-}

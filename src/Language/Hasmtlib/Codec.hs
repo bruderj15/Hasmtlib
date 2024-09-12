@@ -48,6 +48,8 @@ import Data.IntMap as IM hiding (foldl)
 import Data.Dependent.Map as DMap
 import Data.Tree (Tree)
 import Data.Array (Array, Ix)
+import Data.Word
+import Data.Int
 import qualified Data.Text as Text
 import Data.Monoid (Sum, Product, First, Last, Dual)
 import qualified Data.Vector.Sized as V
@@ -223,6 +225,91 @@ instance (Ix i, Codec e) => Codec (Array i e) where
   type Decoded (Array i e) = Array i (Decoded e)
   decode = traverse . decode
   encode = fmap encode
+
+instance Codec Int where
+  type Decoded Int = Int
+  decode _ = Just
+  encode = id
+
+instance Codec Integer where
+  type Decoded Integer = Integer
+  decode _ = Just
+  encode = id
+
+instance Codec Natural where
+  type Decoded Natural = Natural
+  decode _ = Just
+  encode = id
+
+instance Codec Word where
+  type Decoded Word = Word
+  decode _ = Just
+  encode = id
+
+instance Codec Word8 where
+  type Decoded Word8 = Word8
+  decode _ = Just
+  encode = id
+
+instance Codec Word16 where
+  type Decoded Word16 = Word16
+  decode _ = Just
+  encode = id
+
+instance Codec Word32 where
+  type Decoded Word32 = Word32
+  decode _ = Just
+  encode = id
+
+instance Codec Word64 where
+  type Decoded Word64 = Word64
+  decode _ = Just
+  encode = id
+
+instance Codec Int8 where
+  type Decoded Int8 = Int8
+  decode _ = Just
+  encode = id
+
+instance Codec Int16 where
+  type Decoded Int16 = Int16
+  decode _ = Just
+  encode = id
+
+instance Codec Int32 where
+  type Decoded Int32 = Int32
+  decode _ = Just
+  encode = id
+
+instance Codec Int64 where
+  type Decoded Int64 = Int64
+  decode _ = Just
+  encode = id
+
+instance Codec Char where
+  type Decoded Char = Char
+  decode _ = Just
+  encode = id
+
+instance Codec Float where
+  type Decoded Float = Float
+  decode _ = Just
+  encode = id
+
+instance Codec Double where
+  type Decoded Double = Double
+  decode _ = Just
+  encode = id
+
+instance Codec Ordering where
+  type Decoded Ordering = Ordering
+  decode _ = Just
+  encode = id
+
+instance Codec Bool where
+  type Decoded Bool = Bool
+  decode _ = Just
+  encode = id
 
 class GCodec f where
   type GDecoded f :: Type -> Type

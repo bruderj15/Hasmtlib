@@ -2,11 +2,10 @@ module Language.Hasmtlib.Example.Arith where
 
 import Prelude hiding ((&&))
 import Language.Hasmtlib
-import Data.Default
 
 main :: IO ()
 main = do
-  res <- solveWith @SMT (debug cvc5 def) $ do
+  res <- solveWith @SMT (solver $ debugging verbosely cvc5) $ do
     setLogic "QF_LIA"
 
     x <- var @IntSort
@@ -16,10 +15,10 @@ main = do
 
     assert $ a2 === a2
 
-    setSharingMode None
+    setSharingMode StableNames
     assert $ a2 === a2
 
-    setSharingMode StableNames
+    setSharingMode None
     assert $ a2 === a2
 
     return x

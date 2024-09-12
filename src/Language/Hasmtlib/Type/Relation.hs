@@ -61,7 +61,6 @@ import Control.Lens hiding (indices)
 -- so @a@ and @b@ have to be instances of 'Ix',
 -- and both \(A\) and \(B\) are intervals.
 newtype Relation a b = Relation (Array (a, b) (Expr BoolSort))
-  deriving stock Show
 
 instance (Ix a, Ix b) => Codec (Relation a b) where
   type Decoded (Relation a b) = Array (a, b) Bool
