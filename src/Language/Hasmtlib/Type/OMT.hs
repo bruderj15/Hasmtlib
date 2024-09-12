@@ -8,7 +8,11 @@ This module provides a concrete implementation for 'MonadOMT' with it's state 'O
 module Language.Hasmtlib.Type.OMT
 (
   -- * SoftFormula
+  -- ** Type
   SoftFormula(..)
+
+  -- ** Lens
+, formula, mWeight, mGroupId
 
   -- * Optimization targets
 , Minimize(..), Maximize(..)
@@ -23,7 +27,6 @@ module Language.Hasmtlib.Type.OMT
 where
 
 import Language.Hasmtlib.Internal.Sharing
-import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Option
@@ -42,7 +45,7 @@ data SoftFormula = SoftFormula
   { _formula  :: Expr BoolSort    -- ^ The underlying soft formula
   , _mWeight  :: Maybe Double     -- ^ Weight of the soft formula
   , _mGroupId :: Maybe String     -- ^ Group-Id of the soft formula
-  } deriving Show
+  }
 $(makeLenses ''SoftFormula)
 
 -- | A newtype for numerical expressions that are target of a minimization.
@@ -108,22 +111,3 @@ instance MonadSMT OMT m => MonadOMT OMT m where
     sm <- use (smt.sharingMode)
     sExpr <- runSharing sm expr
     modifying softFormulas (|> SoftFormula sExpr w gid)
-
-instance Render SoftFormula where
-  render sf = "(assert-soft " <> render (sf^.formula) <> " :weight " <> maybe "1" render (sf^.mWeight) <> renderGroupId (sf^.mGroupId) <> ")"
-    where
-      renderGroupId Nothing = mempty
-      renderGroupId (Just groupId) = " :id " <> render groupId
-
-instance KnownSMTSort t => Render (Minimize t) where
-  render (Minimize expr) = "(minimize " <> render expr <> ")"
-
-instance KnownSMTSort t => Render (Maximize t) where
-  render (Maximize expr) = "(maximize " <> render expr <> ")"
-
-instance RenderSeq OMT where
-  renderSeq omt =
-       renderSeq (omt^.smt)
-    <> fmap render (omt^.softFormulas)
-    <> fmap (\case SomeSMTSort minExpr -> render minExpr) (omt^.targetMinimize)
-    <> fmap (\case SomeSMTSort maxExpr -> render maxExpr) (omt^.targetMaximize)

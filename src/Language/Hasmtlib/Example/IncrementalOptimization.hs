@@ -1,12 +1,11 @@
 module Language.Hasmtlib.Example.IncrementalOptimization where
 
 import Language.Hasmtlib
-import Control.Monad.IO.Class
+import Control.Monad
 
 main :: IO ()
 main = do
-  iz3 <- interactiveSolver z3
-  debugInteractiveWith @Pipe iz3 $ do
+  res <- interactiveWith (debugging verbosely z3) $ do
     setOption $ ProduceModels True
     setLogic "QF_LIA"
 
@@ -15,6 +14,6 @@ main = do
     assert $ x <? 10
     assert $ x >? 0
 
-    (res, sol) <- solveMaximized x (Just (+2)) Nothing
-    liftIO $ print res
-    liftIO $ print $ decode sol x
+    (_, sol) <- solveMaximized x (Just (+2)) Nothing
+    return $ decode sol x
+  print $ join res

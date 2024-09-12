@@ -77,15 +77,12 @@ where
 
 import Prelude hiding (not, and, or, any, all, (&&), (||))
 import Language.Hasmtlib.Internal.Uniplate1
-import Language.Hasmtlib.Internal.Render
-import Language.Hasmtlib.Type.Bitvec (BvEnc(..), KnownBvEnc(..), SBvEnc(..), bvEncSing')
-import Language.Hasmtlib.Type.ArrayMap
+import Language.Hasmtlib.Type.Bitvec (BvEnc(..), KnownBvEnc(..), SBvEnc(..))
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Value
 import Language.Hasmtlib.Boolean
 import Data.GADT.Compare
 import Data.GADT.DeepSeq
-import Data.Map hiding (toList)
 import Data.Coerce
 import Data.Proxy
 import Data.Int
@@ -99,8 +96,6 @@ import Data.String (IsString(..))
 import Data.Text (pack)
 import Data.List(genericLength)
 import Data.Foldable (toList)
-import Data.ByteString.Builder
-import Data.ByteString.Lazy.UTF8 (toString)
 import qualified Data.Vector.Sized as V
 import Control.Lens hiding (from, to)
 import GHC.TypeLits hiding (someNatVal)
@@ -697,13 +692,13 @@ instance Floating (Expr RealSort) where
 -- | This instance is __partial__ for 'toRational', this method is only intended for use with constants.
 instance (KnownSMTSort t, Real (HaskellType t)) => Real (Expr t) where
   toRational (Constant x) = toRational $ unwrapValue x
-  toRational x = error $ "Real#toRational[Expr " <> show (sortSing @t) <> "] only supported for constants. But given: " <> show x
+  toRational _ = error $ "Real#toRational[Expr " <> show (sortSing @t) <> "] only supported for constants."
   {-# INLINE toRational #-}
 
 -- | This instance is __partial__ for 'fromEnum', this method is only intended for use with constants.
 instance (KnownSMTSort t, Enum (HaskellType t)) => Enum (Expr t) where
   fromEnum (Constant x) = fromEnum $ unwrapValue x
-  fromEnum x = error $ "Enum#fromEnum[Expr " <> show (sortSing @t) <> "] only supported for constants. But given: " <> show x
+  fromEnum _ = error $ "Enum#fromEnum[Expr " <> show (sortSing @t) <> "] only supported for constants."
   {-# INLINE fromEnum #-}
   toEnum = Constant . wrapValue . toEnum
   {-# INLINE toEnum #-}
@@ -715,7 +710,7 @@ instance (KnownSMTSort t, Integral (HaskellType t)) => Integral (Expr t) where
   divMod x y  = (IDiv x y, Mod x y)
   {-# INLINE divMod #-}
   toInteger (Constant x) = toInteger $ unwrapValue x
-  toInteger x = error $ "Integer#toInteger[Expr " <> show (sortSing @t) <> "] only supported for constants. But given: " <> show x
+  toInteger _ = error $ "Integer#toInteger[Expr " <> show (sortSing @t) <> "] only supported for constants."
   {-# INLINE toInteger #-}
 
 instance Boolean (Expr BoolSort) where
@@ -789,7 +784,7 @@ instance Bits.Bits (Expr BoolSort) where
   complementBit b _ = Not b
   {-# INLINE complementBit #-}
   testBit (Constant (BoolValue b)) _ = b
-  testBit sb _ = error $ "Bits#testBit[Expr BoolSort] is only supported for constants. Given: " <> show sb
+  testBit _ _ = error "Bits#testBit[Expr BoolSort] is only supported for constants."
   {-# INLINE testBit #-}
   bitSizeMaybe _ = Just 1
   {-# INLINE bitSizeMaybe #-}
@@ -808,7 +803,7 @@ instance Bits.Bits (Expr BoolSort) where
   rotateR b _ = b
   {-# INLINE rotateR #-}
   popCount (Constant (BoolValue b)) = if b then 1 else 0
-  popCount sb = error $ "Bits#popCount[Expr BoolSort] is only supported for constants. Given: " <> show sb
+  popCount _ = error "Bits#popCount[Expr BoolSort] is only supported for constants."
   {-# INLINE popCount #-}
 
 -- | This instance is __partial__ for 'testBit' and 'popCount', it's only intended for use with constants ('Constant').
@@ -826,7 +821,7 @@ instance (KnownBvEnc enc, KnownNat n) => Bits.Bits (Expr (BvSort enc n)) where
   bit = Constant . BvValue . Bits.bit
   {-# INLINE bit #-}
   testBit (Constant (BvValue b)) i = Bits.testBit b i
-  testBit sb _ = error $ "Bits#testBit[Expr BvSort] is only supported for constants. Given: " <> show sb
+  testBit _ _ = error "Bits#testBit[Expr BvSort] is only supported for constants."
   {-# INLINE testBit #-}
   bitSizeMaybe _ = Just $ fromIntegral $ natVal $ Proxy @n
   {-# INLINE bitSizeMaybe #-}
@@ -847,7 +842,7 @@ instance (KnownBvEnc enc, KnownNat n) => Bits.Bits (Expr (BvSort enc n)) where
   rotateR b i = BvRotR i b
   {-# INLINE rotateR #-}
   popCount (Constant (BvValue b)) = Bits.popCount b
-  popCount sb = error $ "Bits#popCount[Expr BvSort] is only supported for constants. Given: " <> show sb
+  popCount _ = error $ "Bits#popCount[Expr BvSort] is only supported for constants."
   {-# INLINE popCount #-}
 
 instance Semigroup (Expr StringSort) where
@@ -863,143 +858,6 @@ instance Monoid (Expr StringSort) where
 instance IsString (Expr StringSort) where
   fromString = Constant . StringValue . pack
   {-# INLINE fromString #-}
-
-instance Render (SMTVar t) where
-  render v = "var_" <> intDec (coerce @(SMTVar t) @Int v)
-  {-# INLINE render #-}
-
-instance Render (Value t) where
-  render (IntValue x)   = render x
-  render (RealValue x)  = render x
-  render (BoolValue x)  = render x
-  render (BvValue   v)  = "#b" <> render v
-  render (ArrayValue arr) = case minViewWithKey (arr^.stored) of
-    Nothing -> constRender $ arr^.arrConst
-    Just ((k,v), stored')
-      | size (arr^.stored) > 1 -> render $ ArrStore (Constant (wrapValue (arr & stored .~ stored'))) (Constant (wrapValue k)) (Constant (wrapValue v))
-      | otherwise  -> constRender v
-    where
-      constRender v = "((as const " <> render (goSing arr) <> ") " <> render (wrapValue v) <> ")"
-      goSing :: forall k v. (KnownSMTSort k, KnownSMTSort v, Ord (HaskellType k), Ord (HaskellType v)) => ConstArray (HaskellType k) (HaskellType v) -> SSMTSort (ArraySort k v)
-      goSing _ = sortSing @(ArraySort k v)
-  render (StringValue x) = "\"" <> render x <> "\""
-
-instance KnownSMTSort t => Render (Expr t) where
-  render (Var v)      = render v
-  render (Constant c) = render c
-  render (Plus x y)   = renderBinary (case sortSing' x of SBvSort _ _ -> "bvadd" ; _ -> "+") x y
-  render (Minus x y)  = renderBinary (case sortSing' x of SBvSort _ _ -> "bvsub" ; _ -> "-") x y
-  render (Neg x)      = renderUnary  (case sortSing' x of SBvSort _ _ -> "bvneg" ; _ -> "-") x
-  render (Mul x y)    = renderBinary (case sortSing' x of SBvSort _ _ -> "bvmul" ; _ -> "*") x y
-  render (Abs x)      = renderUnary  "abs" x
-  render (Mod x y)    = renderBinary opStr x y
-    where
-      opStr = case sortSing' x of
-        SBvSort enc _ -> case bvEncSing' enc of
-          SUnsigned -> "bvurem"
-          SSigned -> "bvsmod"
-        _ -> "mod"
-  render (Rem x y)    = renderBinary opStr x y
-    where
-      opStr = case sortSing' x of
-        SBvSort enc _ -> case bvEncSing' enc of
-          SUnsigned -> "bvurem"
-          SSigned -> "bvsrem"
-        _ -> "rem"
-  render (IDiv x y)   = renderBinary opStr x y
-    where
-      opStr = case sortSing' x of
-        SBvSort enc _ -> case bvEncSing' enc of
-          SUnsigned -> "bvudiv"
-          SSigned -> "bvsdiv"
-        _ -> "div"
-  render (Div x y)    = renderBinary "/" x y
-  render (LTH x y)    = renderBinary opStr x y
-    where
-      opStr = case sortSing' x of
-        SBvSort enc _ -> case bvEncSing' enc of
-          SUnsigned -> "bvult"
-          SSigned -> "bvslt"
-        SStringSort -> "str.<"
-        _ -> "<"
-  render (LTHE x y)   = renderBinary opStr x y
-    where
-      opStr = case sortSing' x of
-        SBvSort enc _ -> case bvEncSing' enc of
-          SUnsigned -> "bvule"
-          SSigned -> "bvsle"
-        SStringSort -> "str.<="
-        _ -> "<="
-  render (EQU xs)     = renderNary "=" $ V.toList xs
-  render (Distinct xs)= renderNary "distinct" $ V.toList xs
-  render (GTHE x y)   = case sortSing' x of
-    SBvSort enc _ -> case bvEncSing' enc of
-      SUnsigned -> renderBinary "bvuge" x y
-      SSigned   -> renderBinary "bvsge" x y
-    SStringSort -> renderBinary "str.<=" y x
-    _           -> renderBinary ">=" x y
-  render (GTH x y)    = case sortSing' x of
-    SBvSort enc _ -> case bvEncSing' enc of
-      SUnsigned -> renderBinary "bvugt" x y
-      SSigned   -> renderBinary "bvsgt" x y
-    SStringSort -> renderBinary "str.<" y x
-    _           -> renderBinary ">" x y
-  render (Not x)      = renderUnary  (case sortSing' x of SBvSort _ _ -> "bvnot" ; _ -> "not") x
-  render (And x y)    = renderBinary (case sortSing' x of SBvSort _ _ -> "bvand" ; _ -> "and") x y
-  render (Or x y)     = renderBinary (case sortSing' x of SBvSort _ _ -> "bvor" ; _ -> "or") x y
-  render (Impl x y)   = renderBinary "=>" x y
-  render (Xor x y)    = renderBinary (case sortSing' x of SBvSort _ _ -> "bvxor" ; _ -> "xor") x y
-  render Pi           = "real.pi"
-  render (Sqrt x)     = renderUnary "sqrt" x
-  render (Exp x)      = renderUnary "exp" x
-  render (Sin x)      = renderUnary "sin" x
-  render (Cos x)      = renderUnary "cos" x
-  render (Tan x)      = renderUnary "tan" x
-  render (Asin x)     = renderUnary "arcsin" x
-  render (Acos x)     = renderUnary "arccos" x
-  render (Atan x)     = renderUnary "arctan" x
-  render (ToReal x)   = renderUnary "to_real" x
-  render (ToInt x)    = renderUnary "to_int" x
-  render (IsInt x)    = renderUnary "is_int" x
-  render (Ite p t f)  = renderTernary "ite" p t f
-  render (BvNand x y)       = renderBinary "bvnand" (render x) (render y)
-  render (BvNor x y)        = renderBinary "bvnor"  (render x) (render y)
-  render (BvShL x y)        = renderBinary "bvshl"  (render x) (render y)
-  render (BvLShR x y)       = renderBinary "bvlshr" (render x) (render y)
-  render (BvAShR x y)       = renderBinary "bvashr" (render x) (render y)
-  render (BvConcat x y)     = renderBinary "concat" (render x) (render y)
-  render (BvRotL i x)       = renderUnary (renderBinary "_" ("rotate_left"  :: Builder) (render $ toInteger i)) (render x)
-  render (BvRotR i x)       = renderUnary (renderBinary "_" ("rotate_right" :: Builder) (render $ toInteger i)) (render x)
-  render (ArrSelect a i)    = renderBinary  "select" (render a) (render i)
-  render (ArrStore a i v)   = renderTernary "store"  (render a) (render i) (render v)
-  render (StrConcat x y)        = renderBinary "str.++"  (render x) (render y)
-  render (StrLength x)          = renderUnary  "str.len" (render x)
-  render (StrAt x i)            = renderBinary "str.at"  (render x) (render i)
-  render (StrSubstring x i j)   = renderTernary "str.substr"  (render x) (render i) (render j)
-  render (StrPrefixOf x y)      = renderBinary "str.prefixof" (render x) (render y)
-  render (StrSuffixOf x y)      = renderBinary "str.suffixof" (render x) (render y)
-  render (StrContains x y)      = renderBinary "str.contains" (render x) (render y)
-  render (StrIndexOf x y i)     = renderTernary "str.indexof"     (render x) (render y) (render i)
-  render (StrReplace x y y')    = renderTernary "str.replace"     (render x) (render y) (render y')
-  render (StrReplaceAll x y y') = renderTernary "str.replace_all" (render x) (render y) (render y')
-  render (ForAll mQvar f) = renderQuantifier "forall" mQvar f
-  render (Exists mQvar f) = renderQuantifier "exists" mQvar f
-
-renderQuantifier :: forall t. KnownSMTSort t => Builder -> Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Builder
-renderQuantifier qname (Just qvar) f =
-  renderBinary
-    qname
-    ("(" <> renderUnary (render qvar) (sortSing @t) <> ")")
-    expr
-  where
-    expr = render $ f $ Var qvar
-renderQuantifier _ Nothing _ = mempty
-
-instance Show (Value t) where
-  show = toString . toLazyByteString . render
-
-instance KnownSMTSort t => Show (Expr t) where
-  show = toString . toLazyByteString . render
 
 type instance Index   (Expr StringSort) = Expr IntSort
 type instance IxValue (Expr StringSort) = Expr StringSort

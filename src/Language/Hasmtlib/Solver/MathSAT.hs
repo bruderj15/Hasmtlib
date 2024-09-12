@@ -1,13 +1,20 @@
 module Language.Hasmtlib.Solver.MathSAT where
 
 import SMTLIB.Backends.Process
+import Language.Hasmtlib.Type.Solver
 
--- | A 'Config' for MathSAT.
+-- | A 'SolverConfig' for MathSAT.
 --   Requires binary @mathsat@ to be in path.
-mathsat :: Config
-mathsat = defaultConfig { exe = "mathsat", args = [] }
+mathsat :: SolverConfig s
+mathsat = SolverConfig
+  (defaultConfig { exe = "mathsat", args = [] })
+  Nothing
+  Nothing
 
--- | A 'Config' for OptiMathSAT.
+-- | A 'SolverConfig' for OptiMathSAT.
 --   Requires binary @optimathsat@ to be in path.
-optimathsat :: Config
-optimathsat = defaultConfig { exe = "optimathsat", args = ["-optimization=true"] }
+optimathsat :: SolverConfig s
+optimathsat = SolverConfig
+  (defaultConfig { exe = "optimathsat", args = ["-optimization=true"] })
+  Nothing
+  Nothing

@@ -32,7 +32,7 @@ module Language.Hasmtlib
   -- ** Type
   , module Language.Hasmtlib.Type.Solution
   , module Language.Hasmtlib.Type.Solver
-  , module Language.Hasmtlib.Solver.Common
+  , module Language.Hasmtlib.Type.Debugger
 
   -- ** Concrete solvers
   , module Language.Hasmtlib.Solver.Z3
@@ -61,11 +61,11 @@ import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.Bitvec
 import Language.Hasmtlib.Type.Relation
+import Language.Hasmtlib.Type.Debugger
 import Language.Hasmtlib.Boolean
 import Language.Hasmtlib.Codec
 import Language.Hasmtlib.Counting
 import Language.Hasmtlib.Variable
-import Language.Hasmtlib.Solver.Common
 import Language.Hasmtlib.Solver.Bitwuzla
 import Language.Hasmtlib.Solver.CVC5
 import Language.Hasmtlib.Solver.Z3
@@ -73,3 +73,4 @@ import Language.Hasmtlib.Solver.Yices
 import Language.Hasmtlib.Solver.OpenSMT
 import Language.Hasmtlib.Solver.MathSAT
 import Language.Hasmtlib.Internal.Sharing
+import Language.Hasmtlib.Internal.Render ()

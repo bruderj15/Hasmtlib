@@ -1,8 +1,11 @@
 module Language.Hasmtlib.Solver.OpenSMT where
 
 import SMTLIB.Backends.Process
+import Language.Hasmtlib.Type.Solver
 
--- | A 'Config' for OpenSMT.
+-- | A 'SolverConfig' for OpenSMT.
 --   Requires binary @opensmt@ to be in path.
-opensmt :: Config
-opensmt = defaultConfig { exe = "opensmt", args = [] }
+opensmt :: SolverConfig s
+opensmt = SolverConfig
+  (defaultConfig { exe = "opensmt", args = [] })
+  Nothing Nothing

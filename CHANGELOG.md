@@ -6,6 +6,29 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.7.0 _(2024-09-12)_
+
+### Added
+- Added helpful instances for standard types for `Codec` to ease deriving.
+- Added decorator `timingout` in `Language.Hasmtlib.Type.Solver` to set a time-out for solvers.
+Unfortunately as of SMTLib standard v2.6 there is no SMT-Option for this. Although some solvers like `Z3` (unreliably) support it,
+we instead do it by internally coordinating the kill of the solver process from Haskell using `System.Timeout.Lifted#timeout`. Works like a charme.
+- Added `Language.Hasmtlib.Type.Debugger` for debugging problem construction and solver interaction.
+
+### Changed
+- *(breaking change)* Completely revised the way solver process-configurations are handled and debugged.
+Solvers which previously had the type `Process.Config` from `smtlib-backends` now have the type `SolverConfig` from `Language.Hasmtlib.Type.Solver`.
+This bundles information on the executable of the solver with additional information such as debugging and time-outs.
+Actual solver creation still is done by funtion `solver`. Therefore this change is only breaking, if you created custom solvers or debugged solvers.
+- Debugging solvers changed from `solveWith (debug z3 def) $ ...` to `solveWith (solver $ debugging z3 def) $ ...`.
+Also note that there are plenty debugging configurations besides `def` existing in `Language.Hasmtlib.Type.Debugger` now.
+- Interactive solving before was a two-stepper like `iZ3 <- interactiveSolver z3 ; interactiveWith iZ3 $ ...`.
+Leveraging `SolverConfig` this has been changed to a more uniform way with `interactiveWith z3 $ do ...`.
+Also note that `debugInteractiveWith z3 $ ...` now is replaced by `interactiveWith (debugging def z3) $ ...`.
+
+### Removed
+- Removed `Language.Hasmtlib.Solver.Common`. Contents are now in `Language.Hasmtlib.Type.Solver`.
+
 ## v2.6.3 _(2024-09-07)_
 
 ### Added
