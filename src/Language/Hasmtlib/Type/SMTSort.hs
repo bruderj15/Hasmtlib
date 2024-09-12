@@ -25,12 +25,10 @@ where
 
 import Language.Hasmtlib.Internal.Constraint
 import Language.Hasmtlib.Type.Bitvec
-import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.ArrayMap
 import Data.GADT.Compare
 import Data.Kind
 import Data.Proxy
-import Data.ByteString.Builder
 import qualified Data.Text as Text
 import Control.Lens
 import GHC.TypeLits
@@ -135,12 +133,3 @@ deriving instance (forall t. Show (f t)) => Show (SomeSMTSort cs f)
 
 -- | An existential wrapper that hides some known 'SMTSort'.
 type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f
-
-instance Render (SSMTSort t) where
-  render SBoolSort   = "Bool"
-  render SIntSort    = "Int"
-  render SRealSort   = "Real"
-  render (SBvSort _ p) = renderBinary "_" ("BitVec" :: Builder) (natVal p)
-  render (SArraySort k v) = renderBinary "Array" (sortSing' k) (sortSing' v)
-  render SStringSort   = "String"
-  {-# INLINEABLE render #-}

@@ -5,9 +5,7 @@ import Control.Monad.IO.Class
 
 main :: IO ()
 main = do
-  cvc5Living <- interactiveSolver cvc5
-  interactiveWith @Pipe cvc5Living $ do
-    setOption $ Incremental True
+  a <- interactiveWith z3 $ do
     setOption $ ProduceModels True
     setLogic "QF_LIA"
 
@@ -32,4 +30,6 @@ main = do
     res'' <- checkSat
     liftIO $ print res''
 
-  return ()
+    return res''
+
+  print a

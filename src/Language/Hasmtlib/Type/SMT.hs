@@ -13,14 +13,10 @@ module Language.Hasmtlib.Type.SMT
 , lastVarId, vars, formulas
 , mlogic, options
 , sharingMode, Language.Hasmtlib.Type.SMT.stableMap
-
-  -- * Rendering
-, renderSetLogic, renderDeclareVar, renderAssert, renderVars
 )
 where
 
 import Language.Hasmtlib.Internal.Sharing
-import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Option
@@ -30,7 +26,6 @@ import Data.Default
 import Data.Coerce
 import Data.Sequence hiding ((|>), filter)
 import Data.Data (toConstr, showConstr)
-import Data.ByteString.Builder
 import Data.HashMap.Lazy (HashMap)
 import Control.Monad.State
 import Control.Lens hiding (List)
@@ -82,25 +77,3 @@ instance MonadState SMT m => MonadSMT SMT m where
       eqCon l r = showConstr (toConstr l) == showConstr (toConstr r)
 
   setLogic l = mlogic ?= l
-
-instance RenderSeq SMT where
-  renderSeq smt =
-       fromList (render <$> smt^.options)
-       >< maybe mempty (singleton . renderSetLogic . stringUtf8) (smt^.mlogic)
-       >< renderVars (smt^.vars)
-       >< fmap renderAssert (smt^.formulas)
-
-renderSetLogic :: Builder -> Builder
-renderSetLogic = renderUnary "set-logic"
-
-renderDeclareVar :: forall t. KnownSMTSort t => SMTVar t -> Builder
-renderDeclareVar v = renderTernary "declare-fun" v ("()" :: Builder) (sortSing @t)
-{-# INLINEABLE renderDeclareVar #-}
-
-renderAssert :: Expr BoolSort -> Builder
-renderAssert = renderUnary "assert"
-{-# INLINEABLE renderAssert #-}
-
-renderVars :: Seq (SomeKnownSMTSort SMTVar) -> Seq Builder
-renderVars = fmap (\(SomeSMTSort v) -> renderDeclareVar v)
-{-# INLINEABLE renderVars #-}

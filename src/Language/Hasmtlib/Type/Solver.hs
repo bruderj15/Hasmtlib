@@ -2,6 +2,10 @@
 
 {- |
 This module provides functions for having SMT-Problems solved by external solvers.
+
+The base type for every solver is the 'SolverConfig'. It describes where the solver executable is located and how it should behave.
+You can provide a time-out using the decorator 'timingout'.
+Another decorator - 'debugging' - allows you to debug all the information you want. The actual debuggers can be found in "Language.Hasmtlib.Type.Debugger".
 -}
 module Language.Hasmtlib.Type.Solver
   (
@@ -15,9 +19,6 @@ module Language.Hasmtlib.Type.Solver
 
   -- ** Lens
   , processConfig, mTimeout, mDebugger
-
-  -- ** Debugger
-  , Debugger, StateDebugger(..), PipeDebugger(..)
 
   -- * Stateful solving
   , Solver, solver, solveWith
@@ -36,23 +37,17 @@ where
 import Language.Hasmtlib.Internal.Render
 import Language.Hasmtlib.Internal.Parser
 import Language.Hasmtlib.Type.MonadSMT
+import Language.Hasmtlib.Type.Debugger
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
-import Language.Hasmtlib.Type.SMT
-import Language.Hasmtlib.Type.OMT
 import Language.Hasmtlib.Type.Pipe
 import Language.Hasmtlib.Codec
-import Data.Sequence as Seq hiding ((|>), filter)
 import Data.ByteString.Lazy hiding (singleton)
-import Data.ByteString.Lazy.UTF8 (toString)
-import Data.ByteString.Builder
-import qualified Data.ByteString.Lazy.Char8 as ByteString.Char8
 import qualified SMTLIB.Backends as Backend
 import qualified SMTLIB.Backends.Process as Process
 import Data.Default
 import Data.Maybe
-import Data.Kind
 import Data.Attoparsec.ByteString (parseOnly)
 import Control.Lens hiding (op)
 import Control.Monad
@@ -62,42 +57,6 @@ import System.Timeout.Lifted
 
 -- | Function that turns a state into a 'Result' and a 'Solution'.
 type Solver s m = s -> m (Result, Solution)
-
--- | Computes a debugger from a state.
-type family Debugger s :: Type
-type instance Debugger SMT = StateDebugger SMT
-type instance Debugger OMT = StateDebugger OMT
-type instance Debugger Pipe = PipeDebugger
-
--- | A type holding actions for debugging states holding SMT-Problems.
-data StateDebugger s = StateDebugger
-  { debugState          :: s -> IO ()               -- ^ Debug the entire state
-  , debugProblem        :: Seq Builder -> IO ()     -- ^ Debug the linewise-rendered problem
-  , debugResultResponse :: ByteString -> IO ()      -- ^ Debug the solvers raw response for @(check-sat)@
-  , debugModelResponse  :: ByteString -> IO ()      -- ^ Debug the solvers raw response for @(get-model)@
-  }
-
-instance Default (StateDebugger SMT) where
-  def = StateDebugger
-    { debugState            = \s -> liftIO $ do
-        putStrLn $ "Vars: "       ++ show (Seq.length (s^.vars))
-        putStrLn $ "Assertions: " ++ show (Seq.length (s^.formulas))
-    , debugProblem        = liftIO . mapM_ (ByteString.Char8.putStrLn . toLazyByteString)
-    , debugResultResponse = liftIO . putStrLn . (\s -> "\n" ++ s ++ "\n") . toString
-    , debugModelResponse  = liftIO . mapM_ ByteString.Char8.putStrLn . split 13
-    }
-
-instance Default (StateDebugger OMT) where
-  def = StateDebugger
-    { debugState          = \omt -> liftIO $ do
-        putStrLn $ "Vars: "                 ++ show (Seq.length (omt^.smt.vars))
-        putStrLn $ "Hard assertions: "      ++ show (Seq.length (omt^.smt.formulas))
-        putStrLn $ "Soft assertions: "      ++ show (Seq.length (omt^.softFormulas))
-        putStrLn $ "Optimization targets: " ++ show (Seq.length (omt^.targetMinimize) + Seq.length (omt^.targetMaximize))
-    , debugProblem        = liftIO . mapM_ (ByteString.Char8.putStrLn . toLazyByteString)
-    , debugResultResponse = liftIO . putStrLn . (\s -> "\n" ++ s ++ "\n") . toString
-    , debugModelResponse  = liftIO . mapM_ ByteString.Char8.putStrLn . split 13
-    }
 
 -- | Configuration for solver processes.
 data SolverConfig s = SolverConfig
@@ -122,23 +81,41 @@ $(makeLenses ''SolverConfig)
 -- 5. close the process and clean up all resources and
 --
 -- 6. return the decoded solution.
-solver :: (RenderSeq s, MonadIO m, Debugger s ~ StateDebugger s) => SolverConfig s -> Solver s m
+solver :: (RenderProblem s, MonadIO m) => SolverConfig s -> Solver s m
 solver (SolverConfig cfg mTO debugger) s = do
   liftIO $ Process.with cfg $ \handle -> do
     maybe mempty (`debugState` s) debugger
     pSolver <- Backend.initSolver Backend.Queuing $ Process.toBackend handle
 
-    let problem = renderSeq s
-    maybe mempty (`debugProblem` problem) debugger
-    forM_ problem (Backend.command_ pSolver)
+    let os   = renderOptions s
+        l    = renderLogic s
+        vs   = renderDeclareVars s
+        as   = renderAssertions s
+        sas  = renderSoftAssertions s
+        mins = renderMinimizations s
+        maxs = renderMaximizations s
+    maybe mempty (forM_ os . debugOption) debugger
+    forM_ os (Backend.command_ pSolver)
+    maybe mempty (`debugLogic` l) debugger
+    Backend.command_ pSolver l
+    maybe mempty (forM_ vs . debugVar) debugger
+    forM_ vs (Backend.command_ pSolver)
+    maybe mempty (forM_ as . debugAssert) debugger
+    forM_ as (Backend.command_ pSolver)
+    maybe mempty (forM_ sas . debugAssertSoft) debugger
+    forM_ sas (Backend.command_ pSolver)
+    maybe mempty (forM_ mins . debugMinimize) debugger
+    forM_ mins (Backend.command_ pSolver)
+    maybe mempty (forM_ maxs . debugMaximize) debugger
+    forM_ maxs (Backend.command_ pSolver)
 
     let timingOut io = case mTO of
           Nothing -> io
           Just t -> fromMaybe "unknown" <$> timeout t io
-    resultResponse <- timingOut $ Backend.command pSolver "(check-sat)"
+    resultResponse <- timingOut $ Backend.command pSolver renderCheckSat
     maybe mempty (`debugResultResponse` resultResponse) debugger
 
-    modelResponse <- Backend.command pSolver "(get-model)"
+    modelResponse <- Backend.command pSolver renderGetModel
     maybe mempty (`debugModelResponse` modelResponse) debugger
 
     case parseOnly resultParser (toStrict resultResponse) of
@@ -210,8 +187,7 @@ solveWith solving m = do
 --
 -- main :: IO ()
 -- main = do
---   interactiveWith (solver z3) $ do
---     setOption $ Incremental True
+--   interactiveWith z3 $ do
 --     setOption $ ProduceModels True
 --     setLogic \"QF_LRA\"
 --

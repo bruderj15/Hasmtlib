@@ -45,9 +45,7 @@ where
 
 import Prelude hiding ((&&), (||), not)
 import Language.Hasmtlib.Boolean
-import Language.Hasmtlib.Internal.Render
 import Data.GADT.Compare
-import Data.ByteString.Builder
 import Data.Bit
 import Data.Bits
 import Data.Coerce
@@ -117,10 +115,6 @@ asSigned = coerce . coerce @(Bitvec enc n) @(V.Vector n Bit)
 instance Show (Bitvec enc n) where
   show = V.toList . V.map (\b -> if coerce b then '1' else '0') . coerce @_ @(V.Vector n Bit)
   {-# INLINEABLE show #-}
-
-instance Render (Bitvec enc n) where
-  render = stringUtf8 . show
-  {-# INLINE render #-}
 
 instance (KnownBvEnc enc, KnownNat n) => Bits (Bitvec enc n) where
   (.&.) = (&&)

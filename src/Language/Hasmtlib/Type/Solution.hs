@@ -47,15 +47,17 @@ type Solution = DMap SSMTSort IntValueMap
 
 -- | Newtype for 'IntMap' 'Value' so we can use it as right-hand-side of 'DMap'.
 newtype IntValueMap t = IntValueMap (IntMap (Value t))
-  deriving stock Show
   deriving newtype (Semigroup, Monoid)
+
+deriving stock instance Show (Value t) => Show (IntValueMap t)
 
 -- | A solution for a single variable.
 data SMTVarSol (t :: SMTSort) = SMTVarSol
   { _solVar :: SMTVar t                       -- ^ A variable in the SMT-Problem
   , _solVal :: Value t                        -- ^ An assignment for this variable in a solution
-  } deriving Show
+  }
 $(makeLenses ''SMTVarSol)
+deriving stock instance Show (Value t) => Show (SMTVarSol t)
 
 -- | Alias class for constraint 'Ord' ('HaskellType' t)
 class Ord (HaskellType t) => OrdHaskellType t
