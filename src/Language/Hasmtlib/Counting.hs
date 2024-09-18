@@ -60,7 +60,7 @@ count = count' (Proxy @t)
 -- 'atMost' 1 = 'amoSqrt'
 -- 'atMost' k = ('<=?' k) . 'count'
 -- @
-atMost  :: forall t f. (Functor f, Foldable f, KnownSMTSort t, Num (HaskellType t), Ord (HaskellType t)) => Expr t -> f (Expr BoolSort) -> Expr BoolSort
+atMost  :: forall t f. (Functor f, Foldable f, Num (Expr t), Orderable (Expr t)) => Expr t -> f (Expr BoolSort) -> Expr BoolSort
 atMost 0 = nand
 atMost 1 = amoSqrt
 atMost k = (<=? k) . count
@@ -75,7 +75,7 @@ atMost k = (<=? k) . count
 -- 'atLeast' 1 = 'or'
 -- 'atLeast' k = ('>=?' k) . 'count'
 -- @
-atLeast :: forall t f. (Functor f, Foldable f, KnownSMTSort t, Num (HaskellType t), Ord (HaskellType t)) => Expr t -> f (Expr BoolSort) -> Expr BoolSort
+atLeast :: forall t f. (Functor f, Foldable f, Num (Expr t), Orderable (Expr t)) => Expr t -> f (Expr BoolSort) -> Expr BoolSort
 atLeast 0 = const true
 atLeast 1 = or
 atLeast k = (>=? k) . count
@@ -90,7 +90,7 @@ atLeast k = (>=? k) . count
 -- 'exactly' 1 xs = 'atLeast' \@t 1 xs '&&' 'atMost' \@t 1 xs
 -- 'exactly' k xs = 'count' xs '===' k
 -- @
-exactly :: forall t f. (Functor f, Foldable f, KnownSMTSort t, Num (HaskellType t), Ord (HaskellType t)) => Expr t -> f (Expr BoolSort) -> Expr BoolSort
+exactly :: forall t f. (Functor f, Foldable f, Num (Expr t), Orderable (Expr t)) => Expr t -> f (Expr BoolSort) -> Expr BoolSort
 exactly 0 xs = nand xs
 exactly 1 xs = atLeast @t 1 xs && atMost @t 1 xs
 exactly k xs = count xs === k
