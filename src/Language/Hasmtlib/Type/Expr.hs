@@ -202,8 +202,24 @@ class Iteable b a where
   ite p t f = ite p <$> t <*> f
 
 instance Iteable (Expr BoolSort) (Expr t) where
-  ite = Ite
-  {-# INLINE ite #-}
+  ite (Constant (BoolValue False)) _ f = f
+  ite (Constant (BoolValue True)) t _  = t
+  ite p t@(Ite p' t' f') f@(Ite p'' t'' f'')
+    | p' == p'' && t' == t'' = Ite p' t' (Ite p f' f'')
+    | p' == p'' && f' == f'' = Ite (not p') f' (Ite p t' t'')
+    | otherwise = Ite p t f
+  ite p t f@(Ite p' t' f')
+    | p == p' = Ite p t f'
+    | t == t' = Ite (p || p') t f'
+    | otherwise = Ite p t f
+  ite p t@(Ite p' t' f') f
+    | p == p' = Ite p t' f
+    | f == f' = Ite (p && p') t' f
+    | otherwise = Ite p t f
+  ite p t f
+    | t == f = t
+    | otherwise = Ite p t f
+  {-# INLINEABLE ite #-}
 
 instance Iteable Bool a where
   ite p t f = if p then t else f
