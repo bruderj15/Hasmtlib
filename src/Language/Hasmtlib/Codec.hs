@@ -185,9 +185,8 @@ instance KnownSMTSort t => Codec (Expr t) where
           where
             (front, back) = Text.breakOn pattern text
   decode sol (StrReplaceAll src target replacement) = (\src' target' replacement' -> Text.replace target' replacement' src') <$> decode sol target <*> decode sol src <*> decode sol replacement
-  decode _ (ForAll _ _) = Nothing
-  decode _ (Exists _ _) = Nothing
-  decode _ (Let _ _ _)  = Nothing
+  decode _ (ForAll _ _)         = Nothing
+  decode _ (Exists _ _)         = Nothing
   encode = Constant . wrapValue
 
 instance Codec () where type Decoded () = ()

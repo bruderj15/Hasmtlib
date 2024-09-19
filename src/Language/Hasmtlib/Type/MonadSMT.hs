@@ -16,7 +16,7 @@ module Language.Hasmtlib.Type.MonadSMT
   -- * MonadSMT
   MonadSMT(..)
 , var, smtvar
-, constant, assertMaybe, boundify
+, constant, assertMaybe, quantify
 
   -- * MonadIncrSMT
 , MonadIncrSMT(..)
@@ -144,20 +144,16 @@ assertMaybe (Just expr) = assert expr
 --
 --   This is intended for internal use.
 --   Usually before rendering an assert.
-boundify :: MonadSMT s m => KnownSMTSort t => Expr t -> m (Expr t)
-boundify = transformM (
+quantify :: MonadSMT s m => KnownSMTSort t => Expr t -> m (Expr t)
+quantify = transformM (
   \case (ForAll _ f) -> do
           qVar <- smtvar
-          qBody <- boundify $ f $ Var qVar
+          qBody <- quantify $ f $ Var qVar
           return $ ForAll (Just qVar) (const qBody)
         (Exists _ f) -> do
           qVar <- smtvar
-          qBody <- boundify $ f $ Var qVar
+          qBody <- quantify $ f $ Var qVar
           return $ Exists (Just qVar) (const qBody)
-        (Let _ t f) -> do
-          lVar <- smtvar
-          lBody <- boundify $ f $ Var lVar
-          return $ Let (Just lVar) t (const lBody)
         expr -> return expr
   )
 

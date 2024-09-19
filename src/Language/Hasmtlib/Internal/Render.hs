@@ -210,8 +210,6 @@ instance KnownSMTSort t => Render (Expr t) where
   render (StrReplaceAll x y y') = render3 "str.replace_all" (render x) (render y) (render y')
   render (ForAll mQvar f) = renderQuantifier "forall" mQvar f
   render (Exists mQvar f) = renderQuantifier "exists" mQvar f
-  render (Let Nothing _ _) = mempty
-  render (Let (Just l) t expr) = "(let ((" <> render l <> render t <> ")) " <> render (expr (Var l)) <> ")"
 
 renderQuantifier :: forall t. KnownSMTSort t => Builder -> Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Builder
 renderQuantifier qname (Just qvar) f =
