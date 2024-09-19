@@ -32,7 +32,6 @@ import Language.Hasmtlib.Internal.Parser hiding (var, constant)
 import qualified SMTLIB.Backends as B
 import Data.HashMap.Lazy
 import Data.Sequence hiding ((|>), (:>))
-import Data.List (isPrefixOf)
 import Data.IntMap as IntMap (singleton)
 import Data.Dependent.Map as DMap
 import Data.Coerce
@@ -85,9 +84,7 @@ instance (MonadState Pipe m, MonadIO m) => MonadSMT Pipe m where
   assert expr = do
     pipe <- get
     sExpr <- runSharing (pipe^.pipeSharingMode) expr
-    qExpr <- case pipe^.mPipeLogic of
-      Nothing    -> return sExpr
-      Just logic -> if "QF" `isPrefixOf` logic then return sExpr else quantify sExpr
+    qExpr <- boundify sExpr
     let cmd = renderAssert qExpr
     liftIO $ maybe (return ()) (`debugAssert` cmd) (pipe^.mPipeDebugger)
     liftIO $ B.command_ (pipe^.pipeSolver) cmd

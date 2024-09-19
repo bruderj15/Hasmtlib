@@ -61,6 +61,9 @@ module Language.Hasmtlib.Type.Expr
   -- ** Quantifier
   , for_all, exists
 
+  -- ** Let
+  , let_, in_
+
   -- ** BitVec
   , bvConcat
 
@@ -174,6 +177,7 @@ data Expr (t :: SMTSort) where
   ForAll    :: KnownSMTSort t => Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Expr BoolSort
   -- | Just v if quantified var has been created already, Nothing otherwise
   Exists    :: KnownSMTSort t => Maybe (SMTVar t) -> (Expr t -> Expr BoolSort) -> Expr BoolSort
+  Let       :: (KnownSMTSort t, KnownSMTSort r) => Maybe (SMTVar t)-> Expr t -> (Expr t -> Expr r) -> Expr r
 
 -- | Indicates whether an expression is a leaf.
 --   All non-recursive contructors are leafs.
@@ -508,6 +512,23 @@ distinct (toList -> (a:b:xs)) = case someNatVal (genericLength xs) of
     Nothing  -> Distinct $ V.fromTuple (a,b)
     Just xs' -> Distinct $ xs' V.++ V.fromTuple (a,b)
 distinct (toList -> _)        = true
+
+-- | Let-expression in SMTLib.
+--   @let_ t in_ (\l -> l ...)@ scopes @l := t@ in the lambda @(\l -> l ...)@.
+--
+-- ==== __Example__
+--
+-- @
+-- assert $
+--   let_ (x + x + x)
+--    in_ $ \\l -> l === 6 -- with l := x + x + x
+-- @
+let_ :: (KnownSMTSort t, KnownSMTSort r) => Expr t -> Void -> (Expr t -> Expr r) -> Expr r
+let_ l _ = Let Nothing l
+
+-- | An 'undefined' 'Void' for clean syntax with 'let_'.
+in_ :: Void
+in_ = undefined
 
 -- | Universal quantification for any specific 'SMTSort'.
 --
@@ -976,6 +997,8 @@ instance Uniplate1 Expr '[KnownSMTSort] where
   uniplate1 _ (ForAll Nothing expr)   = pure $ ForAll Nothing expr
   uniplate1 f (Exists (Just qv) expr) = Exists (Just qv) . const <$> f (expr (Var qv))
   uniplate1 _ (Exists Nothing expr)   = pure $ Exists Nothing expr
+  uniplate1 f (Let (Just lv) l expr)  = Let (Just lv) l . const <$> f (expr (Var lv))
+  uniplate1 _ (Let Nothing l expr)    = pure $ Let Nothing l expr
 
 -- | __Caution for quantified expressions:__ 'plate' will only be applied if quantification has taken place already.
 instance KnownSMTSort t => Plated (Expr t) where
@@ -1044,6 +1067,8 @@ instance KnownSMTSort t => Plated (Expr t) where
           ForAll Nothing qexpr   -> pure $ ForAll Nothing qexpr
           Exists (Just qv) qexpr -> Exists (Just qv) . const <$> tryPlate f' (qexpr (Var qv))
           Exists Nothing qexpr   -> pure $ Exists Nothing qexpr
+          Let (Just lv) l e   -> Let (Just lv) l . const <$> tryPlate f' (e (Var lv))
+          Let Nothing l e     -> pure $ Let Nothing l e
 
 instance GNFData Expr where
   grnf expr = case expr of
@@ -1106,6 +1131,8 @@ instance GNFData Expr where
     ForAll (Just qv) f   -> grnf $ f $ Var qv
     Exists Nothing _     -> ()
     Exists (Just qv) f   -> grnf $ f $ Var qv
+    Let Nothing l _      -> grnf l
+    Let (Just qv) l f -> grnf (f $ Var qv) `seq` grnf l
 
 instance Eq (Expr t) where
   (==) = defaultEq
@@ -1394,5 +1421,6 @@ instance GCompare Expr where
   gcompare (ForAll _ _) _ = GLT
   gcompare _ (ForAll _ _) = GGT
   gcompare (Exists _ expr)         (Exists _ expr')        = gcompare (expr $ Var (SMTVar (-1))) (expr' $ Var (SMTVar (-1)))
-  -- gcompare (Exists _ _) _ = GLT
-  -- gcompare _ (Exists _ _) = GGT
+  gcompare (Exists _ _) _ = GLT
+  gcompare _ (Exists _ _) = GGT
+  gcompare (Let _ l expr)         (Let _ l' expr')        = gcompare (expr l) (expr' l')

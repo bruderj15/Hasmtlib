@@ -21,7 +21,6 @@ import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.Expr
-import Data.List (isPrefixOf)
 import Data.Default
 import Data.Coerce
 import Data.Sequence hiding ((|>), filter)
@@ -65,9 +64,7 @@ instance MonadState SMT m => MonadSMT SMT m where
   assert expr = do
     smt <- get
     sExpr <- runSharing (smt^.sharingMode) expr
-    qExpr <- case smt^.mlogic of
-      Nothing    -> return sExpr
-      Just logic -> if "QF" `isPrefixOf` logic then return sExpr else quantify sExpr
+    qExpr <- boundify sExpr
     modify $ \s -> s & formulas %~ (|> qExpr)
   {-# INLINE assert #-}
 
