@@ -83,7 +83,11 @@ $(makeLenses ''SolverConfig)
 -- 6. return the decoded solution.
 solver :: (RenderProblem s, MonadIO m) => SolverConfig s -> Solver s m
 solver (SolverConfig cfg mTO debugger) s = do
-  liftIO $ Process.with cfg $ \handle -> do
+  handle <- liftIO $ Process.new cfg
+  let timingOut io = case mTO of
+        Nothing -> io
+        Just t -> fromMaybe ("unknown", mempty) <$> timeout t io
+  (rawRes, rawModel) <- liftIO $ timingOut $ do
     maybe mempty (`debugState` s) debugger
     pSolver <- Backend.initSolver Backend.Queuing $ Process.toBackend handle
 
@@ -109,21 +113,24 @@ solver (SolverConfig cfg mTO debugger) s = do
     maybe mempty (forM_ maxs . debugMaximize) debugger
     forM_ maxs (Backend.command_ pSolver)
 
-    let timingOut io = case mTO of
-          Nothing -> io
-          Just t -> fromMaybe "unknown" <$> timeout t io
-    resultResponse <- timingOut $ Backend.command pSolver renderCheckSat
+    resultResponse <- Backend.command pSolver renderCheckSat
     maybe mempty (`debugResultResponse` resultResponse) debugger
 
     modelResponse <- Backend.command pSolver renderGetModel
     maybe mempty (`debugModelResponse` modelResponse) debugger
 
-    case parseOnly resultParser (toStrict resultResponse) of
-      Left e    -> fail e
-      Right res -> case res of
+    return (resultResponse, modelResponse)
+
+  liftIO $ Process.close handle
+
+  case parseOnly resultParser (toStrict rawRes) of
+    Left e    -> error $ "Language.Hasmtlib.Type.Solver#solver: Error when paring (check-sat) response: "
+                        <> e <> " | This is probably an error in Hasmtlib."
+    Right res -> case res of
         Unsat -> return (res, mempty)
-        _     -> case parseOnly anyModelParser (toStrict modelResponse) of
-          Left e    -> fail e
+        _     -> case parseOnly anyModelParser (toStrict rawModel) of
+          Left e    -> error $ "Language.Hasmtlib.Type.Solver#solver: Error when paring (get-model) response: "
+                              <> e <> " | This is probably an error in Hasmtlib."
           Right sol -> return (res, sol)
 
 -- | Decorates a 'SolverConfig' with a timeout. The timeout is given as an 'Int' which specifies
