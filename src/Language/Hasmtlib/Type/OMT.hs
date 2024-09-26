@@ -29,14 +29,12 @@ where
 import Language.Hasmtlib.Internal.Sharing
 import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
-import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMT
 import Data.List (isPrefixOf)
 import Data.Default
 import Data.Coerce
 import Data.Sequence hiding ((|>), filter)
-import Data.Data (toConstr, showConstr)
 import Control.Monad.State
 import Control.Lens hiding (List)
 
@@ -91,10 +89,7 @@ instance MonadState OMT m => MonadSMT OMT m where
     modify $ \s -> s & (smt.formulas) %~ (|> qExpr)
   {-# INLINE assert #-}
 
-  setOption opt = smt.options %= ((opt:) . filter (not . eqCon opt))
-    where
-      eqCon :: SMTOption -> SMTOption -> Bool
-      eqCon l r = showConstr (toConstr l) == showConstr (toConstr r)
+  setOption opt = smt.options <>= pure opt
 
   setLogic l = smt.mlogic ?= l
 
