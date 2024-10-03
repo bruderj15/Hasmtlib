@@ -35,7 +35,7 @@ module Language.Hasmtlib.Type.Expr
     SMTVar(..), varId
 
   -- * Expr type
-  , Expr(..), isLeaf
+  , Expr(..), isLeaf, exprSize
 
   -- * Compare
   -- ** Equatable
@@ -91,6 +91,7 @@ import Data.Void
 import qualified Data.Bits as Bits
 import Data.Sequence (Seq)
 import Data.Tree (Tree)
+import Data.STRef
 import Data.Monoid (Sum, Product, First, Last, Dual)
 import Data.String (IsString(..))
 import Data.Text (pack)
@@ -98,6 +99,8 @@ import Data.List(genericLength)
 import Data.Foldable (toList)
 import qualified Data.Vector.Sized as V
 import Control.Lens hiding (from, to)
+import Control.Monad.ST
+import Control.Monad
 import GHC.TypeLits hiding (someNatVal)
 import GHC.TypeNats (someNatVal)
 import GHC.Generics
@@ -183,6 +186,26 @@ isLeaf (Constant _) = True
 isLeaf Pi = True
 isLeaf _ = False
 {-# INLINE isLeaf #-}
+
+-- | Size of the expression.
+--
+--   Counts the amount of operations.
+--
+-- ==== __Examples__
+--
+--    >>> nodeSize $ x + y === x + y
+--        3
+--    >>> nodeSize $ false
+--        0
+exprSize :: KnownSMTSort t => Expr t -> Integer
+exprSize expr = runST $ do
+  nodesRef <- newSTRef 0
+  _ <- transformM1
+    (\expr' -> do
+      unless (isLeaf expr') $ modifySTRef' nodesRef (+1)
+      return expr')
+    expr
+  readSTRef nodesRef
 
 -- | Class that allows branching on predicates of type @b@ on branches of type @a@.
 --
