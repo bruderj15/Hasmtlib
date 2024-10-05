@@ -113,9 +113,11 @@ solver (SolverConfig cfg mTO debugger) s = do
     maybe mempty (forM_ maxs . debugMaximize) debugger
     forM_ maxs (Backend.command_ pSolver)
 
+    maybe mempty (`debugCheckSat` "(check-sat)") debugger
     resultResponse <- Backend.command pSolver renderCheckSat
     maybe mempty (`debugResultResponse` resultResponse) debugger
 
+    maybe mempty (`debugGetModel` "(get-model)") debugger
     modelResponse <- Backend.command pSolver renderGetModel
     maybe mempty (`debugModelResponse` modelResponse) debugger
 
@@ -134,7 +136,8 @@ solver (SolverConfig cfg mTO debugger) s = do
           Right sol -> return (res, sol)
 
 -- | Decorates a 'SolverConfig' with a timeout. The timeout is given as an 'Int' which specifies
---   after how many __microseconds__ the external solver process shall time out on @(check-sat)@.
+--   after how many __microseconds__ the entire problem including problem construction,
+--   solver interaction and solving time may time out.
 --
 --   When timing out, the 'Result' will always be 'Unknown'.
 --
