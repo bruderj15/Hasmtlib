@@ -6,6 +6,15 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.7.1 _(2024-10-05)_
+
+### Changed
+- Cardinality constraints in `Language.Hasmtlib.Counting` now use specialized and more efficient encodings for a few cases.
+- Debugging with debugger `statistically` now prints a more comprehensive overview about the problem size.
+- Fixed bug where setting multiple custom `SMTOption`s would only set the most recent.
+- Fixed bug where timeout for `SMT`/`OMT` would not work.
+- Added smart constructors for `ite`.
+
 ## v2.7.0 _(2024-09-12)_
 
 ### Added
