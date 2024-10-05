@@ -25,7 +25,6 @@ import Data.List (isPrefixOf)
 import Data.Default
 import Data.Coerce
 import Data.Sequence hiding ((|>), filter)
-import Data.Data (toConstr, showConstr)
 import Data.HashMap.Lazy (HashMap)
 import Control.Monad.State
 import Control.Lens hiding (List)
@@ -71,9 +70,6 @@ instance MonadState SMT m => MonadSMT SMT m where
     modify $ \s -> s & formulas %~ (|> qExpr)
   {-# INLINE assert #-}
 
-  setOption opt = options %= ((opt:) . filter (not . eqCon opt))
-    where
-      eqCon :: SMTOption -> SMTOption -> Bool
-      eqCon l r = showConstr (toConstr l) == showConstr (toConstr r)
+  setOption opt = options <>= pure opt
 
   setLogic l = mlogic ?= l

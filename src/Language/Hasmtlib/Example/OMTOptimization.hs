@@ -1,19 +1,20 @@
 module Language.Hasmtlib.Example.IncrementalOptimization where
 
+import Prelude hiding ((&&))
 import Language.Hasmtlib
 
 main :: IO ()
 main = do
-  res <- solveWith @OMT (solver $ debugging statistically z3) $ do
+  res <- solveWith @OMT (solver $ debugging verbosely z3) $ do
     setLogic "QF_LIA"
 
     x <- var @IntSort
+    y <- var @IntSort
 
-    assert $ x >? -2
-    assertSoftWeighted (x >? -1) 5.0
+    assert $ x <? 10 && y <? 5 && (y <? 7 ==> x === 1)
 
-    minimize x
+    maximize $ x + y
 
-    return x
+    return (x,y)
 
   print res

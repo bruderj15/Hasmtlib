@@ -35,7 +35,7 @@ module Language.Hasmtlib.Type.Expr
     SMTVar(..), varId
 
   -- * Expr type
-  , Expr(..), isLeaf
+  , Expr(..), isLeaf, exprSize
 
   -- * Compare
   -- ** Equatable
@@ -91,6 +91,7 @@ import Data.Void
 import qualified Data.Bits as Bits
 import Data.Sequence (Seq)
 import Data.Tree (Tree)
+import Data.STRef
 import Data.Monoid (Sum, Product, First, Last, Dual)
 import Data.String (IsString(..))
 import Data.Text (pack)
@@ -98,6 +99,8 @@ import Data.List(genericLength)
 import Data.Foldable (toList)
 import qualified Data.Vector.Sized as V
 import Control.Lens hiding (from, to)
+import Control.Monad.ST
+import Control.Monad
 import GHC.TypeLits hiding (someNatVal)
 import GHC.TypeNats (someNatVal)
 import GHC.Generics
@@ -184,6 +187,26 @@ isLeaf Pi = True
 isLeaf _ = False
 {-# INLINE isLeaf #-}
 
+-- | Size of the expression.
+--
+--   Counts the amount of operations.
+--
+-- ==== __Examples__
+--
+--    >>> nodeSize $ x + y === x + y
+--        3
+--    >>> nodeSize $ false
+--        0
+exprSize :: KnownSMTSort t => Expr t -> Integer
+exprSize expr = runST $ do
+  nodesRef <- newSTRef 0
+  _ <- transformM1
+    (\expr' -> do
+      unless (isLeaf expr') $ modifySTRef' nodesRef (+1)
+      return expr')
+    expr
+  readSTRef nodesRef
+
 -- | Class that allows branching on predicates of type @b@ on branches of type @a@.
 --
 --   If predicate (p :: b) then (t :: a) else (f :: a).
@@ -202,8 +225,24 @@ class Iteable b a where
   ite p t f = ite p <$> t <*> f
 
 instance Iteable (Expr BoolSort) (Expr t) where
-  ite = Ite
-  {-# INLINE ite #-}
+  ite (Constant (BoolValue False)) _ f = f
+  ite (Constant (BoolValue True)) t _  = t
+  ite p t@(Ite p' t' f') f@(Ite p'' t'' f'')
+    | p' == p'' && t' == t'' = Ite p' t' (Ite p f' f'')
+    | p' == p'' && f' == f'' = Ite (not p') f' (Ite p t' t'')
+    | otherwise = Ite p t f
+  ite p t f@(Ite p' t' f')
+    | p == p' = Ite p t f'
+    | t == t' = Ite (p || p') t f'
+    | otherwise = Ite p t f
+  ite p t@(Ite p' t' f') f
+    | p == p' = Ite p t' f
+    | f == f' = Ite (p && p') t' f
+    | otherwise = Ite p t f
+  ite p t f
+    | t == f = t
+    | otherwise = Ite p t f
+  {-# INLINEABLE ite #-}
 
 instance Iteable Bool a where
   ite p t f = if p then t else f

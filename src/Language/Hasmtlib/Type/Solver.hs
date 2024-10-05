@@ -83,7 +83,11 @@ $(makeLenses ''SolverConfig)
 -- 6. return the decoded solution.
 solver :: (RenderProblem s, MonadIO m) => SolverConfig s -> Solver s m
 solver (SolverConfig cfg mTO debugger) s = do
-  liftIO $ Process.with cfg $ \handle -> do
+  handle <- liftIO $ Process.new cfg
+  let timingOut io = case mTO of
+        Nothing -> io
+        Just t -> fromMaybe ("unknown", mempty) <$> timeout t io
+  (rawRes, rawModel) <- liftIO $ timingOut $ do
     maybe mempty (`debugState` s) debugger
     pSolver <- Backend.initSolver Backend.Queuing $ Process.toBackend handle
 
@@ -109,25 +113,31 @@ solver (SolverConfig cfg mTO debugger) s = do
     maybe mempty (forM_ maxs . debugMaximize) debugger
     forM_ maxs (Backend.command_ pSolver)
 
-    let timingOut io = case mTO of
-          Nothing -> io
-          Just t -> fromMaybe "unknown" <$> timeout t io
-    resultResponse <- timingOut $ Backend.command pSolver renderCheckSat
+    maybe mempty (`debugCheckSat` "(check-sat)") debugger
+    resultResponse <- Backend.command pSolver renderCheckSat
     maybe mempty (`debugResultResponse` resultResponse) debugger
 
+    maybe mempty (`debugGetModel` "(get-model)") debugger
     modelResponse <- Backend.command pSolver renderGetModel
     maybe mempty (`debugModelResponse` modelResponse) debugger
 
-    case parseOnly resultParser (toStrict resultResponse) of
-      Left e    -> fail e
-      Right res -> case res of
+    return (resultResponse, modelResponse)
+
+  liftIO $ Process.close handle
+
+  case parseOnly resultParser (toStrict rawRes) of
+    Left e    -> error $ "Language.Hasmtlib.Type.Solver#solver: Error when paring (check-sat) response: "
+                        <> e <> " | This is probably an error in Hasmtlib."
+    Right res -> case res of
         Unsat -> return (res, mempty)
-        _     -> case parseOnly anyModelParser (toStrict modelResponse) of
-          Left e    -> fail e
+        _     -> case parseOnly anyModelParser (toStrict rawModel) of
+          Left e    -> error $ "Language.Hasmtlib.Type.Solver#solver: Error when paring (get-model) response: "
+                              <> e <> " | This is probably an error in Hasmtlib."
           Right sol -> return (res, sol)
 
 -- | Decorates a 'SolverConfig' with a timeout. The timeout is given as an 'Int' which specifies
---   after how many __microseconds__ the external solver process shall time out on @(check-sat)@.
+--   after how many __microseconds__ the entire problem including problem construction,
+--   solver interaction and solving time may time out.
 --
 --   When timing out, the 'Result' will always be 'Unknown'.
 --
@@ -313,9 +323,9 @@ solveOptimized :: (MonadIncrSMT Pipe m, MonadIO m, KnownSMTSort t)
   -> Maybe (Expr t -> Expr t)
   -> Maybe (Solution -> IO ())
   -> m (Result, Solution)
-solveOptimized op goal mStep mDebug = refine Unknown mempty goal
+solveOptimized op goal mStep mDebug = refine Unsat mempty goal 0
   where
-    refine oldRes oldSol target = do
+    refine oldRes oldSol target n_pushes = do
       res <- checkSat
       case res of
         Sat   -> do
@@ -329,9 +339,16 @@ solveOptimized op goal mStep mDebug = refine Unknown mempty goal
               push
               let step = fromMaybe id mStep
               assert $ target `op` step (encode targetSol)
-              refine res sol target
-        _ -> do
-          pop
-          case mStep of
-            Nothing -> return (oldRes, oldSol)
-            Just _  -> solveOptimized op goal Nothing mDebug -- make sure the very last step did not skip the optimal result
+              refine res sol target (n_pushes + 1)
+        r -> do
+          if n_pushes < 1
+          then return (r, mempty)
+          else case mStep of
+            Nothing -> do
+              replicateM_ n_pushes pop
+              return (oldRes, oldSol)
+            Just _ -> do
+              pop
+              opt <- solveOptimized op goal Nothing mDebug -- make sure the very last step did not skip the optimal result
+              replicateM_ (n_pushes - 1) pop
+              return opt
