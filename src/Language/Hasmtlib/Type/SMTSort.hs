@@ -22,7 +22,6 @@ module Language.Hasmtlib.Type.SMTSort
 )
 where
 
-import Language.Hasmtlib.Internal.Constraint
 import Language.Hasmtlib.Type.Bitvec
 import Language.Hasmtlib.Type.ArrayMap
 import Data.GADT.Compare

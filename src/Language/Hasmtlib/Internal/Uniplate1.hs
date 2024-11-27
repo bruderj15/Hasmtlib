@@ -2,8 +2,8 @@
 
 module Language.Hasmtlib.Internal.Uniplate1 where
 
-import Language.Hasmtlib.Internal.Constraint
 import Data.Functor.Identity
+import Data.Some.Constraint
 import Data.Kind
 
 type Uniplate1 :: (k -> Type) -> [k -> Constraint] -> Constraint

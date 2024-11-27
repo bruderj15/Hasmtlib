@@ -36,7 +36,6 @@ library
                      , Language.Hasmtlib.Internal.Render
                      , Language.Hasmtlib.Internal.Sharing
                      , Language.Hasmtlib.Internal.Uniplate1
-                     , Language.Hasmtlib.Internal.Constraint
                      , Language.Hasmtlib.Solver.Bitwuzla
                      , Language.Hasmtlib.Solver.CVC5
                      , Language.Hasmtlib.Solver.MathSAT
