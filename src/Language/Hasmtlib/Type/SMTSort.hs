@@ -18,7 +18,6 @@ module Language.Hasmtlib.Type.SMTSort
 , KnownSMTSort(..), sortSing'
 
   -- * Existential
-, SomeSMTSort(..)
 , SomeKnownSMTSort
 )
 where
@@ -29,6 +28,7 @@ import Language.Hasmtlib.Type.ArrayMap
 import Data.GADT.Compare
 import Data.Kind
 import Data.Proxy
+import Data.Some.Constraint
 import qualified Data.Text as Text
 import Control.Lens
 import GHC.TypeLits
@@ -125,11 +125,5 @@ instance KnownSMTSort StringSort                 where sortSing = SStringSort
 sortSing' :: forall prxy t. KnownSMTSort t => prxy t -> SSMTSort t
 sortSing' _ = sortSing @t
 
--- | An existential wrapper that hides some 'SMTSort' and a list of 'Constraint's holding for it.
-data SomeSMTSort cs f where
-  SomeSMTSort :: forall cs f (t :: SMTSort). AllC cs t => f t -> SomeSMTSort cs f
-
-deriving instance (forall t. Show (f t)) => Show (SomeSMTSort cs f)
-
 -- | An existential wrapper that hides some known 'SMTSort'.
-type SomeKnownSMTSort f = SomeSMTSort '[KnownSMTSort] f
+type SomeKnownSMTSort f = Some1 ((~) f) KnownSMTSort

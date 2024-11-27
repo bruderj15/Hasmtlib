@@ -38,6 +38,7 @@ import Language.Hasmtlib.Type.SMTSort
 import Data.IntMap as IMap hiding (foldl)
 import Data.Dependent.Map as DMap
 import Data.Dependent.Map.Lens
+import Data.Some.Constraint
 import Control.Lens
 
 -- | Results of check-sat commands.
@@ -64,12 +65,12 @@ class Ord (HaskellType t) => OrdHaskellType t
 instance Ord (HaskellType t) => OrdHaskellType t
 
 -- | An existential wrapper that hides some known 'SMTSort' with an 'Ord' 'HaskellType'
-type SomeKnownOrdSMTSort f = SomeSMTSort '[KnownSMTSort, OrdHaskellType] f
+type SomeKnownOrdSMTSort f = Somes1 '[(~) f] '[KnownSMTSort, OrdHaskellType]
 
 -- | Create a 'Solution' from some 'SMTVarSol's.
 fromSomeVarSols :: [SomeKnownOrdSMTSort SMTVarSol] -> Solution
 fromSomeVarSols = foldl
-  (\dsol (SomeSMTSort s) -> let sSort = sortSing' s in
+  (\dsol (Some1 s) -> let sSort = sortSing' s in
     dsol & dmat sSort %~
       (\case
         Nothing -> Just $ IntValueMap $ IMap.singleton (s^.solVar.varId) (s^.solVal)

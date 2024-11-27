@@ -78,6 +78,7 @@ library
                      , bitvec                       >= 1.1.5  && < 2
                      , finite-typelits              >= 0.1.0  && < 1
                      , vector-sized                 >= 1      && < 2
+                     , constrained-some             >= 0.1    && < 0.2
 
   ghc-options:       -O2
                      -Wall
