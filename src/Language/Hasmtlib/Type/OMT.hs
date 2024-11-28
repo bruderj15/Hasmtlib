@@ -31,6 +31,7 @@ import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMT
+import Data.Some.Constraint
 import Data.List (isPrefixOf)
 import Data.Default
 import Data.Coerce
@@ -76,7 +77,7 @@ instance MonadState OMT m => MonadSMT OMT m where
 
   var' p = do
     newVar <- smtvar' p
-    smt.vars %= (|> SomeSMTSort newVar)
+    smt.vars %= (|> Some1 newVar)
     return $ Var newVar
   {-# INLINE var' #-}
 
@@ -97,11 +98,11 @@ instance MonadSMT OMT m => MonadOMT OMT m where
   minimize expr = do
     sm <- use (smt.sharingMode)
     sExpr <- runSharing sm expr
-    modifying targetMinimize (|> SomeSMTSort (Minimize sExpr))
+    modifying targetMinimize (|> Some1 (Minimize sExpr))
   maximize expr = do
     sm <- use (smt.sharingMode)
     sExpr <- runSharing sm expr
-    modifying targetMaximize (|> SomeSMTSort (Maximize sExpr))
+    modifying targetMaximize (|> Some1 (Maximize sExpr))
   assertSoft expr w gid = do
     sm <- use (smt.sharingMode)
     sExpr <- runSharing sm expr

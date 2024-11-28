@@ -27,6 +27,7 @@ import Language.Hasmtlib.Type.SMT
 import Language.Hasmtlib.Type.OMT
 import Language.Hasmtlib.Type.Expr
 import Language.Hasmtlib.Type.SMTSort
+import Data.Some.Constraint
 import Data.Sequence as Seq hiding ((|>))
 import Data.ByteString.Lazy (ByteString, split)
 import Data.ByteString.Lazy.UTF8 (toString)
@@ -160,8 +161,8 @@ class StateDebugger s where
 instance StateDebugger SMT where
   statistically = silently
     { debugState = \s -> do
-      putStrLn $ "Bool Vars:  " ++ show (Seq.length $ Seq.filter (\(SomeSMTSort v) -> case sortSing' v of SBoolSort -> True ; _ -> False) $ s^.vars)
-      putStrLn $ "Arith Vars: " ++ show (Seq.length $ Seq.filter (\(SomeSMTSort v) -> case sortSing' v of SBoolSort -> False ; _ -> True) $ s^.vars)
+      putStrLn $ "Bool Vars:  " ++ show (Seq.length $ Seq.filter (\(Some1 v) -> case sortSing' v of SBoolSort -> True ; _ -> False) $ s^.vars)
+      putStrLn $ "Arith Vars: " ++ show (Seq.length $ Seq.filter (\(Some1 v) -> case sortSing' v of SBoolSort -> False ; _ -> True) $ s^.vars)
       putStrLn $ "Assertions: " ++ show (Seq.length (s^.formulas))
       putStrLn $ "Size:       " ++ show (sum $ fmap exprSize $ s^.formulas)
     }
@@ -169,14 +170,14 @@ instance StateDebugger SMT where
 instance StateDebugger OMT where
   statistically = silently
     { debugState = \omt -> do
-      putStrLn $ "Bool Vars:       " ++ show (Seq.length $ Seq.filter (\(SomeSMTSort v) -> case sortSing' v of SBoolSort -> True ; _ -> False) $ omt^.smt.vars)
-      putStrLn $ "Arith Vars:      " ++ show (Seq.length $ Seq.filter (\(SomeSMTSort v) -> case sortSing' v of SBoolSort -> False ; _ -> True) $ omt^.smt.vars)
+      putStrLn $ "Bool Vars:       " ++ show (Seq.length $ Seq.filter (\(Some1 v) -> case sortSing' v of SBoolSort -> True ; _ -> False) $ omt^.smt.vars)
+      putStrLn $ "Arith Vars:      " ++ show (Seq.length $ Seq.filter (\(Some1 v) -> case sortSing' v of SBoolSort -> False ; _ -> True) $ omt^.smt.vars)
       putStrLn $ "Hard assertions: " ++ show (Seq.length (omt^.smt.formulas))
       putStrLn $ "Soft assertions: " ++ show (Seq.length (omt^.softFormulas))
       putStrLn $ "Optimizations:   " ++ show (Seq.length (omt^.targetMinimize) + Seq.length (omt^.targetMaximize))
       let omtSize = sum (fmap exprSize $ omt^.smt.formulas)
                   + sum (fmap (exprSize . view formula) $ omt^.softFormulas)
-                  + sum (fmap (\(SomeSMTSort (Minimize expr)) -> exprSize expr) $ omt^.targetMinimize)
-                  + sum (fmap (\(SomeSMTSort (Maximize expr)) -> exprSize expr) $ omt^.targetMaximize)
+                  + sum (fmap (\(Some1 (Minimize expr)) -> exprSize expr) $ omt^.targetMinimize)
+                  + sum (fmap (\(Some1 (Maximize expr)) -> exprSize expr) $ omt^.targetMaximize)
       putStrLn $ "Size:            " ++ show omtSize
     }

@@ -21,6 +21,7 @@ import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.Expr
+import Data.Some.Constraint
 import Data.List (isPrefixOf)
 import Data.Default
 import Data.Coerce
@@ -57,7 +58,7 @@ instance MonadState SMT m => MonadSMT SMT m where
 
   var' p = do
     newVar <- smtvar' p
-    vars %= (|> SomeSMTSort newVar)
+    vars %= (|> Some1 newVar)
     return $ Var newVar
   {-# INLINEABLE var' #-}
 

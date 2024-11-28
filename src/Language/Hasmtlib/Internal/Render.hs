@@ -11,6 +11,7 @@ import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Bitvec
 import Language.Hasmtlib.Type.ArrayMap
 import Data.Coerce
+import Data.Some.Constraint
 import Data.Sequence
 import Data.Foldable (foldl')
 import Data.Map (size, minViewWithKey)
@@ -292,7 +293,7 @@ class RenderProblem s where
 instance RenderProblem SMT where
   renderOptions = fromList . fmap render . view options
   renderLogic = maybe mempty (renderSetLogic . stringUtf8) . view mlogic
-  renderDeclareVars = fmap (\(SomeSMTSort v) -> renderDeclareVar v) . view vars
+  renderDeclareVars = fmap (\(Some1 v) -> renderDeclareVar v) . view vars
   renderAssertions = fmap renderAssert . view formulas
   renderSoftAssertions _ = mempty
   renderMinimizations _ = mempty
@@ -304,5 +305,5 @@ instance RenderProblem OMT where
   renderDeclareVars = renderDeclareVars . view smt
   renderAssertions = renderAssertions . view smt
   renderSoftAssertions = fmap render . view softFormulas
-  renderMinimizations = fmap (\case SomeSMTSort minExpr -> render minExpr) . view targetMinimize
-  renderMaximizations = fmap (\case SomeSMTSort maxExpr -> render maxExpr) . view targetMaximize
+  renderMinimizations = fmap (\case Some1 minExpr -> render minExpr) . view targetMinimize
+  renderMaximizations = fmap (\case Some1 maxExpr -> render maxExpr) . view targetMaximize

@@ -12,6 +12,7 @@ import Language.Hasmtlib.Type.MonadSMT
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Expr
 import Data.GADT.Compare
+import Data.Some.Constraint
 import Data.HashMap.Lazy
 import Data.Default
 import Data.Kind
@@ -72,7 +73,7 @@ share expr@(Exists _ _) _ = return expr
 share origExpr expr = do
   let sn = unsafePerformIO (makeStableName' origExpr)
    in use (stableMap.at sn) >>= \mexpr' -> case mexpr' of
-        Just (SomeSMTSort expr') -> case geq (sortSing' origExpr) (sortSing' expr') of
+        Just (Some1 expr') -> case geq (sortSing' origExpr) (sortSing' expr') of
           Nothing -> expr >>= makeNode sn
           Just Refl -> return expr'
         Nothing -> expr >>= makeNode sn
@@ -81,7 +82,7 @@ makeNode :: (Equatable (Expr t), KnownSMTSort t, MonadSMT s m, Sharing s, Sharin
 makeNode sn nodeExpr = do
   nodeVar <- var
   assertSharedNode sn $ nodeVar === nodeExpr
-  stableMap.at sn ?= SomeSMTSort nodeVar
+  stableMap.at sn ?= Some1 nodeVar
   return nodeVar
 
 makeStableName' :: a -> IO (StableName ())
