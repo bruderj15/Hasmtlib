@@ -6,6 +6,17 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.7.2 _(2024-11-27)_
+
+### Added
+- Added dependency `constrained-some`
+
+### Changed
+- Replaced internal usages of custom existential `SomeSMTSort` with `Some1` from `constrained-some`
+
+### Removed
+- Removed module `Language.Hasmtlib.Internal.Constraint`
+
 ## v2.7.1 _(2024-10-05)_
 
 ### Changed

@@ -13,6 +13,7 @@ import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Solution
 import Language.Hasmtlib.Type.ArrayMap
 import Language.Hasmtlib.Type.Expr
+import Data.Some.Constraint
 import Data.Bit
 import Data.Coerce
 import Data.Proxy
@@ -66,23 +67,23 @@ parseSomeSol = do
   _     <- string "var_"
   vId   <- decimal @Int
   _     <- skipSpace >> string "()" >> skipSpace
-  (SomeSMTSort someSort) <- parseSomeSort
+  (Some1 someSort) <- parseSomeSort
   _     <- skipSpace
   expr  <- parseExpr' someSort
   _     <- skipSpace >> char ')'
   case decode mempty expr of
     Nothing    -> fail $ "Solver reponded with solution for var_" ++ show vId ++ " but it contains "
                       ++ "another var. This cannot be parsed and evaluated currently."
-    Just value -> return $ SomeSMTSort $ SMTVarSol (coerce vId) (wrapValue value)
+    Just value -> return $ Some1 $ SMTVarSol (coerce vId) (wrapValue value)
 {-# INLINEABLE parseSomeSol #-}
 
 parseSomeSort :: Parser (SomeKnownOrdSMTSort SSMTSort)
-parseSomeSort = (string "Bool" *> pure (SomeSMTSort SBoolSort))
-        <|> (string "Int"  *> pure (SomeSMTSort SIntSort))
-        <|> (string "Real" *> pure (SomeSMTSort SRealSort))
+parseSomeSort = (string "Bool" *> pure (Some1 SBoolSort))
+        <|> (string "Int"  *> pure (Some1 SIntSort))
+        <|> (string "Real" *> pure (Some1 SRealSort))
         <|> parseSomeBitVecSort
         <|> parseSomeArraySort
-        <|> (string "String" *> pure (SomeSMTSort SStringSort))
+        <|> (string "String" *> pure (Some1 SStringSort))
 {-# INLINEABLE parseSomeSort #-}
 
 parseSomeBitVecSort :: Parser (SomeKnownOrdSMTSort SSMTSort)
@@ -95,18 +96,18 @@ parseSomeBitVecSort = do
     -- SMTLib does not differentiate between signed and unsigned BitVec on the type-level
     -- We do. So we always just put Unsigned here and in Codec (Expr t)
     -- if (t ~ BvSort Signed _) we retrieve unsigned solution and flip type-level encoding
-    SomeNat pn -> return $ SomeSMTSort $ SBvSort (Proxy @Unsigned) pn
+    SomeNat pn -> return $ Some1 $ SBvSort (Proxy @Unsigned) pn
 {-# INLINEABLE parseSomeBitVecSort #-}
 
 parseSomeArraySort :: Parser (SomeKnownOrdSMTSort SSMTSort)
 parseSomeArraySort = do
   _ <- char '(' >> skipSpace
   _ <- string "Array" >> skipSpace
-  (SomeSMTSort keySort)   <- parseSomeSort
+  (Some1 keySort)   <- parseSomeSort
   _ <- skipSpace
-  (SomeSMTSort valueSort) <- parseSomeSort
+  (Some1 valueSort) <- parseSomeSort
   _ <- skipSpace >> char ')'
-  return $ SomeSMTSort $ SArraySort (goProxy keySort) (goProxy valueSort)
+  return $ Some1 $ SArraySort (goProxy keySort) (goProxy valueSort)
     where
       goProxy :: forall t. SSMTSort t -> Proxy t
       goProxy _ = Proxy @t
