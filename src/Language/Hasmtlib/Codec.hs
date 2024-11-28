@@ -137,15 +137,15 @@ instance KnownSMTSort t => Codec (Expr t) where
   decode sol (Or x y)           = (||) <$> decode sol x <*> decode sol y
   decode sol (Impl x y)         = (==>) <$> decode sol x <*> decode sol y
   decode sol (Xor x y)          = xor   <$> decode sol x <*> decode sol y
-  decode _ Pi                   = Just pi
-  decode sol (Sqrt x)           = fmap sqrt  (decode sol x)
-  decode sol (Exp x)            = fmap exp   (decode sol x)
-  decode sol (Sin x)            = fmap sin   (decode sol x)
-  decode sol (Cos x)            = fmap cos   (decode sol x)
-  decode sol (Tan x)            = fmap tan   (decode sol x)
-  decode sol (Asin x)           = fmap asin  (decode sol x)
-  decode sol (Acos x)           = fmap acos  (decode sol x)
-  decode sol (Atan x)           = fmap atan  (decode sol x)
+  decode _ Pi                   = Just $ toRational pi
+  decode sol (Sqrt x)           = fmap (toRational . sqrt . fromRational @Double)  (decode sol x)
+  decode sol (Exp x)            = fmap (toRational . exp . fromRational @Double)   (decode sol x)
+  decode sol (Sin x)            = fmap (toRational . sin . fromRational @Double)   (decode sol x)
+  decode sol (Cos x)            = fmap (toRational . cos . fromRational @Double)   (decode sol x)
+  decode sol (Tan x)            = fmap (toRational . tan . fromRational @Double)   (decode sol x)
+  decode sol (Asin x)           = fmap (toRational . asin . fromRational @Double)  (decode sol x)
+  decode sol (Acos x)           = fmap (toRational . acos . fromRational @Double)  (decode sol x)
+  decode sol (Atan x)           = fmap (toRational . atan . fromRational @Double)  (decode sol x)
   decode sol (ToReal x)         = fmap realToFrac (decode sol x)
   decode sol (ToInt x)          = fmap truncate   (decode sol x)
   decode sol (IsInt x)          = fmap ((0 ==) . snd . properFraction) (decode sol x)

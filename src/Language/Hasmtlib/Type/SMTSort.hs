@@ -44,7 +44,7 @@ data SMTSort =
 -- | Injective type-family that computes the Haskell 'Type' of an 'SMTSort'.
 type family HaskellType (t :: SMTSort) = (r :: Type) | r -> t where
   HaskellType IntSort         = Integer
-  HaskellType RealSort        = Double
+  HaskellType RealSort        = Rational
   HaskellType BoolSort        = Bool
   HaskellType (BvSort enc n)  = Bitvec enc n
   HaskellType (ArraySort k v) = ConstArray (HaskellType k) (HaskellType v)
