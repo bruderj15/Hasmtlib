@@ -167,7 +167,7 @@ var = do
 constant :: forall t. KnownSMTSort t => Parser (HaskellType t)
 constant = case sortSing @t of
   SIntSort       -> anyValue decimal
-  SRealSort      -> anyValue parseRatioDouble <|> parseToRealDouble <|> anyValue rational
+  SRealSort      -> anyValue parseRational <|> parseToRealRational <|> anyValue rational
   SBoolSort      -> parseBool
   SBvSort _ p    -> anyBitvector p
   SArraySort k v -> constArray k v
@@ -288,25 +288,25 @@ negativeValue p = do
   return $ negate val
 {-# INLINE negativeValue #-}
 
-parseRatioDouble :: Parser Double
-parseRatioDouble = do
+parseRational :: Parser Rational
+parseRational = do
   _           <- char '(' >> skipSpace >> char '/' >> skipSpace
   numerator   <- decimal
   _           <- skipSpace
   denominator <- decimal
   _           <- skipSpace >> char ')'
 
-  return $ fromRational $ numerator % denominator
-{-# INLINEABLE parseRatioDouble #-}
+  return $ numerator % denominator
+{-# INLINEABLE parseRational #-}
 
-parseToRealDouble :: Parser Double
-parseToRealDouble = do
+parseToRealRational :: Parser Rational
+parseToRealRational = do
   _   <- char '(' >> skipSpace >> string "to_real" >> skipSpace
   dec <- anyValue decimal
   _   <- skipSpace >> char ')'
 
-  return $ fromInteger dec
-{-# INLINEABLE parseToRealDouble #-}
+  return $ toRational dec
+{-# INLINEABLE parseToRealRational #-}
 
 parseBool :: Parser Bool
 parseBool = (string "true" *> pure True) <|> (string "false" *> pure False)

@@ -10,6 +10,7 @@ import Language.Hasmtlib.Type.Option
 import Language.Hasmtlib.Type.SMTSort
 import Language.Hasmtlib.Type.Bitvec
 import Language.Hasmtlib.Type.ArrayMap
+import Data.Ratio
 import Data.Coerce
 import Data.Some.Constraint
 import Data.Sequence
@@ -64,6 +65,14 @@ instance Render Double where
     | x < 0     = "(- " <> formatDouble standardDefaultPrecision (abs x) <> ")"
     | otherwise = formatDouble standardDefaultPrecision x
   {-# INLINE render #-}
+
+instance Render Rational where
+  render x = if num < 0
+             then "(/ " <> "(- " <> render (abs num) <> ") " <> render denom <> ")"
+             else "(/ " <> render num <> " " <> render denom <> ")"
+    where
+      num = numerator x
+      denom = denominator x
 
 instance Render Char where
   render = char8
