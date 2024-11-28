@@ -6,6 +6,11 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.8.0 _(2024-11-28)_
+
+### Changed
+- Replaced representation of `RealSort` values in Haskell with `Rational` instead of `Double`
+
 ## v2.7.2 _(2024-11-27)_
 
 ### Added
