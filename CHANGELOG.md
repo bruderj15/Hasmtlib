@@ -6,6 +6,11 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PVP versioning](https://pvp.haskell.org/).
 
+## v2.8.1 _(2024-11-29)_
+
+### Added
+- Added instances `Semigroup`, `Monoid` and `Contravariant` for `Debugger`
+
 ## v2.8.0 _(2024-11-28)_
 
 ### Changed
