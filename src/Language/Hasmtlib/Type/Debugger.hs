@@ -19,7 +19,6 @@ module Language.Hasmtlib.Type.Debugger
   , assertionish
   , incrementalStackish, getValueish
   , responseish
-
   )
 where
 
@@ -34,6 +33,7 @@ import Data.ByteString.Lazy.UTF8 (toString)
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Char8
 import Data.Default
+import Data.Functor.Contravariant
 import Control.Lens hiding (op)
 
 -- | A type holding actions for debugging states holding SMT-Problems.
@@ -57,6 +57,33 @@ data Debugger s = Debugger
 
 instance Default (Debugger s) where
   def = verbosely
+
+-- | Concats actions
+instance Semigroup (Debugger s) where
+  x <> y = Debugger
+    (\input -> debugState x input          >> debugState y input)
+    (\input -> debugOption x input         >> debugOption y input)
+    (\input -> debugLogic x input          >> debugLogic y input)
+    (\input -> debugVar x input            >> debugVar y input)
+    (\input -> debugAssert x input         >> debugAssert y input)
+    (\input -> debugPop x input            >> debugPop y input)
+    (\input -> debugCheckSat x input       >> debugCheckSat y input)
+    (\input -> debugGetModel x input       >> debugGetModel y input)
+    (\input -> debugGetValue x input       >> debugGetValue y input)
+    (\input -> debugMinimize x input       >> debugMinimize y input)
+    (\input -> debugMaximize x input       >> debugMaximize y input)
+    (\input -> debugMaximize x input       >> debugMaximize y input)
+    (\input -> debugAssertSoft x input     >> debugAssertSoft y input)
+    (\input -> debugResultResponse x input >> debugResultResponse y input)
+    (\input -> debugModelResponse x input  >> debugModelResponse y input)
+
+instance Monoid (Debugger s) where
+  mempty = silently
+
+instance Contravariant Debugger where
+  contramap f' debugger = debugger { debugState = f . f' }
+    where
+      f = debugState debugger
 
 printer :: Builder -> IO ()
 printer = ByteString.Char8.putStrLn . toLazyByteString
