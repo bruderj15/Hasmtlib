@@ -8,7 +8,7 @@ It is highly inspired by [ekmett/ersatz](https://github.com/ekmett/ersatz) which
 
 Building expressions with **type-level representations** of the **SMTLib2-Sorts** guarantees type-safety when communicating with external solvers.
 
-While **formula construction** is entirely **pure**, Hasmtlib - just like `ersatz` - makes use of _**observable sharing**_ for expressions.
+While **formula construction** is entirely **pure**, Hasmtlib - just like `ersatz` - can make use of _**observable sharing**_ for expressions. You can do this by declaring `setSharingMode StableNames`.
 
 This allows you to use the much richer subset of Haskell than a purely monadic meta-language would, which ultimately results in extremely compact code.
 
